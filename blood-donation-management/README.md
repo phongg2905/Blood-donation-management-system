@@ -1,0 +1,169 @@
+# Hệ thống quản lý hiến máu
+
+Skeleton full-stack cho quản lý đợt hiến máu và từng lượt tham gia của người hiến. Giai đoạn này chỉ triển khai hạ tầng development và health API; chưa có nghiệp vụ hiến máu.
+
+## Tech stack
+
+pnpm workspace, React 19 + TypeScript + Vite 7, Node.js + Express 5 REST API, Prisma 6.19, PostgreSQL 16, Docker Compose, ESLint và Prettier. Backend là modular monolith.
+
+## Cấu trúc
+
+```text
+blood-donation-management/
+├── apps/
+│   ├── web/                 # Home, layouts, features, services
+│   └── api/
+│       ├── prisma/          # Schema và migrations
+│       └── src/
+│           ├── config/
+│           ├── modules/     # Các domain, health và service xếp lịch nội bộ
+│           ├── middlewares/
+│           ├── common/
+│           ├── database/seed/
+│           ├── routes/
+│           ├── app.ts
+│           └── server.ts
+├── packages/
+│   ├── shared-types/
+│   ├── shared-validation/
+│   └── eslint-config/
+├── docs/{requirements,database,api,uml}/
+├── docker/                  # Dự phòng cấu hình hạ tầng
+├── .env.example
+├── docker-compose.yml
+├── package.json
+└── pnpm-workspace.yaml
+```
+
+Backend: Route → Controller → Service → Repository → Prisma → PostgreSQL. Module giao tiếp qua service công khai. Controller chỉ điều phối HTTP.
+Health là module HTTP mẫu chạy thật. Module time-slots có service/repository kiểm tra khung giờ và capacity; các module còn lại có placeholder hoặc validation để phát triển tiếp.
+Frontend có PublicLayout, DonorLayout, StaffLayout, AdminLayout và 14 thư mục feature; layout chưa có bảo vệ route.
+
+## Yêu cầu
+
+- Node.js 22.12 trở lên trong nhánh 22 LTS.
+- pnpm 10.18.2.
+- Docker Desktop đang chạy, sử dụng Linux containers.
+- Cổng 3000, 5173 và 5432 còn trống.
+
+Cài pnpm nếu chưa có:
+
+```sh
+npm install --global pnpm@10.18.2
+```
+
+Windows PowerShell chặn pnpm.ps1: dùng `pnpm.cmd` và `npm.cmd` tương ứng; không cần thay đổi ExecutionPolicy.
+
+## Khởi động lần đầu
+
+Mở terminal tại thư mục chứa README này. Nếu clone repository cha, chạy `cd blood-donation-management` trước.
+
+Tạo environment ở **root monorepo**, không cần .env riêng trong từng app:
+
+PowerShell:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+macOS/Linux:
+
+```sh
+cp .env.example .env
+```
+
+Sau đó:
+
+```sh
+pnpm install
+docker compose up -d
+pnpm db:generate
+pnpm db:migrate
+pnpm dev
+```
+
+Migration đầu tiên đã có sẵn; Prisma sẽ áp dụng vào database trống. Khi sửa schema, dùng `pnpm db:migrate --name ten_thay_doi`.
+Có thể seed 7 role RBAC bằng `pnpm db:seed` sau migration.
+
+Trên Windows, dừng API bằng Ctrl+C trước khi chạy `db:generate` hoặc `db:migrate`.
+API đang chạy có thể giữ khóa DLL Prisma, gây lỗi EPERM khi generate. Sau migration, chạy lại `pnpm dev`.
+
+Frontend: http://localhost:5173  
+Backend health: http://localhost:3000/api/health  
+Base API: http://localhost:3000/api  
+PostgreSQL: localhost:5432, database blood_donation, user postgres.
+
+Root backend `/` trả 404 có chủ ý, vì chưa cung cấp route tại đó.
+
+Chạy riêng hai terminal:
+
+```sh
+pnpm dev:api
+pnpm dev:web
+```
+
+Shared packages được build tự động khi install và trước dev. Sau khi sửa shared source, chạy `pnpm build` hoặc khởi động lại `pnpm dev`.
+
+## Environment và PostgreSQL
+
+`.env.example` cung cấp giá trị local development, không dùng credentials này ở production.
+`.env` đã được gitignore. Vite chỉ đưa biến có tiền tố VITE_ vào client; tuyệt đối không đặt secret dưới tiền tố đó.
+
+- API_PORT: cổng Express, mặc định 3000.
+- DATABASE_URL: kết nối Prisma; query timeout kết nối trong URL.
+- CORS_ORIGIN: origin frontend được phép, mặc định http://localhost:5173.
+- POSTGRES_USER / POSTGRES_PASSWORD / POSTGRES_DB: khởi tạo PostgreSQL.
+- POSTGRES_PORT: cổng host cho container.
+- VITE_API_BASE_URL: mặc định /api; Vite proxy chuyển tới API_PORT.
+
+Nếu 5432 đã bị chiếm, đổi **cả** POSTGRES_PORT và cổng trong DATABASE_URL sang cổng trống (ví dụ 5434). Không cần dừng database của project khác.
+Nếu đổi user/password/database, cập nhật DATABASE_URL đồng bộ. Biến POSTGRES_* chỉ khởi tạo khi volume còn trống.
+
+Compose dùng volume postgres_data và healthcheck pg_isready. `docker compose down` giữ dữ liệu; `docker compose down -v` xóa volume và dữ liệu.
+Frontend/backend chạy trực tiếp trên máy để dễ debug.
+
+## Kiểm tra
+
+```sh
+docker compose ps
+pnpm db:deploy
+pnpm typecheck
+pnpm lint
+pnpm format:check
+pnpm build
+pnpm test
+curl http://localhost:3000/api/health
+curl http://localhost:5173/api/health
+```
+
+Trên Windows dùng `curl.exe` nếu curl là alias PowerShell.
+`pnpm test` cần PostgreSQL đang chạy; kiểm tra health, middleware, validation nghiệp vụ, constraint/quan hệ mới và tranh chấp capacity. Tests rollback hoặc dọn đúng fixture của mình sau khi chạy.
+Mở frontend sẽ thấy **API Status: OK** và **PostgreSQL: connected**.
+Nếu database mất kết nối, health trả HTTP 503 và frontend hiển thị lỗi; dùng nút Kiểm tra lại sau khi khôi phục.
+Vite proxy chỉ phục vụ development; khi triển khai build web cần reverse proxy /api hoặc cấu hình VITE_API_BASE_URL trước build.
+
+## Commands
+
+| Command                         | Công dụng                         |
+| ------------------------------- | --------------------------------- |
+| pnpm dev                        | Chạy frontend + backend           |
+| pnpm dev:web / pnpm dev:api     | Chạy từng app                     |
+| pnpm build                      | Build shared packages, API và web |
+| pnpm typecheck                  | Kiểm tra TypeScript strict        |
+| pnpm lint                       | Kiểm tra ESLint                   |
+| pnpm format / pnpm format:check | Format / kiểm tra Prettier        |
+| pnpm test                       | Kiểm thử API và middleware        |
+| pnpm db:generate                | Sinh Prisma Client                |
+| pnpm db:migrate                 | Migration development             |
+| pnpm db:deploy                  | Áp dụng migrations đã có          |
+| pnpm db:seed                    | Tạo 7 role RBAC                   |
+| pnpm db:studio                  | Mở Prisma Studio                  |
+| docker compose logs postgres    | Xem log PostgreSQL                |
+| pnpm --filter @blood/api start  | Chạy API sau build                |
+
+## Phạm vi tiếp theo
+
+Chưa triển khai đăng nhập/JWT, refresh token, CRUD, đăng ký hiến, sàng lọc, lấy máu, dashboard/báo cáo, email/notification, PDF, upload hoặc QR.
+Bước tiếp theo: chốt yêu cầu và ma trận quyền, thiết kế authentication, rồi phát triển lần lượt module đợt hiến và đăng ký với transaction/validation nghiệp vụ.
+
+Chi tiết: [Database](docs/database/README.md), [API](docs/api/README.md).
