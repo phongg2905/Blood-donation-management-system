@@ -1,6 +1,6 @@
 # Refine blood donation domain
 
-Giữ 21 entity và toàn bộ quan hệ/RBAC cũ. Migration mới: `20260912070000_refine_blood_donation_domain`. Không reset, không xóa migration cũ.
+Schema hiện tại giữ 21 entity và toàn bộ quan hệ/RBAC cũ, đồng thời mở rộng thông tin nghiệp vụ. Migration `20260918090000_extend_donation_schema` bổ sung phần mở rộng mới nhất, tiếp nối `20260912035436_init` và `20260912070000_refine_blood_donation_domain`. Không reset, không xóa migration cũ. Mỗi môi trường cần áp dụng đủ migration để khớp schema.
 
 ## Enum
 
@@ -9,6 +9,16 @@ Giữ 21 entity và toàn bộ quan hệ/RBAC cũ. Migration mới: `20260912070
 - ScreeningStatus: thêm WAITING_REVIEW (chờ kết luận), DEFERRED (tạm hoãn).
 - BloodBagStatus: CREATED, COLLECTED, PENDING_TEST, TESTED, ACCEPTED, REJECTED, DISCARDED; mặc định CREATED.
 - CertificateStatus: ACTIVE, REVOKED; mặc định ACTIVE.
+- BloodType: A_POSITIVE, A_NEGATIVE, B_POSITIVE, B_NEGATIVE, AB_POSITIVE, AB_NEGATIVE, O_POSITIVE, O_NEGATIVE.
+- CampaignAssignment: CHECK_IN, SCREENING, COLLECTION, SUPPORT.
+- DonationType: WHOLE_BLOOD, PLASMA, PLATELETS; mặc định WHOLE_BLOOD.
+- BloodComponent: WHOLE_BLOOD, RED_BLOOD_CELLS, PLASMA, PLATELETS; mặc định WHOLE_BLOOD.
+- ReactionSeverity: MILD, MODERATE, SEVERE.
+- NotificationType: GENERAL, REGISTRATION, CAMPAIGN, DONATION, CERTIFICATE, SYSTEM; mặc định GENERAL.
+- NotificationChannel: IN_APP, EMAIL, SMS; mặc định IN_APP.
+- NotificationStatus: PENDING, SENT, FAILED; mặc định PENDING.
+
+CampaignStatus và DonationStatus tiếp tục dùng các giá trị trong schema; DonationStatus gồm PENDING, IN_PROGRESS, COMPLETED, STOPPED.
 
 Enum không phải state machine; không dùng thứ tự enum để suy ra tiến độ.
 
@@ -28,7 +38,30 @@ Enum không phải state machine; không dùng thứ tự enum để suy ra ti�
 | User              | performedCheckIns, performedScreenings, performedDonations (relation fields, không phải cột SQL)               |
 
 Các timestamp mới dùng TIMESTAMPTZ(3); deferredUntil chỉ là ngày theo lịch nghiệp vụ, không phải thời điểm UTC.
-Các field metadata mới nullable để giữ tương thích bản ghi cũ. Nullable không đồng nghĩa được phép bỏ người thực hiện trong workflow mới: service tương lai lấy actor từ phiên đăng nhập đã xác thực.
+Các field người thực hiện nullable trong schema. Nullable không đồng nghĩa được phép bỏ người thực hiện trong workflow mới: service tương lai lấy actor từ phiên đăng nhập đã xác thực.
+
+Các trường liên quan đến phần mở rộng mới nhất (submittedAt/notes của HealthDeclaration và notes của Screening đã có từ migration đầu):
+
+| Entity | Bổ sung hoặc thay đổi |
+| --- | --- |
+| User | emailVerifiedAt, lastLoginAt: DateTime? |
+| Role, Permission | description: String? |
+| DonorProfile | bloodType: BloodType?; emergencyName, emergencyPhone: String? |
+| DonationCampaign | organizerName, contactPhone: String? |
+| CampaignTimeSlot | label: String?; isActive: Boolean, mặc định true |
+| CampaignStaff | assignment: CampaignAssignment? |
+| Registration | cancelReason, notes: String? |
+| HealthDeclaration | submittedAt: DateTime?; questionnaireVersion, notes: String? |
+| CheckIn | notes: String? |
+| Screening | notes: String?; weightKg: Decimal(5,2)?; systolicBp, diastolicBp, pulse: Int?; temperatureC: Decimal(4,2)?; hemoglobin: Decimal(5,2)? |
+| ScreeningTest | numericValue: Decimal(12,4)?; isPassed: Boolean? |
+| Donation | donationType: DonationType, mặc định WHOLE_BLOOD; notes: String? |
+| BloodBag | bloodType: BloodType?; component: BloodComponent, mặc định WHOLE_BLOOD; collectedAt, expiresAt: DateTime?; storageLocation: String? |
+| PostDonationReaction | severity: ReactionSeverity?; actionTaken: String?; resolvedAt: DateTime? |
+| Certificate | fileUrl: String? |
+| Notification | type, channel, status theo enum và default ở trên; sentAt: DateTime? |
+| AuditLog | metadata: Json?; ipAddress, userAgent: String?; bỏ updatedAt |
+| SystemSetting | valueType, category: String? |
 
 ## Người thực hiện và bảo toàn lịch sử
 
@@ -37,7 +70,7 @@ Mỗi FK trỏ User.id và dùng onDelete Restrict. Dùng isActive để ngừng
 Screening.screenedBy đại diện người chịu trách nhiệm đánh giá/kết luận hiện tại; chưa mô hình hóa nhiều người cùng sàng lọc.
 
 Certificate REVOKED vẫn giữ donationId và code duy nhất. Khi triển khai service thu hồi, ghi status/revokedAt/revokeReason cùng transaction; không hard-delete.
-AuditLog là append-only ở tầng business: không cung cấp update/delete service. Schema vẫn giữ updatedAt cũ; đây chưa phải cơ chế chống sửa bằng quyền SQL hoặc trigger.
+AuditLog được thiết kế theo hướng append-only; schema hiện chỉ có createdAt, không còn updatedAt. metadata lưu thông tin bổ sung, ipAddress/userAgent lưu ngữ cảnh thao tác. Service ghi log chưa được triển khai; việc bỏ updatedAt không tự ngăn UPDATE/DELETE bằng Prisma hoặc SQL. actorId dùng onDelete SetNull để giữ log khi tài khoản được xóa.
 
 ## Thời gian và thể tích Donation
 
@@ -53,11 +86,11 @@ AuditLog là append-only ở tầng business: không cung cấp update/delete se
 
 ## Kết quả sàng lọc và khai báo sức khỏe
 
-Các chỉ số nằm ở ScreeningTest, không thêm cột weight/temperature/pulse trùng trên Screening.
+Screening lưu trực tiếp các chỉ số weightKg, systolicBp, diastolicBp, pulse, temperatureC và hemoglobin tại lượt khám. ScreeningTest lưu các kết quả xét nghiệm theo code, hỗ trợ result dạng chuỗi, numericValue dạng số và isPassed tùy chọn. Schema chưa có cơ chế ngăn cùng một chỉ số được lưu ở cả hai nơi; khi triển khai cần chốt nguồn dữ liệu chính cho từng chỉ số để tránh lệch kết quả.
 Chọn một kết quả hiện hành cho mỗi code trong một Screening, ràng buộc unique(screeningId, code). Nếu cần lưu nhiều lần đo, phải bổ sung mô hình lần đo bằng migration sau; không lặng lẽ ghi đè lịch sử cần lưu.
 result giữ String? để tương thích; unit/referenceRange là metadata. referenceRange chỉ để hiển thị, không tự suy ra đủ điều kiện từ chuỗi này.
 assertMeasurement cung cấp kiểm tra số dương/giới hạn hữu hạn và tùy chọn số nguyên. Giới hạn nhiệt độ/mạch phải lấy từ chính sách đã duyệt hoặc SystemSetting; chưa seed ngưỡng y tế tùy ý.
-WEIGHT_KG, TEMPERATURE, PULSE có thể chuẩn hóa thành code ở giai đoạn thiết kế bộ chỉ số; hiện chưa có danh mục test bắt buộc.
+Hiện chưa có danh mục test bắt buộc hoặc quy tắc đồng bộ giữa Screening và ScreeningTest; helper kiểm tra số chưa thay thế validation đầy đủ cho các trường mới.
 
 answers là snapshot câu trả lời của riêng HealthDeclaration, ví dụ:
 
@@ -79,6 +112,7 @@ Thêm:
 - Registration(campaignId, status): danh sách đăng ký của đợt.
 - Screening.status, Donation.status, BloodBag.status: hàng đợi xử lý.
 - CheckIn.checkedInById, Screening.screenedById, Donation.performedById: tra cứu theo nhân viên và kiểm tra FK.
+- Migration mở rộng bổ sung index DonorProfile.bloodType, Donation.donationType, BloodBag.bloodType, BloodBag(status, expiresAt), PostDonationReaction.severity, Notification(status, createdAt) và AuditLog.createdAt.
 
 Không thêm Registration(donorId) riêng vì unique(donorId, campaignId) đã có donorId đứng đầu.
 
@@ -98,9 +132,11 @@ Service xếp lịch chỉ là nền tảng nội bộ, chưa có API đăng ký
 
 ## Migration và kiểm thử
 
-Trước khi thêm unique, `node apps/api/scripts/refine-preflight.mjs` kiểm tra test trùng và in số bản ghi, không in dữ liệu cá nhân.
-Prisma migrate dev --create-only gặp môi trường không tương tác khi cần xác nhận unique, nên migration được sinh bằng Prisma migrate diff, rà soát SQL rồi áp dụng qua db:deploy.
-Không xóa dữ liệu trùng tự động.
+Đối với migration refine cũ, `node apps/api/scripts/refine-preflight.mjs` kiểm tra test trùng trước khi thêm unique và in số bản ghi, không in dữ liệu cá nhân. Script này không kiểm tra đầy đủ phần mở rộng mới nhất.
+
+Migration mở rộng chạy trong transaction. CampaignStaff.assignment được cast trực tiếp từ chuỗi sang enum để giữ giá trị cũ; nếu có giá trị ngoài CHECK_IN/SCREENING/COLLECTION/SUPPORT, migration sẽ thất bại và rollback, cần đối chiếu dữ liệu trước khi thử lại. AuditLog.updatedAt được lưu vào metadata.legacyUpdatedAt trước khi bỏ cột. Không xóa dữ liệu trùng tự động. `db:deploy` chỉ áp dụng migration đã có; `db:generate` chỉ sinh Prisma Client, không cập nhật cấu trúc database.
+
+Các lệnh dưới đây phục vụ áp dụng và kiểm tra trên từng môi trường:
 
 ```sh
 pnpm --filter @blood/api exec prisma format
@@ -119,8 +155,8 @@ Seed role vẫn dùng upsert, không cần sửa; chạy hai lần vẫn giữ 7
 
 ## Chưa triển khai
 
-ReactionSeverity/treatment/recordedBy, CheckInMethod, audit metadata, biểu mẫu động và Location riêng được để lại theo ưu tiên 3.
+Schema đã có ReactionSeverity, PostDonationReaction.actionTaken/resolvedAt và AuditLog.metadata/ipAddress/userAgent, nhưng chưa có API nghiệp vụ tương ứng. Chưa có recordedBy cho phản ứng, CheckInMethod, biểu mẫu động hoặc entity Location riêng. CampaignTimeSlot.isActive đã có trong schema nhưng service xếp lịch hiện chưa kiểm tra trường này.
 Không thêm DonationHistory, inventory, bệnh viện, truyền máu hay microservice.
 Không seed SystemSetting ngưỡng y tế khi chưa chốt chính sách.
 
-Không có breaking change đối với backend health/seed hiện tại. Hai unique mới sẽ từ chối các bản ghi trùng trước đây có thể được phép; các actor FK mới bảo vệ việc xóa User. Field trạng thái mới có default; giá trị CREATED/ACTIVE trên dữ liệu có sẵn cần được đối chiếu khi áp dụng lên database đã có dữ liệu thực.
+Health/seed không sử dụng trực tiếp phần lớn trường mới, nhưng không thể dùng kết quả của chúng để kết luận schema và database đã đồng bộ. Cần kiểm tra migration, sinh lại Prisma Client và chạy các kiểm thử liên quan sau khi đồng bộ; các giá trị mặc định trên dữ liệu có sẵn cần được đối chiếu khi áp dụng.
