@@ -61,6 +61,64 @@ enum DonationStatus {
   STOPPED
 }
 
+enum BloodType {
+  A_POSITIVE
+  A_NEGATIVE
+  B_POSITIVE
+  B_NEGATIVE
+  AB_POSITIVE
+  AB_NEGATIVE
+  O_POSITIVE
+  O_NEGATIVE
+}
+
+enum CampaignAssignment {
+  CHECK_IN
+  SCREENING
+  COLLECTION
+  SUPPORT
+}
+
+enum DonationType {
+  WHOLE_BLOOD
+  PLASMA
+  PLATELETS
+}
+
+enum BloodComponent {
+  WHOLE_BLOOD
+  RED_BLOOD_CELLS
+  PLASMA
+  PLATELETS
+}
+
+enum ReactionSeverity {
+  MILD
+  MODERATE
+  SEVERE
+}
+
+enum NotificationType {
+  GENERAL
+  REGISTRATION
+  CAMPAIGN
+  DONATION
+  CERTIFICATE
+  SYSTEM
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+  SMS
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
 model User {
   id                  String          @id @default(uuid()) @db.Uuid
   createdAt           DateTime        @default(now()) @db.Timestamptz(3)
@@ -69,6 +127,9 @@ model User {
   passwordHash        String?
   fullName            String
   isActive            Boolean         @default(true)
+  emailVerifiedAt     DateTime?       @db.Timestamptz(3)
+  lastLoginAt         DateTime?       @db.Timestamptz(3)
+
   roles               UserRole[]
   donorProfile        DonorProfile?
   campaignAssignments CampaignStaff[]
@@ -85,17 +146,21 @@ model Role {
   updatedAt   DateTime         @updatedAt @db.Timestamptz(3)
   code        String           @unique
   name        String
+  description String?
+
   users       UserRole[]
   permissions RolePermission[]
 }
 
 model Permission {
-  id        String           @id @default(uuid()) @db.Uuid
-  createdAt DateTime         @default(now()) @db.Timestamptz(3)
-  updatedAt DateTime         @updatedAt @db.Timestamptz(3)
-  code      String           @unique
-  name      String
-  roles     RolePermission[]
+  id          String           @id @default(uuid()) @db.Uuid
+  createdAt   DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime         @updatedAt @db.Timestamptz(3)
+  code        String           @unique
+  name        String
+  description String?
+
+  roles       RolePermission[]
 }
 
 model UserRole {
@@ -104,8 +169,9 @@ model UserRole {
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
   userId    String   @db.Uuid
   roleId    String   @db.Uuid
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role      Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
   @@unique([userId, roleId])
   @@index([roleId])
@@ -117,56 +183,69 @@ model RolePermission {
   updatedAt    DateTime   @updatedAt @db.Timestamptz(3)
   roleId       String     @db.Uuid
   permissionId String     @db.Uuid
-  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
 
   @@unique([roleId, permissionId])
   @@index([permissionId])
 }
 
 model DonorProfile {
-  id            String         @id @default(uuid()) @db.Uuid
-  createdAt     DateTime       @default(now()) @db.Timestamptz(3)
-  updatedAt     DateTime       @updatedAt @db.Timestamptz(3)
-  userId        String         @unique @db.Uuid
-  dateOfBirth   DateTime?      @db.Date
-  phone         String?
-  citizenId     String?        @unique
-  gender        Gender?
-  address       String?
+  id             String    @id @default(uuid()) @db.Uuid
+  createdAt      DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime  @updatedAt @db.Timestamptz(3)
+  userId         String    @unique @db.Uuid
+  dateOfBirth    DateTime? @db.Date
+  phone          String?
+  citizenId      String?   @unique
+  gender         Gender?
+  address        String?
+  bloodType      BloodType?
+  emergencyName  String?
+  emergencyPhone String?
+
   user          User           @relation(fields: [userId], references: [id], onDelete: Restrict)
   registrations Registration[]
+
+  @@index([bloodType])
 }
 
 model DonationCampaign {
-  id                   String             @id @default(uuid()) @db.Uuid
-  createdAt            DateTime           @default(now()) @db.Timestamptz(3)
-  updatedAt            DateTime           @updatedAt @db.Timestamptz(3)
+  id                   String         @id @default(uuid()) @db.Uuid
+  createdAt            DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime       @updatedAt @db.Timestamptz(3)
   name                 String
   location             String
   description          String?
-  registrationOpensAt  DateTime?          @db.Timestamptz(3)
-  registrationClosesAt DateTime?          @db.Timestamptz(3)
+  organizerName        String?
+  contactPhone         String?
+  registrationOpensAt  DateTime?      @db.Timestamptz(3)
+  registrationClosesAt DateTime?      @db.Timestamptz(3)
   targetDonors         Int?
   targetBloodVolumeMl  Int?
-  startsAt             DateTime           @db.Timestamptz(3)
-  endsAt               DateTime           @db.Timestamptz(3)
-  status               CampaignStatus     @default(DRAFT)
-  timeSlots            CampaignTimeSlot[]
-  staff                CampaignStaff[]
-  registrations        Registration[]
+  startsAt             DateTime       @db.Timestamptz(3)
+  endsAt               DateTime       @db.Timestamptz(3)
+  status               CampaignStatus @default(DRAFT)
+
+  timeSlots     CampaignTimeSlot[]
+  staff         CampaignStaff[]
+  registrations Registration[]
 
   @@index([status, startsAt])
 }
 
 model CampaignTimeSlot {
-  id            String           @id @default(uuid()) @db.Uuid
-  createdAt     DateTime         @default(now()) @db.Timestamptz(3)
-  updatedAt     DateTime         @updatedAt @db.Timestamptz(3)
-  campaignId    String           @db.Uuid
-  startsAt      DateTime         @db.Timestamptz(3)
-  endsAt        DateTime         @db.Timestamptz(3)
-  capacity      Int
+  id         String   @id @default(uuid()) @db.Uuid
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(3)
+  campaignId String   @db.Uuid
+  label      String?
+  startsAt   DateTime @db.Timestamptz(3)
+  endsAt     DateTime @db.Timestamptz(3)
+  capacity   Int
+  isActive   Boolean  @default(true)
+
   campaign      DonationCampaign @relation(fields: [campaignId], references: [id], onDelete: Restrict)
   registrations Registration[]
 
@@ -175,27 +254,31 @@ model CampaignTimeSlot {
 }
 
 model CampaignStaff {
-  id         String           @id @default(uuid()) @db.Uuid
-  createdAt  DateTime         @default(now()) @db.Timestamptz(3)
-  updatedAt  DateTime         @updatedAt @db.Timestamptz(3)
-  campaignId String           @db.Uuid
-  userId     String           @db.Uuid
-  assignment String?
-  campaign   DonationCampaign @relation(fields: [campaignId], references: [id], onDelete: Restrict)
-  user       User             @relation(fields: [userId], references: [id], onDelete: Restrict)
+  id         String              @id @default(uuid()) @db.Uuid
+  createdAt  DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime            @updatedAt @db.Timestamptz(3)
+  campaignId String              @db.Uuid
+  userId     String              @db.Uuid
+  assignment CampaignAssignment?
+
+  campaign DonationCampaign @relation(fields: [campaignId], references: [id], onDelete: Restrict)
+  user     User             @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   @@unique([campaignId, userId])
   @@index([userId])
 }
 
 model Registration {
-  id                String             @id @default(uuid()) @db.Uuid
-  createdAt         DateTime           @default(now()) @db.Timestamptz(3)
-  updatedAt         DateTime           @updatedAt @db.Timestamptz(3)
-  donorId           String             @db.Uuid
-  campaignId        String             @db.Uuid
-  timeSlotId        String?            @db.Uuid
-  status            RegistrationStatus @default(PENDING)
+  id           String             @id @default(uuid()) @db.Uuid
+  createdAt    DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime           @updatedAt @db.Timestamptz(3)
+  donorId      String             @db.Uuid
+  campaignId   String             @db.Uuid
+  timeSlotId   String?            @db.Uuid
+  status       RegistrationStatus @default(PENDING)
+  cancelReason String?
+  notes        String?
+
   donor             DonorProfile       @relation(fields: [donorId], references: [id], onDelete: Restrict)
   campaign          DonationCampaign   @relation(fields: [campaignId], references: [id], onDelete: Restrict)
   timeSlot          CampaignTimeSlot?  @relation(fields: [timeSlotId, campaignId], references: [id, campaignId], onDelete: Restrict)
@@ -209,27 +292,32 @@ model Registration {
 }
 
 model HealthDeclaration {
-  id             String       @id @default(uuid()) @db.Uuid
-  createdAt      DateTime     @default(now()) @db.Timestamptz(3)
-  updatedAt      DateTime     @updatedAt @db.Timestamptz(3)
-  registrationId String       @unique @db.Uuid
-  submittedAt    DateTime?    @db.Timestamptz(3)
+  id                   String       @id @default(uuid()) @db.Uuid
+  createdAt            DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime     @updatedAt @db.Timestamptz(3)
+  registrationId       String       @unique @db.Uuid
+  submittedAt          DateTime?    @db.Timestamptz(3)
+  questionnaireVersion String?
+
   /// Snapshot of declaration answers; not a donation history.
-  answers        Json?
-  notes          String?
-  registration   Registration @relation(fields: [registrationId], references: [id], onDelete: Restrict)
+  answers Json?
+  notes   String?
+
+  registration Registration @relation(fields: [registrationId], references: [id], onDelete: Restrict)
 }
 
 model CheckIn {
-  id             String       @id @default(uuid()) @db.Uuid
-  createdAt      DateTime     @default(now()) @db.Timestamptz(3)
-  updatedAt      DateTime     @updatedAt @db.Timestamptz(3)
-  registrationId String       @unique @db.Uuid
-  checkedInAt    DateTime     @default(now()) @db.Timestamptz(3)
-  checkedInById  String?      @db.Uuid
-  checkedInBy    User?        @relation("CheckInPerformedBy", fields: [checkedInById], references: [id], onDelete: Restrict)
-  registration   Registration @relation(fields: [registrationId], references: [id], onDelete: Restrict)
-  screening      Screening?
+  id             String   @id @default(uuid()) @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @db.Timestamptz(3)
+  registrationId String   @unique @db.Uuid
+  checkedInAt    DateTime @default(now()) @db.Timestamptz(3)
+  checkedInById  String?  @db.Uuid
+  notes          String?
+
+  checkedInBy  User?        @relation("CheckInPerformedBy", fields: [checkedInById], references: [id], onDelete: Restrict)
+  registration Registration @relation(fields: [registrationId], references: [id], onDelete: Restrict)
+  screening    Screening?
 
   @@index([checkedInById])
 }
@@ -241,13 +329,22 @@ model Screening {
   checkInId      String          @unique @db.Uuid
   status         ScreeningStatus @default(PENDING)
   screenedById   String?         @db.Uuid
-  screenedBy     User?           @relation("ScreeningPerformedBy", fields: [screenedById], references: [id], onDelete: Restrict)
   decisionReason String?
   deferredUntil  DateTime?       @db.Date
   notes          String?
-  checkIn        CheckIn         @relation(fields: [checkInId], references: [id], onDelete: Restrict)
-  tests          ScreeningTest[]
-  donation       Donation?
+
+  /// Vital signs and screening measurements captured at this visit.
+  weightKg       Decimal? @db.Decimal(5, 2)
+  systolicBp     Int?
+  diastolicBp    Int?
+  pulse          Int?
+  temperatureC   Decimal? @db.Decimal(4, 2)
+  hemoglobin     Decimal? @db.Decimal(5, 2)
+
+  screenedBy User?           @relation("ScreeningPerformedBy", fields: [screenedById], references: [id], onDelete: Restrict)
+  checkIn    CheckIn         @relation(fields: [checkInId], references: [id], onDelete: Restrict)
+  tests      ScreeningTest[]
+  donation   Donation?
 
   @@index([screenedById])
   @@index([status])
@@ -260,65 +357,91 @@ model ScreeningTest {
   screeningId    String    @db.Uuid
   code           String
   result         String?
+  numericValue   Decimal?  @db.Decimal(12, 4)
   unit           String?
   referenceRange String?
+  isPassed       Boolean?
   notes          String?
-  screening      Screening @relation(fields: [screeningId], references: [id], onDelete: Restrict)
+
+  screening Screening @relation(fields: [screeningId], references: [id], onDelete: Restrict)
 
   @@unique([screeningId, code])
   @@index([screeningId])
 }
 
 model Donation {
-  id            String                 @id @default(uuid()) @db.Uuid
-  createdAt     DateTime               @default(now()) @db.Timestamptz(3)
-  updatedAt     DateTime               @updatedAt @db.Timestamptz(3)
-  screeningId   String                 @unique @db.Uuid
-  status        DonationStatus         @default(PENDING)
-  performedById String?                @db.Uuid
-  performedBy   User?                  @relation("DonationPerformedBy", fields: [performedById], references: [id], onDelete: Restrict)
+  id            String         @id @default(uuid()) @db.Uuid
+  createdAt     DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime       @updatedAt @db.Timestamptz(3)
+  screeningId   String         @unique @db.Uuid
+  status        DonationStatus @default(PENDING)
+  donationType  DonationType   @default(WHOLE_BLOOD)
+  performedById String?        @db.Uuid
+
   /// Physical blood collection start.
-  startedAt     DateTime?              @db.Timestamptz(3)
+  startedAt DateTime? @db.Timestamptz(3)
+
   /// Physical blood collection end, including an interrupted collection.
-  completedAt   DateTime?              @db.Timestamptz(3)
+  completedAt DateTime? @db.Timestamptz(3)
+
   /// Time successful completion is confirmed; may follow completedAt.
-  donatedAt     DateTime?              @db.Timestamptz(3)
+  donatedAt DateTime? @db.Timestamptz(3)
+
   /// Total collected volume for this donation; reconcile with all bag volumes.
-  volumeMl      Int?
-  screening     Screening              @relation(fields: [screeningId], references: [id], onDelete: Restrict)
-  bloodBags     BloodBag[]
-  reactions     PostDonationReaction[]
-  certificate   Certificate?
+  volumeMl Int?
+  notes    String?
+
+  performedBy User?        @relation("DonationPerformedBy", fields: [performedById], references: [id], onDelete: Restrict)
+  screening  Screening     @relation(fields: [screeningId], references: [id], onDelete: Restrict)
+  bloodBags  BloodBag[]
+  reactions  PostDonationReaction[]
+  certificate Certificate?
 
   @@index([performedById])
   @@index([status])
+  @@index([donationType])
 }
 
 model BloodBag {
-  id         String         @id @default(uuid()) @db.Uuid
-  createdAt  DateTime       @default(now()) @db.Timestamptz(3)
-  updatedAt  DateTime       @updatedAt @db.Timestamptz(3)
-  donationId String         @db.Uuid
-  code       String         @unique
-  status     BloodBagStatus @default(CREATED)
+  id              String         @id @default(uuid()) @db.Uuid
+  createdAt       DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime       @updatedAt @db.Timestamptz(3)
+  donationId      String         @db.Uuid
+  code            String         @unique
+  status          BloodBagStatus @default(CREATED)
+  bloodType       BloodType?
+  component       BloodComponent @default(WHOLE_BLOOD)
+
   /// Volume in this individual bag, not the donation total.
-  volumeMl   Int?
-  donation   Donation       @relation(fields: [donationId], references: [id], onDelete: Restrict)
+  volumeMl Int?
+
+  collectedAt     DateTime? @db.Timestamptz(3)
+  expiresAt       DateTime? @db.Timestamptz(3)
+  storageLocation String?
+
+  donation Donation @relation(fields: [donationId], references: [id], onDelete: Restrict)
 
   @@index([donationId])
   @@index([status])
+  @@index([bloodType])
+  @@index([status, expiresAt])
 }
 
 model PostDonationReaction {
-  id          String   @id @default(uuid()) @db.Uuid
-  createdAt   DateTime @default(now()) @db.Timestamptz(3)
-  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
-  donationId  String   @db.Uuid
-  occurredAt  DateTime @default(now()) @db.Timestamptz(3)
+  id          String            @id @default(uuid()) @db.Uuid
+  createdAt   DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime          @updatedAt @db.Timestamptz(3)
+  donationId  String            @db.Uuid
+  occurredAt  DateTime          @default(now()) @db.Timestamptz(3)
   description String
-  donation    Donation @relation(fields: [donationId], references: [id], onDelete: Restrict)
+  severity    ReactionSeverity?
+  actionTaken String?
+  resolvedAt  DateTime?         @db.Timestamptz(3)
+
+  donation Donation @relation(fields: [donationId], references: [id], onDelete: Restrict)
 
   @@index([donationId])
+  @@index([severity])
 }
 
 model Certificate {
@@ -331,35 +454,46 @@ model Certificate {
   status       CertificateStatus @default(ACTIVE)
   revokedAt    DateTime?         @db.Timestamptz(3)
   revokeReason String?
-  donation     Donation          @relation(fields: [donationId], references: [id], onDelete: Restrict)
+  fileUrl      String?
+
+  donation Donation @relation(fields: [donationId], references: [id], onDelete: Restrict)
 }
 
 model Notification {
-  id        String    @id @default(uuid()) @db.Uuid
-  createdAt DateTime  @default(now()) @db.Timestamptz(3)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(3)
-  userId    String    @db.Uuid
+  id        String             @id @default(uuid()) @db.Uuid
+  createdAt DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime           @updatedAt @db.Timestamptz(3)
+  userId    String             @db.Uuid
   title     String
   message   String
-  readAt    DateTime? @db.Timestamptz(3)
-  user      User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+  type      NotificationType   @default(GENERAL)
+  channel   NotificationChannel @default(IN_APP)
+  status    NotificationStatus  @default(PENDING)
+  sentAt    DateTime?          @db.Timestamptz(3)
+  readAt    DateTime?          @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   @@index([userId, readAt])
+  @@index([status, createdAt])
 }
 
-/// Append-only for business services. No ordinary update/delete workflow.
 model AuditLog {
   id         String   @id @default(uuid()) @db.Uuid
   createdAt  DateTime @default(now()) @db.Timestamptz(3)
-  updatedAt  DateTime @updatedAt @db.Timestamptz(3)
   actorId    String?  @db.Uuid
   action     String
   entityType String
   entityId   String?
-  actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  metadata   Json?
+  ipAddress  String?
+  userAgent  String?
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
 
   @@index([actorId])
   @@index([entityType, entityId])
+  @@index([createdAt])
 }
 
 model SystemSetting {
@@ -369,4 +503,6 @@ model SystemSetting {
   key         String   @unique
   value       String
   description String?
+  valueType   String?
+  category    String?
 }
