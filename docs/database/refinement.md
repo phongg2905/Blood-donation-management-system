@@ -42,26 +42,26 @@ Các field người thực hiện nullable trong schema. Nullable không đồng
 
 Các trường liên quan đến phần mở rộng mới nhất (submittedAt/notes của HealthDeclaration và notes của Screening đã có từ migration đầu):
 
-| Entity | Bổ sung hoặc thay đổi |
-| --- | --- |
-| User | emailVerifiedAt, lastLoginAt: DateTime? |
-| Role, Permission | description: String? |
-| DonorProfile | bloodType: BloodType?; emergencyName, emergencyPhone: String? |
-| DonationCampaign | organizerName, contactPhone: String? |
-| CampaignTimeSlot | label: String?; isActive: Boolean, mặc định true |
-| CampaignStaff | assignment: CampaignAssignment? |
-| Registration | cancelReason, notes: String? |
-| HealthDeclaration | submittedAt: DateTime?; questionnaireVersion, notes: String? |
-| CheckIn | notes: String? |
-| Screening | notes: String?; weightKg: Decimal(5,2)?; systolicBp, diastolicBp, pulse: Int?; temperatureC: Decimal(4,2)?; hemoglobin: Decimal(5,2)? |
-| ScreeningTest | numericValue: Decimal(12,4)?; isPassed: Boolean? |
-| Donation | donationType: DonationType, mặc định WHOLE_BLOOD; notes: String? |
-| BloodBag | bloodType: BloodType?; component: BloodComponent, mặc định WHOLE_BLOOD; collectedAt, expiresAt: DateTime?; storageLocation: String? |
-| PostDonationReaction | severity: ReactionSeverity?; actionTaken: String?; resolvedAt: DateTime? |
-| Certificate | fileUrl: String? |
-| Notification | type, channel, status theo enum và default ở trên; sentAt: DateTime? |
-| AuditLog | metadata: Json?; ipAddress, userAgent: String?; bỏ updatedAt |
-| SystemSetting | valueType, category: String? |
+| Entity               | Bổ sung hoặc thay đổi                                                                                                                 |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| User                 | emailVerifiedAt, lastLoginAt: DateTime?                                                                                               |
+| Role, Permission     | description: String?                                                                                                                  |
+| DonorProfile         | bloodType: BloodType?; emergencyName, emergencyPhone: String?                                                                         |
+| DonationCampaign     | organizerName, contactPhone: String?                                                                                                  |
+| CampaignTimeSlot     | label: String?; isActive: Boolean, mặc định true                                                                                      |
+| CampaignStaff        | assignment: CampaignAssignment?                                                                                                       |
+| Registration         | cancelReason, notes: String?                                                                                                          |
+| HealthDeclaration    | submittedAt: DateTime?; questionnaireVersion, notes: String?                                                                          |
+| CheckIn              | notes: String?                                                                                                                        |
+| Screening            | notes: String?; weightKg: Decimal(5,2)?; systolicBp, diastolicBp, pulse: Int?; temperatureC: Decimal(4,2)?; hemoglobin: Decimal(5,2)? |
+| ScreeningTest        | numericValue: Decimal(12,4)?; isPassed: Boolean?                                                                                      |
+| Donation             | donationType: DonationType, mặc định WHOLE_BLOOD; notes: String?                                                                      |
+| BloodBag             | bloodType: BloodType?; component: BloodComponent, mặc định WHOLE_BLOOD; collectedAt, expiresAt: DateTime?; storageLocation: String?   |
+| PostDonationReaction | severity: ReactionSeverity?; actionTaken: String?; resolvedAt: DateTime?                                                              |
+| Certificate          | fileUrl: String?                                                                                                                      |
+| Notification         | type, channel, status theo enum và default ở trên; sentAt: DateTime?                                                                  |
+| AuditLog             | metadata: Json?; ipAddress, userAgent: String?; bỏ updatedAt                                                                          |
+| SystemSetting        | valueType, category: String?                                                                                                          |
 
 ## Người thực hiện và bảo toàn lịch sử
 
@@ -151,7 +151,16 @@ pnpm lint
 ```
 
 Tests dùng PostgreSQL thật; dữ liệu constraint tests được rollback. Test tranh chấp capacity dùng UUID riêng rồi chỉ xóa fixture của chính test.
-Seed role vẫn dùng upsert, không cần sửa; chạy hai lần vẫn giữ 7 role.
+Seed (Phase 1) dùng upsert cho role/permission và đồng bộ RolePermission theo đúng `ROLE_PERMISSIONS`; chạy hai lần vẫn giữ 5 role và không tạo mapping thừa. Tài khoản admin chỉ được tạo khi có `ADMIN_EMAIL`/`ADMIN_PASSWORD`, mật khẩu lưu dưới dạng hash scrypt.
+
+## Phase 1 — chuẩn hoá RBAC và phiên đăng nhập
+
+Migration `20260919000000_phase1_rbac_and_auth_sessions`:
+
+- Gộp role cũ sang mô hình 5 role: `SCREENING_STAFF` + `DOCTOR` → `MEDICAL_STAFF`; `COORDINATOR` → `ADMIN`. Bản ghi `UserRole` được trỏ lại role mới (bỏ trùng), sau đó role cũ bị xoá; `RolePermission` của role cũ bị xoá theo cascade.
+- Tạo `AuthSession` (phiên refresh token) và `PasswordResetToken`. Cả hai chỉ lưu hash token (`tokenHash` unique), có `expiresAt`; `AuthSession` thêm `revokedAt`/`replacedById` cho rotation và thu hồi khi logout.
+
+Mã role trong DB là chuỗi (không phải enum), vì vậy migration chỉ cần chuyển dữ liệu và xoá role cũ; `Role.code` tiếp tục unique. Không còn enum/role trùng lặp trong source: 5 role được định nghĩa duy nhất tại `ROLE_CODES` trong `@blood/shared-types`.
 
 ## Chưa triển khai
 

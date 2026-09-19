@@ -1,8 +1,9 @@
 # Database ban đầu
 
-21 model trong `apps/api/prisma/schema.prisma`; UUID và timestamp UTC cho từng model.
+23 model trong `apps/api/prisma/schema.prisma`; UUID và timestamp UTC cho từng model.
 
-- User ↔ Role ↔ Permission qua UserRole và RolePermission; các cặp là duy nhất.
+- User ↔ Role ↔ Permission qua UserRole và RolePermission; các cặp là duy nhất. Hệ thống chỉ dùng 5 role: DONOR, RECEPTION_STAFF, MEDICAL_STAFF, BLOOD_COLLECTION_STAFF, ADMIN.
+- AuthSession là phiên refresh token (chỉ lưu `tokenHash`); PasswordResetToken lưu hash token đặt lại mật khẩu. Không có cột lưu token/mật khẩu dạng plain text.
 - User 1–0..1 DonorProfile; DonorProfile 1–n Registration.
 - Một Registration duy nhất cho mỗi người hiến/đợt. Đăng ký lại sau hủy sẽ tái sử dụng bản ghi; nếu yêu cầu nghiệp vụ thay đổi phải điều chỉnh constraint.
 - CampaignTimeSlot thuộc DonationCampaign. Foreign key ghép (timeSlotId, campaignId) ngăn chọn khung giờ của đợt khác.
@@ -21,4 +22,5 @@ HealthDeclaration có answers JSONB để lưu nội dung khai báo theo lượt
 Chi tiết field, semantics, index và giới hạn: [Refinement](refinement.md).
 
 Migration đầu tiên được commit. Dùng `pnpm db:migrate` khi phát triển và `pnpm db:deploy` để áp dụng migration có sẵn không tương tác.
-Seed tùy chọn `pnpm db:seed` tạo 7 role, chạy lặp an toàn; không tạo user.
+Seed tùy chọn `pnpm db:seed` tạo 5 role, toàn bộ permission, mapping role-permission (đồng bộ đúng theo `ROLE_PERMISSIONS`) và tài khoản admin đầu tiên nếu có `ADMIN_EMAIL`/`ADMIN_PASSWORD`. Chạy lặp an toàn; mật khẩu chỉ được lưu dưới dạng hash scrypt.
+Migration `20260919000000_phase1_rbac_and_auth_sessions` gộp role cũ sang mô hình 5 role và tạo hai bảng phiên/token ở trên.

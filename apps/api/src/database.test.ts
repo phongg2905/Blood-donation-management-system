@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { after, test } from 'node:test';
 import { Prisma } from '@prisma/client';
+import { AppError } from './common/errors/app.error';
 import { database } from './config/database';
 import { timeSlotService } from './modules/time-slots/time-slot.service';
 
@@ -243,7 +244,8 @@ test('concurrent scheduling cannot overbook the final place', async () => {
     );
     const failure = results.find((result) => result.status === 'rejected');
     assert.ok(failure && failure.status === 'rejected');
-    assert.equal((failure.reason as Error).message, 'Time slot is full');
+    assert.ok(failure.reason instanceof AppError);
+    assert.equal(failure.reason.code, 'TIME_SLOT_FULL');
     assert.equal(
       await database.registration.count({ where: { timeSlotId: slot.id } }),
       1,
@@ -251,6 +253,14 @@ test('concurrent scheduling cannot overbook the final place', async () => {
   } finally {
     // Only delete records belonging to this test's generated IDs.
     await database.$transaction(async (tx) => {
+      await tx.auditLog.deleteMany({
+        where: {
+          entityType: 'Registration',
+          entityId: {
+            in: fixture.registrations.map((registration) => registration.id),
+          },
+        },
+      });
       await tx.registration.deleteMany({
         where: { campaignId: fixture.campaign.id },
       });

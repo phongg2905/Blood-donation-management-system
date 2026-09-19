@@ -1,43 +1,184 @@
-# API conventions
+# API conventions (Phase 1)
 
 Base URL: http://localhost:3000/api
 
-## GET /health
+Stack: Express 5, Prisma 6, Zod 4, TypeScript strict. Route → Controller → Service → Repository → Prisma.
+Shared contracts live in `@blood/shared-types` and `@blood/shared-validation`; the API and web app import the same types.
 
-Thực hiện SELECT 1 qua Prisma/PostgreSQL.
+## Success response
+
+```json
+{ "success": true, "data": {} }
+```
+
+## List response
+
+`GET` list endpoints always return `data` as an array plus `meta`:
+
+```json
+{
+  "success": true,
+  "data": [],
+  "meta": { "page": 1, "limit": 10, "total": 0, "totalPages": 0 }
+}
+```
+
+Pagination input is `?page=&limit=`, clamped by `resolvePagination`
+(default page 1, limit 10, max limit 100). Build responses with
+`sendSuccess`, `sendCreated` and `sendList` from `common/helpers/response.ts`
+so no controller invents its own shape.
+
+## Error response
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "TIME_SLOT_FULL",
+    "message": "Khung giờ đã đủ số lượng đăng ký",
+    "fields": null
+  }
+}
+```
+
+Validation error:
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Dữ liệu không hợp lệ",
+    "fields": { "email": "Email không hợp lệ" }
+  }
+}
+```
+
+- `code` is a stable constant from `ERROR_CODES` in `@blood/shared-types`. **The frontend branches on `code`.**
+- `message` is a Vietnamese default from `ERROR_MESSAGES`; a call site may override it.
+- `fields` is `null` unless the failure is field-scoped.
+- Throw `AppError` only; `error.middleware.ts` is the single place that renders errors.
+  Bad JSON → `REQUEST_INVALID` (400), oversized body → `PAYLOAD_TOO_LARGE` (413),
+  unknown route → `ROUTE_NOT_FOUND` (404), unexpected → `INTERNAL_ERROR` (500) with no internal detail.
+
+## Datetime convention
+
+All timestamps are serialised as **ISO 8601 UTC** (`2026-09-19T01:30:00.000Z`).
+One format only — the frontend formats for display. `deferredUntil` is a
+business calendar date (`DATE`, no time component).
+
+## Unit convention
+
+| Quantity       | Field                             | Unit |
+| -------------- | --------------------------------- | ---- |
+| Volume         | `volumeMl`, `targetBloodVolumeMl` | ml   |
+| Weight         | `weightKg`                        | kg   |
+| Temperature    | `temperatureC`                    | °C   |
+| Blood pressure | `systolicBp`, `diastolicBp`       | mmHg |
+| Pulse          | `pulse`                           | bpm  |
+| Hemoglobin     | `hemoglobin`                      | g/dL |
+
+Exposed as `MEASUREMENT_UNITS`. Screening test codes must come from
+`SCREENING_TEST_CATALOG`; arbitrary codes are rejected with
+`SCREENING_TEST_CODE_INVALID`.
+
+## Roles, permissions and authorization
+
+Exactly five roles (`ROLE_CODES`): `DONOR`, `RECEPTION_STAFF`, `MEDICAL_STAFF`,
+`BLOOD_COLLECTION_STAFF`, `ADMIN`. The legacy codes `SCREENING_STAFF`,
+`DOCTOR` (→ `MEDICAL_STAFF`) and `COORDINATOR` (→ `ADMIN`) are gone.
+
+### Permission ownership
+
+Ownership follows the end-user workflow and keeps duties separate:
+DONOR registers, RECEPTION_STAFF receives/checks in, MEDICAL_STAFF performs
+pre-donation medicine, BLOOD_COLLECTION_STAFF collects blood and manages bags,
+ADMIN administers everything. `ROLE_PERMISSIONS` in `@blood/shared-types` is the
+single source of truth; `pnpm db:seed` converges the database on it.
+
+| Role                     | Responsibility                                                                                                 | Permissions |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------- | ----------- |
+| `DONOR`                  | Register/reschedule/cancel own registration, health declaration, read own donation, certificate, reactions     | 15          |
+| `RECEPTION_STAFF`        | Arrival: donor lookup, check-in, no-show, read health declaration                                              | 10          |
+| `MEDICAL_STAFF`          | Screening measurements, tests, review and ELIGIBLE/INELIGIBLE/DEFERRED conclusion, read-only donation tracking | 14          |
+| `BLOOD_COLLECTION_STAFF` | Donation start/complete/stop, blood bags, post-donation reactions, certificate issue, read screening result    | 18          |
+| `ADMIN`                  | Everything (superset)                                                                                          | 53          |
+
+Separation rules that the backend enforces:
+
+- MEDICAL_STAFF never starts, completes or stops a donation, never touches blood
+  bags or reactions, and never issues/revokes certificates (it only reads them).
+- BLOOD_COLLECTION_STAFF may read the screening result but has no
+  `screening.review` / `screening.create` / `screening.update`, and may start a
+  donation only when `Screening.status = ELIGIBLE`.
+- `certificate.issue` belongs to BLOOD_COLLECTION_STAFF + ADMIN only;
+  `certificate.revoke` is ADMIN-only.
+- `reaction.create` belongs to BLOOD_COLLECTION_STAFF + ADMIN only.
+- Every mutating permission has at most one non-admin owner; only shared reads
+  (`*.read`) and `notification.read` are granted to several roles.
+
+Authorization is **permission-based** at the action level:
+
+```ts
+router.post(
+  '/:id/open',
+  requireAuth,
+  requirePermission('campaign.open'),
+  openCampaign,
+);
+```
+
+- `requirePermission(...codes)` / `requireAnyPermission(...codes)` → `permission.middleware.ts`
+- `requireRole(...roles)` exists for genuinely role-shaped rules only.
+- `req.auth = { userId, roles, permissions, sessionId? }`. An authentication
+  adapter must populate it; never trust headers sent by the client.
+
+## Validation
+
+Validate at the edge (`validate(schema, 'body' | 'query' | 'params')`, parsed
+value at `res.locals.validated`) **and** re-check business rules in the service,
+because direct Prisma/SQL writes can bypass HTTP validation. Shared rules live in
+the owning module's `*.validation.ts` and are reused by the service layer.
+
+## State transitions
+
+Transitions are centralized in `@blood/shared-types`
+(`CAMPAIGN_TRANSITIONS`, `REGISTRATION_TRANSITIONS`, `SCREENING_TRANSITIONS`,
+`DONATION_TRANSITIONS`, `BLOOD_BAG_TRANSITIONS`) and enforced on the backend via
+`assertTransition` in `common/helpers/state-machine.ts`. The frontend reads the
+same maps to decide which actions to render.
+
+## Auth strategy (implemented in Phase 2)
+
+- Short-lived **JWT access token** (default 15 minutes) in `Authorization: Bearer`.
+- **Refresh token** in an HttpOnly, Secure, SameSite cookie (`bd_refresh_token`, 30 days).
+- `POST /api/auth/refresh` rotates the session; `POST /api/auth/logout` revokes it.
+- Only hashes are stored: `AuthSession.tokenHash`, `PasswordResetToken.tokenHash`;
+  passwords use scrypt (`common/security/password.ts`). No plain-text secret column exists.
+- `GET /api/auth/me` returns `{ id, email, fullName, roles, permissions }`, which the
+  frontend uses for protected routes, sidebar/menu and action visibility.
+
+## Endpoints available today
+
+### GET /health
+
+Runs `SELECT 1` through Prisma/PostgreSQL.
 
 HTTP 200:
 
 ```json
 {
   "success": true,
-  "message": "Blood Donation API is running",
-  "database": "connected",
-  "data": { "database": "connected" }
+  "data": {
+    "status": "ok",
+    "database": "connected",
+    "timestamp": "2026-09-19T01:30:00.000Z"
+  }
 }
 ```
 
-HTTP 503 khi không kết nối được:
+HTTP 503 (`error.code = "DATABASE_UNAVAILABLE"`) when PostgreSQL is unreachable;
+the failure envelope never leaks connection details.
 
-```json
-{
-  "success": false,
-  "message": "Database is unavailable",
-  "database": "disconnected",
-  "errors": [{ "message": "PostgreSQL connection failed" }]
-}
-```
-
-Success thông thường: `{ success: true, message, data }`.
-Error: `{ success: false, message, errors: [{ path?, message }] }`.
-Trường database ở top-level chỉ dành cho health để phù hợp contract ban đầu.
-
-Route chưa có trả 404; JSON không hợp lệ trả 400; lỗi ngoài dự kiến trả 500 với thông báo chung.
-Express 5 chuyển rejected promise từ async handler vào global error middleware:
-[Express error handling](https://expressjs.com/en/5x/guide/error-handling/).
-
-Validation: `validate(schema, 'body' | 'query' | 'params')`, kết quả đã parse ở `res.locals.validated`.
-Shared schema mẫu: `idParamsSchema` từ `@blood/shared-validation`.
-
-RBAC middleware là nền tảng: requireAuth/requireRole mặc định từ chối khi chưa có req.auth.
-Chưa có adapter xác thực. Không đọc role hoặc user ID trực tiếp từ header do client tự gửi.
+Business endpoints are not implemented yet — see
+[Frontend contract](frontend-contract.md) for the agreed Phase 2 surface.

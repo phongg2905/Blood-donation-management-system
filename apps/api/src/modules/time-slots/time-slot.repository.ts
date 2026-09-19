@@ -30,7 +30,10 @@ export const timeSlotRepository = {
       include: { campaign: true },
     }),
   registration: (tx: Prisma.TransactionClient, id: string) =>
-    tx.registration.findUnique({ where: { id }, include: { checkIn: true } }),
+    tx.registration.findUnique({
+      where: { id },
+      include: { checkIn: true, donor: true },
+    }),
   create: (
     tx: Prisma.TransactionClient,
     data: Prisma.CampaignTimeSlotUncheckedCreateInput,
@@ -47,9 +50,34 @@ export const timeSlotRepository = {
         status: { notIn: ['CANCELLED', 'WAITLISTED'] },
       },
     }),
-  schedule: (tx: Prisma.TransactionClient, id: string, timeSlotId: string) =>
+  /**
+   * Other active schedules of the same donor, used to reject overlapping
+   * bookings. CANCELLED and WAITLISTED registrations hold no place.
+   */
+  overlappingSchedules: (
+    tx: Prisma.TransactionClient,
+    donorId: string,
+    excludeRegistrationId: string,
+    startsAt: Date,
+    endsAt: Date,
+  ) =>
+    tx.registration.findMany({
+      where: {
+        donorId,
+        id: { not: excludeRegistrationId },
+        status: { notIn: ['CANCELLED', 'WAITLISTED'] },
+        timeSlot: { startsAt: { lt: endsAt }, endsAt: { gt: startsAt } },
+      },
+      select: { timeSlot: { select: { startsAt: true, endsAt: true } } },
+    }),
+  schedule: (
+    tx: Prisma.TransactionClient,
+    id: string,
+    timeSlotId: string,
+    status: Prisma.RegistrationUpdateInput['status'],
+  ) =>
     tx.registration.update({
       where: { id },
-      data: { timeSlotId, status: 'SCHEDULED' },
+      data: { timeSlotId, status },
     }),
 };

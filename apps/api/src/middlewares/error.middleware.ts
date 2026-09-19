@@ -1,9 +1,32 @@
 import type { ErrorRequestHandler, RequestHandler } from 'express';
-import type { ApiFailure } from '@blood/shared-types';
+import { ERROR_CODES } from '@blood/shared-types';
 import { AppError } from '../common/errors/app.error';
+import { failureResponse } from '../common/helpers/response';
 
 export const notFound: RequestHandler = (_req, _res, next) =>
-  next(new AppError('Route not found', 404));
+  next(AppError.notFound(ERROR_CODES.ROUTE_NOT_FOUND));
+
+interface BodyParserError {
+  status?: unknown;
+  type?: unknown;
+}
+
+const asBodyParserError = (error: unknown): BodyParserError =>
+  typeof error === 'object' && error !== null ? (error as BodyParserError) : {};
+
+/** Maps body-parser failures (bad JSON, oversized payload) onto error codes. */
+function normalize(error: unknown): AppError {
+  if (error instanceof AppError) return error;
+  const parser = asBodyParserError(error);
+  if (parser.type === 'entity.too.large' || parser.status === 413) {
+    return new AppError(ERROR_CODES.PAYLOAD_TOO_LARGE, 413);
+  }
+  if (parser.status === 400) {
+    return new AppError(ERROR_CODES.REQUEST_INVALID, 400);
+  }
+  return new AppError(ERROR_CODES.INTERNAL_ERROR, 500);
+}
+
 export const errorHandler: ErrorRequestHandler = (
   error: unknown,
   _req,
@@ -14,30 +37,9 @@ export const errorHandler: ErrorRequestHandler = (
     next(error);
     return;
   }
-  const parserStatus =
-    typeof error === 'object' && error !== null && 'status' in error
-      ? error.status
-      : undefined;
-  const status =
-    error instanceof AppError
-      ? error.statusCode
-      : parserStatus === 400
-        ? 400
-        : parserStatus === 413
-          ? 413
-          : 500;
-  if (status >= 500) console.error(error);
-  const body: ApiFailure = {
-    success: false,
-    message:
-      error instanceof AppError
-        ? error.message
-        : status === 400
-          ? 'Invalid request body'
-          : status === 413
-            ? 'Request body too large'
-            : 'Internal server error',
-    errors: error instanceof AppError ? error.errors : [],
-  };
-  res.status(status).json(body);
+  const appError = normalize(error);
+  if (appError.statusCode >= 500) console.error(error);
+  res
+    .status(appError.statusCode)
+    .json(failureResponse(appError.code, appError.message, appError.fields));
 };

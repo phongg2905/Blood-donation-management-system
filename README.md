@@ -82,8 +82,9 @@ pnpm db:migrate
 pnpm dev
 ```
 
-Migration đầu tiên đã có sẵn; Prisma sẽ áp dụng vào database trống. Khi sửa schema, dùng `pnpm db:migrate --name ten_thay_doi`.
-Có thể seed 7 role RBAC bằng `pnpm db:seed` sau migration.
+Migration đã có sẵn; Prisma sẽ áp dụng vào database trống theo thứ tự. Khi sửa schema, dùng `pnpm db:migrate --name ten_thay_doi`.
+Migration `20260919000000_phase1_rbac_and_auth_sessions` gộp role cũ (`SCREENING_STAFF`, `DOCTOR` → `MEDICAL_STAFF`; `COORDINATOR` → `ADMIN`) và tạo bảng phiên đăng nhập/bặt lại mật khẩu.
+Seed nền tảng RBAC bằng `pnpm db:seed` sau migration: 5 role, toàn bộ permission, mapping role-permission và (tùy chọn) tài khoản admin đầu tiên. Seed chạy lặp an toàn, không hard-code mật khẩu.
 
 Trên Windows, dừng API bằng Ctrl+C trước khi chạy `db:generate` hoặc `db:migrate`.
 API đang chạy có thể giữ khóa DLL Prisma, gây lỗi EPERM khi generate. Sau migration, chạy lại `pnpm dev`.
@@ -112,6 +113,9 @@ Shared packages được build tự động khi install và trước dev. Sau kh
 - API_PORT: cổng Express, mặc định 3000.
 - DATABASE_URL: kết nối Prisma; query timeout kết nối trong URL.
 - CORS_ORIGIN: origin frontend được phép, mặc định http://localhost:5173.
+- JWT_ACCESS_SECRET / JWT_REFRESH_SECRET (tùy chọn, tối thiểu 32 ký tự): bí mật ký token Phase 2; chưa bắt buộc ở Phase 1.
+- ACCESS_TOKEN_TTL_MINUTES (mặc định 15) / REFRESH_TOKEN_TTL_DAYS (mặc định 30).
+- ADMIN_EMAIL / ADMIN_PASSWORD (tùy chọn, mật khẩu tối thiểu 12 ký tự) / ADMIN_FULL_NAME: tạo tài khoản admin đầu tiên khi seed. Không có giá trị nào được hard-code trong source; nếu bỏ trống, seed sẽ bỏ qua bước này.
 - POSTGRES_USER / POSTGRES_PASSWORD / POSTGRES_DB: khởi tạo PostgreSQL.
 - POSTGRES_PORT: cổng host cho container.
 - VITE_API_BASE_URL: mặc định /api; Vite proxy chuyển tới API_PORT.
@@ -137,33 +141,37 @@ curl http://localhost:5173/api/health
 ```
 
 Trên Windows dùng `curl.exe` nếu curl là alias PowerShell.
-`pnpm test` cần PostgreSQL đang chạy; kiểm tra health, middleware, validation nghiệp vụ, constraint/quan hệ mới và tranh chấp capacity. Tests rollback hoặc dọn đúng fixture của mình sau khi chạy.
+`pnpm test` cần PostgreSQL đang chạy; kiểm tra health, middleware, validation nghiệp vụ, constraint/quan hệ mới, tranh chấp capacity, cùng các test nền tảng Phase 1 (role/permission, state transition, khung giờ inactive/full, trùng lịch, campaign rule, screening/donation/certificate, envelope lỗi và hash mật khẩu). Tests rollback hoặc dọn đúng fixture của mình sau khi chạy.
 Mở frontend sẽ thấy **API Status: OK** và **PostgreSQL: connected**.
 Nếu database mất kết nối, health trả HTTP 503 và frontend hiển thị lỗi; dùng nút Kiểm tra lại sau khi khôi phục.
 Vite proxy chỉ phục vụ development; khi triển khai build web cần reverse proxy /api hoặc cấu hình VITE_API_BASE_URL trước build.
 
 ## Commands
 
-| Command                         | Công dụng                         |
-| ------------------------------- | --------------------------------- |
-| pnpm dev                        | Chạy frontend + backend           |
-| pnpm dev:web / pnpm dev:api     | Chạy từng app                     |
-| pnpm build                      | Build shared packages, API và web |
-| pnpm typecheck                  | Kiểm tra TypeScript strict        |
-| pnpm lint                       | Kiểm tra ESLint                   |
-| pnpm format / pnpm format:check | Format / kiểm tra Prettier        |
-| pnpm test                       | Kiểm thử API và middleware        |
-| pnpm db:generate                | Sinh Prisma Client                |
-| pnpm db:migrate                 | Migration development             |
-| pnpm db:deploy                  | Áp dụng migrations đã có          |
-| pnpm db:seed                    | Tạo 7 role RBAC                   |
-| pnpm db:studio                  | Mở Prisma Studio                  |
-| docker compose logs postgres    | Xem log PostgreSQL                |
-| pnpm --filter @blood/api start  | Chạy API sau build                |
+| Command                         | Công dụng                               |
+| ------------------------------- | --------------------------------------- |
+| pnpm dev                        | Chạy frontend + backend                 |
+| pnpm dev:web / pnpm dev:api     | Chạy từng app                           |
+| pnpm build                      | Build shared packages, API và web       |
+| pnpm typecheck                  | Kiểm tra TypeScript strict              |
+| pnpm lint                       | Kiểm tra ESLint                         |
+| pnpm format / pnpm format:check | Format / kiểm tra Prettier              |
+| pnpm test                       | Kiểm thử API và middleware              |
+| pnpm db:generate                | Sinh Prisma Client                      |
+| pnpm db:migrate                 | Migration development                   |
+| pnpm db:deploy                  | Áp dụng migrations đã có                |
+| pnpm db:seed                    | Seed 5 role, permission, mapping, admin |
+| pnpm db:studio                  | Mở Prisma Studio                        |
+| docker compose logs postgres    | Xem log PostgreSQL                      |
+| pnpm --filter @blood/api start  | Chạy API sau build                      |
 
-## Phạm vi tiếp theo
+## Phase 1 đã chốt
 
-Chưa triển khai đăng nhập/JWT, refresh token, CRUD, đăng ký hiến, sàng lọc, lấy máu, dashboard/báo cáo, email/notification, PDF, upload hoặc QR.
-Bước tiếp theo: chốt yêu cầu và ma trận quyền, thiết kế authentication, rồi phát triển lần lượt module đợt hiến và đăng ký với transaction/validation nghiệp vụ.
+Nền tảng backend Phase 1 đã hoàn tất: 5 role, ma trận permission, enum/status, state machine tập trung (BE enforce), business rule campaign/time slot/registration/check-in/screening/donation/blood bag/certificate, chuẩn hoá đơn vị và datetime, envelope thành công/lỗi/pagination thống nhất, error code dùng chung, chiến lược JWT + refresh token (bảng phiên chỉ lưu hash), seed idempotent và nền tảng AuditLog.
 
-Chi tiết: [Database](docs/database/README.md), [API](docs/api/README.md).
+## Phạm vi tiếp theo (Phase 2)
+
+Chưa triển khai: đăng nhập/JWT thực tế, refresh/logout endpoint, module CRUD và endpoint nghiệp vụ, dashboard/báo cáo, email/notification, PDF, upload hoặc QR.
+Bước tiếp theo: triển khai auth (access/refresh/me) rồi lần lượt module đợt hiến, đăng ký, check-in, sàng lọc, lấy máu theo hợp đồng đã chốt.
+
+Chi tiết: [Database](docs/database/README.md), [API](docs/api/README.md), [Frontend contract](docs/api/frontend-contract.md).

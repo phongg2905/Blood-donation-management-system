@@ -1,7 +1,20 @@
 # screenings
 
-Module placeholder; chưa có endpoint nghiệp vụ.
+Phase 1 đã có rule + schema (chưa có HTTP CRUD).
 
-Khi triển khai: routes → controller → service → repository → Prisma.
-Validation nằm trong *.validation.ts; controller chỉ điều phối HTTP.
-Module khác sử dụng service công khai, không gọi trực tiếp repository của module này.
+`screening.validation.ts`:
+
+- `assertCanScreen(checkInId)` — sàng lọc chỉ sau check-in hợp lệ.
+- `assertScreeningTransition` — `SCREENING_TRANSITIONS`: `PENDING → WAITING_REVIEW`; `WAITING_REVIEW → ELIGIBLE | INELIGIBLE | DEFERRED`.
+- `validateScreeningReview` — `DEFERRED` bắt buộc `decisionReason` (có thể kèm `deferredUntil` dạng ngày).
+- `assertScreeningEligibleForDonation(status)` — chỉ `ELIGIBLE` mới sang donation.
+- `validateScreeningTests` — `code` phải thuộc `SCREENING_TEST_CATALOG` (`SCREENING_TEST_CODE_INVALID` nếu không), không cho mã trùng trong cùng phiếu.
+- `validateScreeningMeasurements` — Zod + giới hạn cấu trúc; ngưỡng y tế vẫn thuộc policy/`SystemSetting`, không hard-code.
+
+Đơn vị chuẩn: `weightKg` (kg), `temperatureC` (°C), `systolicBp`/`diastolicBp` (mmHg), `pulse` (bpm), `hemoglobin` (g/dL) — lấy từ `MEASUREMENT_UNITS`.
+
+Unique `(screeningId, code)` giữ một kết quả hiện hành cho mỗi mã.
+
+## Quyền sở hữu
+
+`screening.read`, `screening.create`, `screening.update`, `screening.review` thuộc **MEDICAL_STAFF** (và ADMIN). BLOOD_COLLECTION_STAFF chỉ có `screening.read` để biết donor đã ELIGIBLE; RECEPTION_STAFF không có quyền sàng lọc. MEDICAL_STAFF kết luận ELIGIBLE/INELIGIBLE/DEFERRED nhưng không thực hiện lấy máu.

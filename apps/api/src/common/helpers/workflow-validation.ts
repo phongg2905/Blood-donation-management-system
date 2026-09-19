@@ -1,30 +1,17 @@
-import type {
-  DonationStatus,
-  RegistrationStatus,
-  ScreeningStatus,
-} from '@prisma/client';
-import { AppError } from '../errors/app.error';
-
-export function assertCanCheckIn(status: RegistrationStatus): void {
-  if (status !== 'SCHEDULED' && status !== 'CONFIRMED') {
-    throw new AppError(
-      'Only a scheduled or confirmed registration can check in',
-      409,
-    );
-  }
-}
-
-export function assertCanScreen(checkInId: string | null | undefined): void {
-  if (!checkInId)
-    throw new AppError('Check-in is required before screening', 409);
-}
-
-export function assertCanDonate(status: ScreeningStatus): void {
-  if (status !== 'ELIGIBLE')
-    throw new AppError('Eligible screening is required', 409);
-}
-
-export function assertCanIssueCertificate(status: DonationStatus): void {
-  if (status !== 'COMPLETED')
-    throw new AppError('Completed donation is required', 409);
-}
+/**
+ * Cross-entity workflow guards.
+ *
+ * Entity rules live with their owning module; this file is the single import
+ * point for the end-to-end lifecycle chain
+ * registration -> check-in -> screening -> donation -> certificate.
+ */
+export { assertCanCheckIn } from '../../modules/registrations/registration.validation';
+export {
+  assertCanScreen,
+  assertScreeningEligibleForDonation as assertCanDonate,
+} from '../../modules/screenings/screening.validation';
+export { assertCanIssueCertificate } from '../../modules/certificates/certificate.validation';
+export {
+  assertCanStartDonation,
+  validateDonationCompletion,
+} from '../../modules/donations/donation.validation';
