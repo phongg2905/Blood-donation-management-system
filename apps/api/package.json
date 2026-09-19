@@ -12,7 +12,7 @@
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "db:seed": "tsx src/database/seed/index.ts",
-    "test": "tsx --test src/app.test.ts src/domain.test.ts src/database.test.ts"
+    "test": "tsx --test src/app.test.ts src/domain.test.ts src/database.test.ts src/phase1.test.ts"
   },
   "dependencies": {
     "@blood/shared-types": "workspace:*",

@@ -44,20 +44,39 @@ test('time slot accepts boundary times, rejects reversed/outside dates and inval
   );
 });
 
-test('campaign validates registration window and nonnegative targets', () => {
+test('campaign validates registration window and strictly positive targets', () => {
   assert.equal(
-    validateCampaign({ ...campaign, targetDonors: 0 }).targetDonors,
-    0,
+    validateCampaign({ ...campaign, targetDonors: 120 }).targetDonors,
+    120,
   );
+  assert.equal(
+    validateCampaign({ ...campaign, targetBloodVolumeMl: 45000 })
+      .targetBloodVolumeMl,
+    45000,
+  );
+  // Phase 1 rule: a target, when provided, must be greater than zero.
+  assert.throws(() => validateCampaign({ ...campaign, targetDonors: 0 }));
   assert.throws(() => validateCampaign({ ...campaign, targetDonors: -1 }));
+  assert.throws(() =>
+    validateCampaign({ ...campaign, targetBloodVolumeMl: 0 }),
+  );
   assert.throws(() =>
     validateCampaign({ ...campaign, targetBloodVolumeMl: -1 }),
   );
+  // Reversed registration window.
   assert.throws(() =>
     validateCampaign({
       ...campaign,
       registrationOpensAt: end,
       registrationClosesAt: start,
+    }),
+  );
+  // registrationClosesAt must not be after startsAt.
+  assert.throws(() =>
+    validateCampaign({
+      ...campaign,
+      registrationOpensAt: new Date('2029-12-01T08:00:00Z'),
+      registrationClosesAt: new Date(start.getTime() + 3600000),
     }),
   );
 });

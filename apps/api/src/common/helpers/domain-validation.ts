@@ -1,18 +1,13 @@
 import { z } from 'zod';
+import { ERROR_CODES, type ErrorCode } from '@blood/shared-types';
 import { AppError } from '../errors/app.error';
+import { zodFields } from './response';
 
+/** Parses with a Zod schema and converts failures into the API error contract. */
 export function parseDomain<T>(schema: z.ZodType<T>, input: unknown): T {
   const parsed = schema.safeParse(input);
-  if (!parsed.success) {
-    throw new AppError(
-      'Validation failed',
-      400,
-      parsed.error.issues.map((issue) => ({
-        path: issue.path.join('.'),
-        message: issue.message,
-      })),
-    );
-  }
+  if (!parsed.success)
+    throw AppError.validation(zodFields(parsed.error.issues));
   return parsed.data;
 }
 
@@ -22,15 +17,23 @@ export const nonNegativeInteger = z
   .int()
   .nonnegative()
   .max(2147483647);
+
 export const volumeSchema = z.object({ volumeMl: positiveInteger.nullish() });
 
-export function assertTimeRange(startsAt: Date, endsAt: Date): void {
+/** `startsAt` must be a real instant strictly before `endsAt`. */
+export function assertTimeRange(
+  startsAt: Date,
+  endsAt: Date,
+  code: ErrorCode = ERROR_CODES.VALIDATION_ERROR,
+): void {
   if (
     !Number.isFinite(startsAt.getTime()) ||
     !Number.isFinite(endsAt.getTime()) ||
     startsAt >= endsAt
   ) {
-    throw new AppError('startsAt must be before endsAt', 400);
+    throw AppError.badRequest(code, undefined, {
+      startsAt: 'Thời gian bắt đầu phải trước thời gian kết thúc',
+    });
   }
 }
 
@@ -40,9 +43,10 @@ export function assertMeasurement(
   min: number,
   max: number,
   integer = false,
+  field = 'value',
 ): void {
   if (!Number.isFinite(min) || !Number.isFinite(max) || min > max) {
-    throw new AppError('Invalid measurement limits', 500);
+    throw AppError.internal('Invalid measurement limits');
   }
   if (
     !Number.isFinite(value) ||
@@ -51,6 +55,8 @@ export function assertMeasurement(
     value > max ||
     (integer && !Number.isInteger(value))
   ) {
-    throw new AppError('Measurement is outside configured limits', 400);
+    throw AppError.badRequest(ERROR_CODES.MEASUREMENT_INVALID, undefined, {
+      [field]: 'Chỉ số nằm ngoài giới hạn cho phép',
+    });
   }
 }
