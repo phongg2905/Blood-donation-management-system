@@ -13,6 +13,7 @@ import { env } from './env';
 export const authConfig = {
   accessTokenTtlMinutes: env.ACCESS_TOKEN_TTL_MINUTES,
   refreshTokenTtlDays: env.REFRESH_TOKEN_TTL_DAYS,
+  resetTokenTtlMinutes: env.RESET_TOKEN_TTL_MINUTES,
   refreshCookieName: 'bd_refresh_token',
   refreshCookie: {
     httpOnly: true,
