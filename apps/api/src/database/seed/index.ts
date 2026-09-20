@@ -128,11 +128,84 @@ async function seedAdmin(): Promise<void> {
   console.info(`Seeded the initial admin account (${env.ADMIN_EMAIL}).`);
 }
 
+/**
+ * One demo account per non-ADMIN role, fixed email/password, so FE can test
+ * every permission set without waiting on `register` (DONOR only) or a
+ * staff-provisioning API (doesn't exist until Phase 8). Idempotent, and
+ * skipped entirely in production — these credentials are public in this
+ * source file and in `docs/api/README.md`.
+ */
+const DEMO_PASSWORD = 'Demo@Password1';
+const DEMO_ACCOUNTS = [
+  { role: 'DONOR', email: 'donor.demo@example.local', fullName: 'Donor Demo' },
+  {
+    role: 'RECEPTION_STAFF',
+    email: 'reception.demo@example.local',
+    fullName: 'Reception Staff Demo',
+  },
+  {
+    role: 'MEDICAL_STAFF',
+    email: 'medical.demo@example.local',
+    fullName: 'Medical Staff Demo',
+  },
+  {
+    role: 'BLOOD_COLLECTION_STAFF',
+    email: 'collection.demo@example.local',
+    fullName: 'Blood Collection Staff Demo',
+  },
+] as const;
+
+async function seedDemoAccounts(): Promise<void> {
+  if (env.NODE_ENV === 'production') {
+    console.info('NODE_ENV=production; skipped demo accounts.');
+    return;
+  }
+  const passwordHash = await hashPassword(DEMO_PASSWORD);
+
+  for (const demo of DEMO_ACCOUNTS) {
+    const user = await database.user.upsert({
+      where: { email: demo.email },
+      create: {
+        email: demo.email,
+        fullName: demo.fullName,
+        passwordHash,
+        isActive: true,
+      },
+      update: { fullName: demo.fullName, passwordHash },
+    });
+
+    const role = await database.role.findUnique({ where: { code: demo.role } });
+    if (!role) throw new Error(`Seed failed: role ${demo.role} is missing`);
+
+    await database.userRole.upsert({
+      where: { userId_roleId: { userId: user.id, roleId: role.id } },
+      create: { userId: user.id, roleId: role.id },
+      update: {},
+    });
+
+    if (demo.role === 'DONOR') {
+      await database.donorProfile.upsert({
+        where: { userId: user.id },
+        create: { userId: user.id },
+        update: {},
+      });
+    }
+  }
+
+  console.info(
+    `Seeded ${DEMO_ACCOUNTS.length} demo accounts (password: ${DEMO_PASSWORD}):`,
+  );
+  for (const demo of DEMO_ACCOUNTS) {
+    console.info(`  ${demo.role.padEnd(24)} ${demo.email}`);
+  }
+}
+
 async function seed(): Promise<void> {
   await seedRoles();
   await seedPermissions();
   await seedRolePermissions();
   await seedAdmin();
+  await seedDemoAccounts();
   console.info(
     `Seeded ${ROLE_CODES.length} roles, ${PERMISSION_CODES.length} permissions and the role-permission matrix.`,
   );

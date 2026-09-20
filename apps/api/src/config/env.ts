@@ -23,6 +23,7 @@ const envSchema = z.object({
   JWT_REFRESH_SECRET: z.string().min(32).optional(),
   ACCESS_TOKEN_TTL_MINUTES: z.coerce.number().int().positive().default(15),
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(30),
+  RESET_TOKEN_TTL_MINUTES: z.coerce.number().int().positive().default(30),
 
   // Initial admin seed. No credential is ever hard-coded in source.
   ADMIN_EMAIL: z.string().regex(emailPattern).optional(),

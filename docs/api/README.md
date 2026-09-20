@@ -180,5 +180,20 @@ HTTP 200:
 HTTP 503 (`error.code = "DATABASE_UNAVAILABLE"`) when PostgreSQL is unreachable;
 the failure envelope never leaks connection details.
 
-Business endpoints are not implemented yet — see
-[Frontend contract](frontend-contract.md) for the agreed Phase 2 surface.
+### Demo accounts (dev/test only — `pnpm db:seed`)
+
+One account per role for FE integration, seeded automatically unless
+`NODE_ENV=production`. Password is the same for all of them:
+`Demo@Password1`.
+
+| Role                   | Email                                                               |
+| ---------------------- | ------------------------------------------------------------------- |
+| DONOR                  | donor.demo@example.local                                            |
+| RECEPTION_STAFF        | reception.demo@example.local                                        |
+| MEDICAL_STAFF          | medical.demo@example.local                                          |
+| BLOOD_COLLECTION_STAFF | collection.demo@example.local                                       |
+| ADMIN                  | set via `ADMIN_EMAIL`/`ADMIN_PASSWORD` in `.env` — no fixed default |
+
+Auth endpoints (`login`, `refresh`, `logout`, `me`) are implemented — see
+[Frontend contract](frontend-contract.md) for the full Auth surface. Other
+business endpoints are not implemented yet.
