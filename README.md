@@ -141,9 +141,12 @@ curl http://localhost:5173/api/health
 ```
 
 Trên Windows dùng `curl.exe` nếu curl là alias PowerShell.
-`pnpm test` cần PostgreSQL đang chạy; kiểm tra health, middleware, validation nghiệp vụ, constraint/quan hệ mới, tranh chấp capacity, cùng các test nền tảng Phase 1 (role/permission, state transition, khung giờ inactive/full, trùng lịch, campaign rule, screening/donation/certificate, envelope lỗi và hash mật khẩu). Tests rollback hoặc dọn đúng fixture của mình sau khi chạy.
-Mở frontend sẽ thấy **API Status: OK** và **PostgreSQL: connected**.
-Nếu database mất kết nối, health trả HTTP 503 và frontend hiển thị lỗi; dùng nút Kiểm tra lại sau khi khôi phục.
+`pnpm test` chạy test của API (cần PostgreSQL đang chạy) và test frontend (Vitest + jsdom, không cần database).
+API test kiểm tra health, middleware, validation nghiệp vụ, constraint/quan hệ mới, tranh chấp capacity, cùng các test nền tảng Phase 1 (role/permission, state transition, khung giờ inactive/full, trùng lịch, campaign rule, screening/donation/certificate, envelope lỗi và hash mật khẩu). API tests rollback hoặc dọn đúng fixture của mình sau khi chạy.
+Frontend test kiểm tra mock auth cho cả 5 role, ProtectedRoute, PermissionGuard, router, validation form và luồng login/register.
+Mở `http://localhost:5173/system-status` sẽ thấy **API: OK** và **PostgreSQL: connected**. Trang `/` giờ chuyển hướng: chưa đăng nhập → `/login`, đã đăng nhập → trang theo vai trò.
+Nếu database mất kết nối, health trả HTTP 503 và trang trạng thái hiển thị lỗi; dùng nút Kiểm tra lại sau khi khôi phục.
+Frontend Phase 2 mặc định chạy auth bằng mock adapter (`VITE_USE_MOCK_API`), đăng nhập được bằng 5 tài khoản demo hiển thị ngay trên trang đăng nhập. Đặt `VITE_USE_MOCK_API=false` để dùng API thật — xem `apps/web/TASK_UNTIL_AUTH_INTEGRATED.md`.
 Vite proxy chỉ phục vụ development; khi triển khai build web cần reverse proxy /api hoặc cấu hình VITE_API_BASE_URL trước build.
 
 ## Commands
@@ -156,7 +159,7 @@ Vite proxy chỉ phục vụ development; khi triển khai build web cần rever
 | pnpm typecheck                  | Kiểm tra TypeScript strict              |
 | pnpm lint                       | Kiểm tra ESLint                         |
 | pnpm format / pnpm format:check | Format / kiểm tra Prettier              |
-| pnpm test                       | Kiểm thử API và middleware              |
+| pnpm test                       | Kiểm thử API, middleware và frontend    |
 | pnpm db:generate                | Sinh Prisma Client                      |
 | pnpm db:migrate                 | Migration development                   |
 | pnpm db:deploy                  | Áp dụng migrations đã có                |
