@@ -417,6 +417,12 @@ export const ERROR_CODES = {
   UNAUTHENTICATED: 'UNAUTHENTICATED',
   FORBIDDEN: 'FORBIDDEN',
 
+  AUTH_INVALID_CREDENTIALS: 'AUTH_INVALID_CREDENTIALS',
+  AUTH_ACCOUNT_INACTIVE: 'AUTH_ACCOUNT_INACTIVE',
+  AUTH_EMAIL_EXISTS: 'AUTH_EMAIL_EXISTS',
+  AUTH_SESSION_INVALID: 'AUTH_SESSION_INVALID',
+  AUTH_RESET_TOKEN_INVALID: 'AUTH_RESET_TOKEN_INVALID',
+
   CAMPAIGN_NOT_FOUND: 'CAMPAIGN_NOT_FOUND',
   CAMPAIGN_NOT_OPEN: 'CAMPAIGN_NOT_OPEN',
   CAMPAIGN_NOT_EDITABLE: 'CAMPAIGN_NOT_EDITABLE',
@@ -474,6 +480,13 @@ export const ERROR_MESSAGES: Readonly<Record<ErrorCode, string>> = {
   DATABASE_UNAVAILABLE: 'Không kết nối được cơ sở dữ liệu',
   UNAUTHENTICATED: 'Bạn cần đăng nhập',
   FORBIDDEN: 'Bạn không có quyền thực hiện thao tác này',
+
+  AUTH_INVALID_CREDENTIALS: 'Email hoặc mật khẩu không đúng',
+  AUTH_ACCOUNT_INACTIVE: 'Tài khoản đã bị khoá',
+  AUTH_EMAIL_EXISTS: 'Email đã được sử dụng',
+  AUTH_SESSION_INVALID: 'Phiên đăng nhập không hợp lệ hoặc đã hết hạn',
+  AUTH_RESET_TOKEN_INVALID:
+    'Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn',
 
   CAMPAIGN_NOT_FOUND: 'Không tìm thấy đợt hiến máu',
   CAMPAIGN_NOT_OPEN: 'Đợt hiến máu chưa mở đăng ký',
