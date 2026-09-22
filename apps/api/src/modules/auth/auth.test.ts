@@ -1,3 +1,8 @@
+// The suite registers many donors from 127.0.0.1, which the per-IP auth rate
+// limiter would throttle (the .env sets NODE_ENV=development even for tests).
+// Flag the process as test env before any request so the limiter skips.
+process.env.NODE_ENV = 'test';
+
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
@@ -323,6 +328,103 @@ describe('Forgot / reset password', () => {
     const body = await response.json();
     assert.equal(response.status, 400);
     assert.equal(body.error.code, 'AUTH_RESET_TOKEN_INVALID');
+  });
+});
+
+describe('Token single-use under concurrent requests', () => {
+  // Regression for the two races reported during FE integration: one reset
+  // token and one refresh token must each be consumable exactly once, even
+  // when two requests arrive together. The repository relies on a per-user
+  // row lock (SELECT ... FOR UPDATE) plus conditional updateMany claims.
+
+  test('concurrent reset-password calls with one token succeed at most once', async () => {
+    const donor = await registerDonor();
+    try {
+      const forgot = await fetch(`${base}/api/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: donor.email }),
+      });
+      const forgotBody = await forgot.json();
+      const token = forgotBody.data.devResetToken;
+      assert.equal(typeof token, 'string');
+
+      // Two reset attempts with the SAME token and DIFFERENT new passwords.
+      const [first, second] = await Promise.all([
+        fetch(`${base}/api/auth/reset-password`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token, newPassword: 'FirstPassw0rd!1' }),
+        }),
+        fetch(`${base}/api/auth/reset-password`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token, newPassword: 'SecondPassw0rd!2' }),
+        }),
+      ]);
+
+      const statuses = [first.status, second.status].sort();
+      assert.deepEqual(statuses, [200, 400]);
+
+      // Exactly one of the two candidate passwords must work — the winner of
+      // the race. Both succeeding would mean double consumption.
+      const loginFirst = await fetch(`${base}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: donor.email,
+          password: 'FirstPassw0rd!1',
+        }),
+      });
+      const loginSecond = await fetch(`${base}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: donor.email,
+          password: 'SecondPassw0rd!2',
+        }),
+      });
+      assert.equal(
+        [loginFirst.status, loginSecond.status].filter((s) => s === 200).length,
+        1,
+      );
+    } finally {
+      await cleanupUser(donor.body.data.user.id);
+    }
+  });
+
+  test('concurrent refresh calls with one cookie issue one session at most', async () => {
+    const donor = await registerDonor();
+    try {
+      const [first, second] = await Promise.all([
+        fetch(`${base}/api/auth/refresh`, {
+          method: 'POST',
+          headers: { Cookie: donor.refreshCookie! },
+        }),
+        fetch(`${base}/api/auth/refresh`, {
+          method: 'POST',
+          headers: { Cookie: donor.refreshCookie! },
+        }),
+      ]);
+
+      const statuses = [first.status, second.status].sort();
+      assert.deepEqual(statuses, [200, 401]);
+
+      // Only one fresh cookie may have been minted by the race.
+      const firstCookie = extractCookie(first, 'bd_refresh_token');
+      const secondCookie = extractCookie(second, 'bd_refresh_token');
+      const rotated = firstCookie ?? secondCookie;
+      assert.ok(rotated, 'the winning refresh must set a new cookie');
+
+      // The winning session still works afterwards.
+      const followUp = await fetch(`${base}/api/auth/refresh`, {
+        method: 'POST',
+        headers: { Cookie: rotated },
+      });
+      assert.equal(followUp.status, 200);
+    } finally {
+      await cleanupUser(donor.body.data.user.id);
+    }
   });
 });
 

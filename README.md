@@ -113,7 +113,7 @@ Shared packages được build tự động khi install và trước dev. Sau kh
 - API_PORT: cổng Express, mặc định 3000.
 - DATABASE_URL: kết nối Prisma; query timeout kết nối trong URL.
 - CORS_ORIGIN: origin frontend được phép, mặc định http://localhost:5173.
-- JWT_ACCESS_SECRET / JWT_REFRESH_SECRET (tùy chọn, tối thiểu 32 ký tự): bí mật ký token Phase 2; chưa bắt buộc ở Phase 1.
+- JWT_ACCESS_SECRET / JWT_REFRESH_SECRET (tối thiểu 32 ký tự): bí mật ký access/refresh token. Cần đặt cả hai để chạy các luồng xác thực.
 - ACCESS_TOKEN_TTL_MINUTES (mặc định 15) / REFRESH_TOKEN_TTL_DAYS (mặc định 30).
 - ADMIN_EMAIL / ADMIN_PASSWORD (tùy chọn, mật khẩu tối thiểu 12 ký tự) / ADMIN_FULL_NAME: tạo tài khoản admin đầu tiên khi seed. Không có giá trị nào được hard-code trong source; nếu bỏ trống, seed sẽ bỏ qua bước này.
 - POSTGRES_USER / POSTGRES_PASSWORD / POSTGRES_DB: khởi tạo PostgreSQL.
@@ -146,7 +146,7 @@ API test kiểm tra health, middleware, validation nghiệp vụ, constraint/qua
 Frontend test kiểm tra mock auth cho cả 5 role, ProtectedRoute, PermissionGuard, router, validation form và luồng login/register.
 Mở `http://localhost:5173/system-status` sẽ thấy **API: OK** và **PostgreSQL: connected**. Trang `/` giờ chuyển hướng: chưa đăng nhập → `/login`, đã đăng nhập → trang theo vai trò.
 Nếu database mất kết nối, health trả HTTP 503 và trang trạng thái hiển thị lỗi; dùng nút Kiểm tra lại sau khi khôi phục.
-Frontend Phase 2 mặc định chạy auth bằng mock adapter (`VITE_USE_MOCK_API`), đăng nhập được bằng 5 tài khoản demo hiển thị ngay trên trang đăng nhập. Đặt `VITE_USE_MOCK_API=false` để dùng API thật — xem `apps/web/TASK_UNTIL_AUTH_INTEGRATED.md`.
+Frontend mặc định dùng API auth thật. Đặt `VITE_USE_MOCK_API=true` chỉ khi cần phát triển giao diện độc lập; trang đăng nhập sẽ hiển thị các tài khoản demo trong chế độ này.
 Vite proxy chỉ phục vụ development; khi triển khai build web cần reverse proxy /api hoặc cấu hình VITE_API_BASE_URL trước build.
 
 ## Commands

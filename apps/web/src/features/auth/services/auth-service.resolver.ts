@@ -6,17 +6,16 @@ import { MockAuthService } from './mock-auth.service';
  * Which data source the auth surface talks to.
  *
  * Pages never decide this — they receive an `AuthService` from `AuthProvider`,
- * which reads the resolved singleton here. Switching mock → real is a single
- * environment change plus finishing `ApiAuthService`.
+ * which reads the resolved singleton here. The backend adapter is the default;
+ * mock data is opt-in for isolated UI work.
  */
 export interface AuthServiceConfig {
   useMock: boolean;
 }
 
 export const readAuthServiceConfig = (): AuthServiceConfig => ({
-  // Defaults to mock so a checkout with no backend still runs; set
-  // VITE_USE_MOCK_API=false to force the real adapter.
-  useMock: import.meta.env.VITE_USE_MOCK_API !== 'false',
+  // Set this explicitly to `true` only when developing the UI without an API.
+  useMock: import.meta.env.VITE_USE_MOCK_API === 'true',
 });
 
 export function createAuthService(
@@ -24,7 +23,7 @@ export function createAuthService(
 ): AuthService {
   if (config.useMock && import.meta.env.PROD) {
     console.warn(
-      '[auth] VITE_USE_MOCK_API is enabled in a production build — the app is running on mock data. See apps/web/TASK_UNTIL_AUTH_INTEGRATED.md.',
+      '[auth] VITE_USE_MOCK_API is enabled in a production build — the app is running on mock data.',
     );
   }
   return config.useMock ? new MockAuthService() : new ApiAuthService();

@@ -52,14 +52,14 @@
   color: #fff;
   box-shadow:
     var(--shadow-xs),
-    inset 0 1px 0 rgb(255 255 255 / 0.10);
+    inset 0 1px 0 rgb(255 255 255 / 0.1);
 }
 
 .btn--primary:hover:not(:disabled) {
   background: var(--color-brand-700);
   box-shadow:
     var(--shadow-sm),
-    inset 0 1px 0 rgb(255 255 255 / 0.10);
+    inset 0 1px 0 rgb(255 255 255 / 0.1);
 }
 
 .btn--primary:active:not(:disabled) {
@@ -168,7 +168,9 @@
 }
 
 @keyframes spinner-rotate {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -457,7 +459,11 @@
   width: 36px;
   height: 36px;
   border-radius: var(--radius-lg);
-  background: linear-gradient(135deg, var(--color-brand-600), var(--color-brand-700));
+  background: linear-gradient(
+    135deg,
+    var(--color-brand-600),
+    var(--color-brand-700)
+  );
   color: #fff;
   font-size: 0;
   flex: none;

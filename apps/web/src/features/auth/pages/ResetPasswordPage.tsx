@@ -13,8 +13,8 @@ import type { AuthErrorView } from '../auth-errors';
 import { AuthCard } from '../components/AuthCard';
 import { AuthLayout } from '../components/AuthLayout';
 import { PasswordRequirements } from '../components/PasswordRequirements';
+import { useAuth } from '../hooks/useAuth';
 import { AUTH_ROUTES } from '../routing';
-import { getAuthService } from '../services/auth-service.resolver';
 import {
   hasErrors,
   pickFieldErrors,
@@ -29,11 +29,11 @@ type ResetState = 'form' | 'success' | 'token-error';
 /**
  * Reset password.
  *
- * The token comes from the reset link's query string (`?token=…`). Its transport
- * is not fixed by the API contract yet, so it is read here through one small
- * step — swapping to a path param or a POSTed body means editing this page only.
+ * Reads the token from the reset link's query string (`?token=…`).
+ * The API adapter sends it with `newPassword` as required by the backend.
  */
 export function ResetPasswordPage() {
+  const { resetPassword } = useAuth();
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token') ?? '';
 
@@ -66,21 +66,27 @@ export function ResetPasswordPage() {
 
     setSubmitting(true);
     try {
-      await getAuthService().resetPassword({ token, password });
+      await resetPassword({ token, password });
       setState('success');
     } catch (error) {
       const described = describeAuthError(error);
       // A dead token is terminal: replace the form instead of retrying it.
       if (
         described.code === AUTH_ERROR_CODES.RESET_TOKEN_INVALID ||
-        described.code === AUTH_ERROR_CODES.RESET_TOKEN_EXPIRED
+        described.code === AUTH_ERROR_CODES.RESET_TOKEN_EXPIRED ||
+        described.code === 'AUTH_RESET_TOKEN_INVALID'
       ) {
         setTokenError(described);
         setState('token-error');
         return;
       }
       setFormError(described);
-      setErrors(pickFieldErrors(described.fields, RESET_FIELDS));
+      setErrors({
+        ...pickFieldErrors(described.fields, RESET_FIELDS),
+        ...(described.fields?.newPassword
+          ? { password: described.fields.newPassword }
+          : {}),
+      });
     } finally {
       setSubmitting(false);
     }

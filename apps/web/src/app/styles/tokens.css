@@ -92,16 +92,15 @@
   /* ── Typography ────────────────────────────────────────────────────── */
   --font-sans:
     'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-    'Helvetica Neue', Arial, sans-serif,
-    'Apple Color Emoji', 'Segoe UI Emoji';
+    'Helvetica Neue', Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
 
-  --text-xs: 0.75rem;        /* 12px */
-  --text-sm: 0.875rem;       /* 14px */
-  --text-base: 1rem;         /* 16px */
-  --text-lg: 1.125rem;       /* 18px */
-  --text-xl: 1.25rem;        /* 20px */
-  --text-2xl: 1.5rem;        /* 24px */
-  --text-3xl: 1.875rem;      /* 30px */
+  --text-xs: 0.75rem; /* 12px */
+  --text-sm: 0.875rem; /* 14px */
+  --text-base: 1rem; /* 16px */
+  --text-lg: 1.125rem; /* 18px */
+  --text-xl: 1.25rem; /* 20px */
+  --text-2xl: 1.5rem; /* 24px */
+  --text-3xl: 1.875rem; /* 30px */
   --text-hero: clamp(1.75rem, 3vw, 2.25rem);
   --text-2xl-responsive: clamp(1.375rem, 2.4vw, 1.875rem);
   /* Auth-specific type scale */
@@ -122,21 +121,21 @@
   /* ── Spacing (4px grid) ────────────────────────────────────────────── */
   --space-0: 0;
   --space-px: 1px;
-  --space-0_5: 0.125rem;  /* 2px */
-  --space-1: 0.25rem;     /* 4px */
-  --space-1_5: 0.375rem;  /* 6px */
-  --space-2: 0.5rem;      /* 8px */
-  --space-2_5: 0.625rem;  /* 10px */
-  --space-3: 0.75rem;     /* 12px */
-  --space-4: 1rem;        /* 16px */
-  --space-5: 1.25rem;     /* 20px */
-  --space-6: 1.5rem;      /* 24px */
-  --space-7: 1.75rem;     /* 28px */
-  --space-8: 2rem;        /* 32px */
-  --space-10: 2.5rem;     /* 40px */
-  --space-12: 3rem;       /* 48px */
-  --space-16: 4rem;       /* 64px */
-  --space-20: 5rem;       /* 80px */
+  --space-0_5: 0.125rem; /* 2px */
+  --space-1: 0.25rem; /* 4px */
+  --space-1_5: 0.375rem; /* 6px */
+  --space-2: 0.5rem; /* 8px */
+  --space-2_5: 0.625rem; /* 10px */
+  --space-3: 0.75rem; /* 12px */
+  --space-4: 1rem; /* 16px */
+  --space-5: 1.25rem; /* 20px */
+  --space-6: 1.5rem; /* 24px */
+  --space-7: 1.75rem; /* 28px */
+  --space-8: 2rem; /* 32px */
+  --space-10: 2.5rem; /* 40px */
+  --space-12: 3rem; /* 48px */
+  --space-16: 4rem; /* 64px */
+  --space-20: 5rem; /* 80px */
 
   /* ── Radius ────────────────────────────────────────────────────────── */
   --radius-xs: 4px;
@@ -146,28 +145,19 @@
   --radius-xl: 16px;
   --radius-2xl: 20px;
   --radius-3xl: 24px;
-  --radius-card: 28px;    /* Auth scene card (Ref 01 + Ref 03 direction) */
+  --radius-card: 28px; /* Auth scene card (Ref 01 + Ref 03 direction) */
   --radius-pill: 9999px;
 
   /* ── Elevation ─────────────────────────────────────────────────────── */
   --shadow-xs: 0 1px 2px rgb(26 31 46 / 0.04);
-  --shadow-sm:
-    0 1px 2px rgb(26 31 46 / 0.04),
-    0 1px 3px rgb(26 31 46 / 0.06);
-  --shadow-md:
-    0 2px 6px rgb(26 31 46 / 0.04),
-    0 6px 16px rgb(26 31 46 / 0.06);
-  --shadow-lg:
-    0 4px 8px rgb(26 31 46 / 0.03),
-    0 14px 32px rgb(26 31 46 / 0.08);
-  --shadow-xl:
-    0 8px 16px rgb(26 31 46 / 0.04),
-    0 24px 48px rgb(26 31 46 / 0.10);
+  --shadow-sm: 0 1px 2px rgb(26 31 46 / 0.04), 0 1px 3px rgb(26 31 46 / 0.06);
+  --shadow-md: 0 2px 6px rgb(26 31 46 / 0.04), 0 6px 16px rgb(26 31 46 / 0.06);
+  --shadow-lg: 0 4px 8px rgb(26 31 46 / 0.03), 0 14px 32px rgb(26 31 46 / 0.08);
+  --shadow-xl: 0 8px 16px rgb(26 31 46 / 0.04), 0 24px 48px rgb(26 31 46 / 0.1);
   /* Auth scene card shadow — deep and soft (Ref 01 water-drop card feel) */
   --shadow-auth:
-    0 4px 6px rgb(26 31 46 / 0.04),
-    0 12px 28px rgb(26 31 46 / 0.08),
-    0 32px 64px rgb(26 31 46 / 0.10);
+    0 4px 6px rgb(26 31 46 / 0.04), 0 12px 28px rgb(26 31 46 / 0.08),
+    0 32px 64px rgb(26 31 46 / 0.1);
 
   /* ── Focus ring ────────────────────────────────────────────────────── */
   --focus-ring: 0 0 0 3px rgb(192 39 63 / 0.22);

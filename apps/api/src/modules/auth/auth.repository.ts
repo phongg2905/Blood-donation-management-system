@@ -3,11 +3,13 @@ import type { PermissionCode, RoleCode } from '@blood/shared-types';
 import { database } from '../../config/database';
 
 export interface UserWithAccess extends User {
+  donorProfile: { phone: string | null; address: string | null } | null;
   roleCodes: RoleCode[];
   permissionCodes: PermissionCode[];
 }
 
 const withAccessInclude = {
+  donorProfile: { select: { phone: true, address: true } },
   roles: {
     include: {
       role: { include: { permissions: { include: { permission: true } } } },
@@ -29,6 +31,12 @@ function toUserWithAccess(user: UserWithRoles): UserWithAccess {
     }
   }
   return { ...user, roleCodes, permissionCodes: [...permissionSet] };
+}
+
+// Security mutations for one account share this lock, including reset versus
+// refresh/login. Parameter binding keeps the UUID out of the SQL source.
+async function lockUser(tx: Prisma.TransactionClient, userId: string) {
+  await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${userId}::uuid FOR UPDATE`;
 }
 
 export const authRepository = {
@@ -82,16 +90,17 @@ export const authRepository = {
     });
   },
 
-  updateFullName(userId: string, fullName: string): Promise<User> {
-    return database.user.update({ where: { id: userId }, data: { fullName } });
-  },
-
-  upsertDonorProfileContact(
+  updateProfile(
     userId: string,
-    input: { phone?: string | undefined; address?: string | undefined },
-  ): Promise<void> {
-    return database.donorProfile
-      .upsert({
+    input: { fullName?: string | undefined; phone?: string | undefined; address?: string | undefined },
+  ): Promise<UserWithAccess> {
+    return database.$transaction(async (tx) => {
+      await lockUser(tx, userId);
+      if (input.fullName !== undefined) {
+        await tx.user.update({ where: { id: userId }, data: { fullName: input.fullName } });
+      }
+      if (input.phone !== undefined || input.address !== undefined) {
+        await tx.donorProfile.upsert({
         where: { userId },
         create: {
           userId,
@@ -102,21 +111,16 @@ export const authRepository = {
           ...(input.phone !== undefined ? { phone: input.phone } : {}),
           ...(input.address !== undefined ? { address: input.address } : {}),
         },
-      })
-      .then(() => undefined);
+        });
+      }
+      return toUserWithAccess(await tx.user.findUniqueOrThrow({ where: { id: userId }, include: withAccessInclude }));
+    });
   },
 
   touchLastLogin(userId: string): Promise<User> {
     return database.user.update({
       where: { id: userId },
       data: { lastLoginAt: new Date() },
-    });
-  },
-
-  updatePasswordHash(userId: string, passwordHash: string): Promise<User> {
-    return database.user.update({
-      where: { id: userId },
-      data: { passwordHash },
     });
   },
 
@@ -129,8 +133,12 @@ export const authRepository = {
     expiresAt: Date;
     ipAddress: string | null;
     userAgent: string | null;
-  }): Promise<{ id: string }> {
-    return database.authSession.create({
+  }, expectedPasswordHash: string | null): Promise<{ id: string } | null> {
+    return database.$transaction(async (tx) => {
+      await lockUser(tx, input.userId);
+      const user = await tx.user.findUnique({ where: { id: input.userId } });
+      if (!user?.isActive || user.passwordHash !== expectedPasswordHash) return null;
+      return tx.authSession.create({
       data: {
         id: input.id,
         userId: input.userId,
@@ -140,6 +148,7 @@ export const authRepository = {
         userAgent: input.userAgent,
       },
       select: { id: true },
+      });
     });
   },
 
@@ -162,37 +171,33 @@ export const authRepository = {
       ipAddress: string | null;
       userAgent: string | null;
     },
-  ): Promise<void> {
-    await database.$transaction([
-      database.authSession.create({
-        data: {
-          id: next.id,
-          userId: next.userId,
-          tokenHash: next.tokenHash,
-          expiresAt: next.expiresAt,
-          ipAddress: next.ipAddress,
-          userAgent: next.userAgent,
-        },
-      }),
-      database.authSession.update({
-        where: { id: oldSessionId },
+  ): Promise<boolean> {
+    return database.$transaction(async (tx) => {
+      await lockUser(tx, next.userId);
+      const claimed = await tx.authSession.updateMany({
+        where: { id: oldSessionId, userId: next.userId, revokedAt: null, expiresAt: { gt: new Date() } },
         data: { revokedAt: new Date(), replacedById: next.id },
-      }),
-    ]);
+      });
+      if (claimed.count !== 1) return false;
+      await tx.authSession.create({ data: next });
+      return true;
+    });
   },
 
   revokeSession(id: string): Promise<void> {
     return database.authSession
-      .update({ where: { id }, data: { revokedAt: new Date() } })
-      .then(() => undefined)
-      .catch(() => undefined); // already gone/revoked — logout stays idempotent
+      .updateMany({ where: { id, revokedAt: null }, data: { revokedAt: new Date() } })
+      .then(() => undefined);
   },
 
   /** Replay defence: a refresh token reused after rotation revokes the whole chain. */
   revokeAllSessionsForUser(userId: string): Promise<Prisma.BatchPayload> {
-    return database.authSession.updateMany({
+    return database.$transaction(async (tx) => {
+      await lockUser(tx, userId);
+      return tx.authSession.updateMany({
       where: { userId, revokedAt: null },
       data: { revokedAt: new Date() },
+      });
     });
   },
 
@@ -203,9 +208,10 @@ export const authRepository = {
     tokenHash: string;
     expiresAt: Date;
   }): Promise<{ id: string }> {
-    return database.passwordResetToken.create({
-      data: input,
-      select: { id: true },
+    return database.$transaction(async (tx) => {
+      await lockUser(tx, input.userId);
+      await tx.passwordResetToken.updateMany({ where: { userId: input.userId, usedAt: null }, data: { usedAt: new Date() } });
+      return tx.passwordResetToken.create({ data: input, select: { id: true } });
     });
   },
 
@@ -213,17 +219,25 @@ export const authRepository = {
     return database.passwordResetToken.findUnique({ where: { tokenHash } });
   },
 
-  markResetTokenUsed(id: string): Promise<void> {
+  invalidateResetToken(id: string): Promise<void> {
     return database.passwordResetToken
       .update({ where: { id }, data: { usedAt: new Date() } })
       .then(() => undefined);
   },
 
-  /** Invalidates any earlier unused reset tokens when a new one is requested. */
-  invalidateActiveResetTokens(userId: string): Promise<Prisma.BatchPayload> {
-    return database.passwordResetToken.updateMany({
-      where: { userId, usedAt: null },
-      data: { usedAt: new Date() },
+  /** Consume once, change password and revoke refresh sessions atomically. */
+  consumeResetToken(id: string, userId: string, passwordHash: string): Promise<boolean> {
+    return database.$transaction(async (tx) => {
+      await lockUser(tx, userId);
+      const claimed = await tx.passwordResetToken.updateMany({
+        where: { id, userId, usedAt: null, expiresAt: { gt: new Date() } },
+        data: { usedAt: new Date() },
+      });
+      if (claimed.count !== 1) return false;
+      await tx.user.update({ where: { id: userId }, data: { passwordHash } });
+      await tx.authSession.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } });
+      await tx.passwordResetToken.updateMany({ where: { userId, usedAt: null }, data: { usedAt: new Date() } });
+      return true;
     });
   },
 };

@@ -10,6 +10,7 @@ import type {
   AuthService,
   AuthUser,
   ForgotPasswordInput,
+  ForgotPasswordResult,
   LoginInput,
   RegisterInput,
   ResetPasswordInput,
@@ -19,11 +20,8 @@ import type {
 /**
  * Real adapter for the Phase 2 auth API.
  *
- * Endpoints marked `[confirmed]` are in `docs/api/frontend-contract.md`.
- * Endpoints marked `[unconfirmed]` are **not** in the contract yet — they use the
- * conventional path and are recorded in `TASK_UNTIL_AUTH_INTEGRATED.md`, so they
- * must be re-checked (path, request body, response shape, status codes) before
- * this adapter is switched on.
+ * Endpoints are implemented by `apps/api/src/modules/auth` and use the shared
+ * `{ success, data }` response envelope.
  *
  * Token handling: the access token lives in memory (see `services/api.ts`) and
  * travels as `Authorization: Bearer`. The refresh token is an HttpOnly cookie
@@ -39,13 +37,13 @@ interface RefreshResponse {
   accessToken: string;
 }
 
-const LOGIN_PATH = '/auth/login'; // [confirmed]
-const REFRESH_PATH = '/auth/refresh'; // [confirmed]
-const LOGOUT_PATH = '/auth/logout'; // [confirmed]
-const ME_PATH = '/auth/me'; // [confirmed]
-const REGISTER_PATH = '/auth/register'; // [unconfirmed]
-const FORGOT_PATH = '/auth/forgot-password'; // [unconfirmed]
-const RESET_PATH = '/auth/reset-password'; // [unconfirmed]
+const LOGIN_PATH = '/auth/login';
+const REFRESH_PATH = '/auth/refresh';
+const LOGOUT_PATH = '/auth/logout';
+const ME_PATH = '/auth/me';
+const REGISTER_PATH = '/auth/register';
+const FORGOT_PATH = '/auth/forgot-password';
+const RESET_PATH = '/auth/reset-password';
 
 export class ApiAuthService implements AuthService {
   async login({ email, password }: LoginInput): Promise<AuthUser> {
@@ -62,8 +60,8 @@ export class ApiAuthService implements AuthService {
    * Public registration. Sends only `{ fullName, email, password }` — the API
    * assigns the DONOR role; the client cannot request a role.
    */
-  async register(input: RegisterInput): Promise<void> {
-    await apiPost<unknown>(
+  async register(input: RegisterInput): Promise<AuthUser> {
+    const response = await apiPost<LoginResponse>(
       REGISTER_PATH,
       {
         fullName: input.fullName,
@@ -72,6 +70,8 @@ export class ApiAuthService implements AuthService {
       },
       { anonymous: true },
     );
+    setAccessToken(response.data.accessToken);
+    return response.data.user;
   }
 
   async logout(): Promise<void> {
@@ -120,20 +120,30 @@ export class ApiAuthService implements AuthService {
       });
       setAccessToken(response.data.accessToken);
       return true;
-    } catch {
-      setAccessToken(null);
-      return false;
+    } catch (error) {
+      if (error instanceof ApiRequestError && error.status === 401) {
+        setAccessToken(null);
+        return false;
+      }
+      throw error;
     }
   }
 
-  async forgotPassword({ email }: ForgotPasswordInput): Promise<void> {
-    await apiPost<unknown>(FORGOT_PATH, { email }, { anonymous: true });
+  async forgotPassword({
+    email,
+  }: ForgotPasswordInput): Promise<ForgotPasswordResult> {
+    const response = await apiPost<ForgotPasswordResult>(
+      FORGOT_PATH,
+      { email },
+      { anonymous: true },
+    );
+    return response.data;
   }
 
   async resetPassword({ token, password }: ResetPasswordInput): Promise<void> {
     await apiPost<unknown>(
       RESET_PATH,
-      { token, password },
+      { token, newPassword: password },
       { anonymous: true },
     );
   }

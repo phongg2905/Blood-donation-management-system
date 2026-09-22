@@ -10,8 +10,8 @@ export interface MockAccountsPanelProps {
  * Dev helper: compact collapsible panel with one-click sign-in for each role.
  *
  * Only rendered when `isMockAuthEnabled()` is true. Collapsed by default so it
- * does not dominate the login form. These are throwaway credentials for local
- * development — the file is deleted once the real auth API is integrated.
+ * does not dominate the login form. These credentials exist only for local
+ * mock-mode development.
  */
 export function MockAccountsPanel({ onSelect }: MockAccountsPanelProps) {
   const [expanded, setExpanded] = useState(false);

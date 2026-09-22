@@ -9,7 +9,6 @@ import {
   FormField,
   Input,
   PasswordInput,
-  StatusMessage,
 } from '@/components/ui';
 import { describeAuthError } from '../auth-errors';
 import type { AuthErrorView } from '../auth-errors';
@@ -18,7 +17,6 @@ import { AuthLayout } from '../components/AuthLayout';
 import { PasswordRequirements } from '../components/PasswordRequirements';
 import { useAuth } from '../hooks/useAuth';
 import { AUTH_ROUTES, resolveLandingPath } from '../routing';
-import { getAuthService } from '../services/auth-service.resolver';
 import {
   hasErrors,
   normalizeEmail,
@@ -42,7 +40,7 @@ const REGISTER_FIELDS = [
  * ADMIN in a later phase, never through self-registration.
  */
 export function RegisterPage() {
-  const { status, currentUser } = useAuth();
+  const { status, currentUser, register } = useAuth();
   const navigate = useNavigate();
 
   const [fullName, setFullName] = useState('');
@@ -53,7 +51,6 @@ export function RegisterPage() {
   const [errors, setErrors] = useState<FieldErrors<RegisterField>>({});
   const [formError, setFormError] = useState<AuthErrorView | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [succeeded, setSucceeded] = useState(false);
 
   if (status === 'loading') {
     return <PageLoader message="Đang kiểm tra phiên đăng nhập…" />;
@@ -80,12 +77,12 @@ export function RegisterPage() {
 
     setSubmitting(true);
     try {
-      await getAuthService().register({
+      const user = await register({
         fullName: fullName.trim(),
         email: normalizeEmail(email),
         password,
       });
-      setSucceeded(true);
+      navigate(resolveLandingPath(user), { replace: true });
     } catch (error) {
       const described = describeAuthError(error);
       setFormError(described);
@@ -93,44 +90,6 @@ export function RegisterPage() {
     } finally {
       setSubmitting(false);
     }
-  }
-
-  if (succeeded) {
-    return (
-      <AuthLayout
-        visualTitle="Đăng ký thành công"
-        visualLead="Tài khoản người hiến máu của bạn đã được tạo."
-        visualBullets={[]}
-      >
-        <AuthCard
-          eyebrow="Đăng ký"
-          title="Tài khoản đã được tạo"
-          subtitle="Bạn có thể đăng nhập ngay bằng email vừa đăng ký."
-          footer={
-            <div className="auth-card__links">
-              <span>Đã có tài khoản? </span>
-              <Link to={AUTH_ROUTES.login}>Đăng nhập</Link>
-            </div>
-          }
-        >
-          <StatusMessage tone="success" title="Đăng ký hoàn tất">
-            Tài khoản <strong>{normalizeEmail(email)}</strong> đã được tạo với
-            vai trò Người hiến máu.
-          </StatusMessage>
-          <Button
-            block
-            onClick={() =>
-              navigate(AUTH_ROUTES.login, {
-                replace: true,
-                state: { email: normalizeEmail(email) },
-              })
-            }
-          >
-            Đi tới đăng nhập
-          </Button>
-        </AuthCard>
-      </AuthLayout>
-    );
   }
 
   return (

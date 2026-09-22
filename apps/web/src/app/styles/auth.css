@@ -542,8 +542,12 @@
   width: min(100%, 720px);
   margin-top: clamp(36px, 10vh, 100px);
 }
-.error-page--403 .error-page__content { gap: 10px; }
-.error-page--403 .error-page__title { color: #35335c; }
+.error-page--403 .error-page__content {
+  gap: 10px;
+}
+.error-page--403 .error-page__title {
+  color: #35335c;
+}
 .error-page--403 .error-page__actions .btn--primary,
 .error-page--403 .error-page__actions .btn--secondary {
   background: linear-gradient(135deg, #24bfd0, #0da9bf);
@@ -580,7 +584,9 @@
 
 @media (max-width: 767px) {
   .auth-layout::before {
-    background-position: center, 82% center;
+    background-position:
+      center,
+      82% center;
   }
   .auth-scene-header {
     padding: 24px;

@@ -15,12 +15,8 @@ export interface AuthErrorView {
  * Codes the auth screens react to.
  *
  * `UNAUTHENTICATED` / `FORBIDDEN` / `VALIDATION_ERROR` come from `ERROR_CODES`
- * in `@blood/shared-types`. The credential-specific codes below are **not** in
- * the shared catalogue yet: Phase 1 lists `UNAUTHENTICATED` for a failed login
- * and does not define a register or reset-password endpoint at all, so these are
- * FE-side semantics the mock adapter emits. They are listed in
- * `apps/web/TASK_UNTIL_AUTH_INTEGRATED.md` to be reconciled with the real
- * endpoints. The UI maps both spellings, so no screen breaks either way.
+ * in `@blood/shared-types`. Legacy aliases remain for the opt-in mock adapter;
+ * the real API emits the `AUTH_*` variants.
  */
 export const AUTH_ERROR_CODES = {
   INVALID_CREDENTIALS: 'INVALID_CREDENTIALS',
@@ -35,6 +31,11 @@ export type AuthErrorCode =
   (typeof AUTH_ERROR_CODES)[keyof typeof AUTH_ERROR_CODES];
 
 const MESSAGES: Readonly<Record<string, string>> = {
+  AUTH_ACCOUNT_INACTIVE:
+    'Tài khoản đã bị vô hiệu hoá. Vui lòng liên hệ quản trị viên.',
+  AUTH_EMAIL_EXISTS: 'Email này đã được đăng ký.',
+  AUTH_RESET_TOKEN_INVALID:
+    'Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.',
   VALIDATION_ERROR: 'Dữ liệu không hợp lệ.',
   UNAUTHENTICATED: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
   FORBIDDEN: 'Bạn không có quyền thực hiện thao tác này.',
@@ -48,6 +49,7 @@ const MESSAGES: Readonly<Record<string, string>> = {
 
 /** Login-specific copy: 401 on the login call means "wrong credentials". */
 const LOGIN_MESSAGES: Readonly<Record<string, string>> = {
+  AUTH_INVALID_CREDENTIALS: 'Email hoặc mật khẩu không đúng.',
   ...MESSAGES,
   UNAUTHENTICATED: 'Email hoặc mật khẩu không đúng.',
   INVALID_CREDENTIALS: 'Email hoặc mật khẩu không đúng.',

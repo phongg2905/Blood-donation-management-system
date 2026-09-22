@@ -126,14 +126,17 @@ describe('MockAuthService', () => {
       ).rejects.toMatchObject({ code: AUTH_ERROR_CODES.EMAIL_ALREADY_EXISTS });
     });
 
-    it('does not sign the new user in', async () => {
+    it('signs the new user in, matching the API registration response', async () => {
       const service = createMockAuthService();
       await service.register({
         fullName: 'Người Hiến Mới',
         email: 'new-donor@example.local',
         password: DEMO_PASSWORD,
       });
-      expect(await service.getCurrentUser()).toBeNull();
+      await expect(service.getCurrentUser()).resolves.toMatchObject({
+        email: 'new-donor@example.local',
+        roles: ['DONOR'],
+      });
     });
   });
 
@@ -142,7 +145,9 @@ describe('MockAuthService', () => {
       const service = createMockAuthService();
       await expect(
         service.forgotPassword({ email: 'khong-ton-tai@example.local' }),
-      ).resolves.toBeUndefined();
+      ).resolves.toEqual({
+        message: 'Nếu email tồn tại, hướng dẫn đặt lại mật khẩu đã được gửi',
+      });
     });
   });
 
