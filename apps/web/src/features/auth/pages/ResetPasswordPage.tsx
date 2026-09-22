@@ -73,7 +73,8 @@ export function ResetPasswordPage() {
       // A dead token is terminal: replace the form instead of retrying it.
       if (
         described.code === AUTH_ERROR_CODES.RESET_TOKEN_INVALID ||
-        described.code === AUTH_ERROR_CODES.RESET_TOKEN_EXPIRED
+        described.code === AUTH_ERROR_CODES.RESET_TOKEN_EXPIRED ||
+        described.code === 'AUTH_RESET_TOKEN_INVALID'
       ) {
         setTokenError(described);
         setState('token-error');

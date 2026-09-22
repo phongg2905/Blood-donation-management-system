@@ -32,6 +32,11 @@ export interface ForgotPasswordInput {
   email: string;
 }
 
+/** Development-only token returned while email delivery is unavailable. */
+export interface ForgotPasswordResult {
+  devResetToken?: string;
+}
+
 export interface ResetPasswordInput {
   /** Token taken from the reset link query string. */
   token: string;
@@ -66,7 +71,7 @@ export interface AuthService {
   logout(): Promise<void>;
   /** Current user, or `null` when there is no usable session. */
   getCurrentUser(): Promise<AuthUser | null>;
-  forgotPassword(input: ForgotPasswordInput): Promise<void>;
+  forgotPassword(input: ForgotPasswordInput): Promise<ForgotPasswordResult>;
   resetPassword(input: ResetPasswordInput): Promise<void>;
   updateProfile(input: UpdateProfileInput): Promise<AuthUser>;
 }

@@ -6,6 +6,7 @@ import type {
   AuthService,
   AuthUser,
   ForgotPasswordInput,
+  ForgotPasswordResult,
   LoginInput,
   RegisterInput,
   ResetPasswordInput,
@@ -285,9 +286,10 @@ export class MockAuthService implements AuthService {
   }
 
   /** Always resolves: revealing whether an email exists would leak accounts. */
-  async forgotPassword({ email }: ForgotPasswordInput): Promise<void> {
+  async forgotPassword({ email }: ForgotPasswordInput): Promise<ForgotPasswordResult> {
     await this.simulateLatency();
     void email;
+    return {};
   }
 
   async resetPassword({ token, password }: ResetPasswordInput): Promise<void> {

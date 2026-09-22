@@ -16,7 +16,7 @@ export interface AuthServiceConfig {
 export const readAuthServiceConfig = (): AuthServiceConfig => ({
   // Defaults to mock so a checkout with no backend still runs; set
   // VITE_USE_MOCK_API=false to force the real adapter.
-  useMock: import.meta.env.VITE_USE_MOCK_API !== 'false',
+  useMock: import.meta.env.VITE_USE_MOCK_API === 'true',
 });
 
 export function createAuthService(

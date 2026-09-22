@@ -130,6 +130,11 @@ describe('password requirements', () => {
   it('rejects a short password', () => {
     expect(isPasswordStrong('a1')).toBe(false);
   });
+
+  it('requires both lowercase and uppercase characters like the backend', () => {
+    expect(isPasswordStrong('lowercase1')).toBe(false);
+    expect(isPasswordStrong('UPPERCASE1')).toBe(false);
+  });
 });
 
 describe('normalizeEmail', () => {

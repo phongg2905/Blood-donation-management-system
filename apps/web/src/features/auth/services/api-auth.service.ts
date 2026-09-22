@@ -10,6 +10,7 @@ import type {
   AuthService,
   AuthUser,
   ForgotPasswordInput,
+  ForgotPasswordResult,
   LoginInput,
   RegisterInput,
   ResetPasswordInput,
@@ -39,13 +40,13 @@ interface RefreshResponse {
   accessToken: string;
 }
 
-const LOGIN_PATH = '/auth/login'; // [confirmed]
-const REFRESH_PATH = '/auth/refresh'; // [confirmed]
-const LOGOUT_PATH = '/auth/logout'; // [confirmed]
-const ME_PATH = '/auth/me'; // [confirmed]
-const REGISTER_PATH = '/auth/register'; // [unconfirmed]
-const FORGOT_PATH = '/auth/forgot-password'; // [unconfirmed]
-const RESET_PATH = '/auth/reset-password'; // [unconfirmed]
+const LOGIN_PATH = '/auth/login';
+const REFRESH_PATH = '/auth/refresh';
+const LOGOUT_PATH = '/auth/logout';
+const ME_PATH = '/auth/me';
+const REGISTER_PATH = '/auth/register';
+const FORGOT_PATH = '/auth/forgot-password';
+const RESET_PATH = '/auth/reset-password';
 
 export class ApiAuthService implements AuthService {
   async login({ email, password }: LoginInput): Promise<AuthUser> {
@@ -120,14 +121,22 @@ export class ApiAuthService implements AuthService {
       });
       setAccessToken(response.data.accessToken);
       return true;
-    } catch {
-      setAccessToken(null);
-      return false;
+    } catch (error) {
+      if (error instanceof ApiRequestError && error.status === 401) {
+        setAccessToken(null);
+        return false;
+      }
+      throw error;
     }
   }
 
-  async forgotPassword({ email }: ForgotPasswordInput): Promise<void> {
-    await apiPost<unknown>(FORGOT_PATH, { email }, { anonymous: true });
+  async forgotPassword({ email }: ForgotPasswordInput): Promise<ForgotPasswordResult> {
+    const response = await apiPost<ForgotPasswordResult>(
+      FORGOT_PATH,
+      { email },
+      { anonymous: true },
+    );
+    return response.data;
   }
 
   async resetPassword({ token, password }: ResetPasswordInput): Promise<void> {

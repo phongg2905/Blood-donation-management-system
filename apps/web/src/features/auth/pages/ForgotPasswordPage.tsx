@@ -30,6 +30,7 @@ export function ForgotPasswordPage() {
   const [formError, setFormError] = useState<AuthErrorView | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [succeeded, setSucceeded] = useState(false);
+  const [devResetToken, setDevResetToken] = useState<string | null>(null);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -42,7 +43,10 @@ export function ForgotPasswordPage() {
 
     setSubmitting(true);
     try {
-      await getAuthService().forgotPassword({ email: normalizeEmail(email) });
+      const result = await getAuthService().forgotPassword({
+        email: normalizeEmail(email),
+      });
+      setDevResetToken(result.devResetToken ?? null);
       setSucceeded(true);
     } catch (error) {
       const described = describeAuthError(error);
@@ -84,6 +88,14 @@ export function ForgotPasswordPage() {
             >
               Về trang đăng nhập
             </Link>
+            {devResetToken ? (
+              <Link
+                className="btn btn--primary btn--block"
+                to={`${AUTH_ROUTES.resetPassword}?token=${encodeURIComponent(devResetToken)}`}
+              >
+                Đặt lại mật khẩu trong môi trường phát triển
+              </Link>
+            ) : null}
           </div>
         ) : (
           <form className="auth-card__form" onSubmit={handleSubmit} noValidate>

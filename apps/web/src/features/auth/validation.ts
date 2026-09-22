@@ -47,6 +47,16 @@ export interface PasswordRequirement {
 
 export const PASSWORD_REQUIREMENTS: readonly PasswordRequirement[] = [
   {
+    id: 'lowercase',
+    label: 'Có ít nhất 1 chữ thường',
+    test: (value) => /[a-z]/.test(value),
+  },
+  {
+    id: 'uppercase',
+    label: 'Có ít nhất 1 chữ hoa',
+    test: (value) => /[A-Z]/.test(value),
+  },
+  {
     id: 'length',
     label: `Ít nhất ${PASSWORD_MIN_LENGTH} ký tự`,
     test: (value) => value.length >= PASSWORD_MIN_LENGTH,

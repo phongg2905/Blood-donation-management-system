@@ -35,6 +35,11 @@ export type AuthErrorCode =
   (typeof AUTH_ERROR_CODES)[keyof typeof AUTH_ERROR_CODES];
 
 const MESSAGES: Readonly<Record<string, string>> = {
+  AUTH_ACCOUNT_INACTIVE:
+    'Tài khoản đã bị vô hiệu hoá. Vui lòng liên hệ quản trị viên.',
+  AUTH_EMAIL_EXISTS: 'Email này đã được đăng ký.',
+  AUTH_RESET_TOKEN_INVALID:
+    'Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.',
   VALIDATION_ERROR: 'Dữ liệu không hợp lệ.',
   UNAUTHENTICATED: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
   FORBIDDEN: 'Bạn không có quyền thực hiện thao tác này.',
@@ -48,6 +53,7 @@ const MESSAGES: Readonly<Record<string, string>> = {
 
 /** Login-specific copy: 401 on the login call means "wrong credentials". */
 const LOGIN_MESSAGES: Readonly<Record<string, string>> = {
+  AUTH_INVALID_CREDENTIALS: 'Email hoặc mật khẩu không đúng.',
   ...MESSAGES,
   UNAUTHENTICATED: 'Email hoặc mật khẩu không đúng.',
   INVALID_CREDENTIALS: 'Email hoặc mật khẩu không đúng.',
