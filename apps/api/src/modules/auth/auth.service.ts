@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { Prisma } from '@prisma/client';
 import {
   AUDIT_ACTIONS,
   AUDIT_ENTITY_TYPES,
@@ -21,6 +22,7 @@ import { authConfig } from '../../config/auth.config';
 import { database } from '../../config/database';
 import { auditLogService } from '../audit-logs/audit.service';
 import { authRepository, type UserWithAccess } from './auth.repository';
+import { passwordResetMailer } from './password-reset.mailer';
 import {
   validateForgotPassword,
   validateLogin,
@@ -49,6 +51,8 @@ const toCurrentUser = (user: UserWithAccess): CurrentUser => ({
   id: user.id,
   email: user.email,
   fullName: user.fullName,
+  phone: user.donorProfile?.phone ?? null,
+  address: user.donorProfile?.address ?? null,
   roles: user.roleCodes,
   permissions: user.permissionCodes,
 });
@@ -62,14 +66,15 @@ async function issueSession(
   const refreshExpiresAt = new Date(
     Date.now() + authConfig.refreshTokenTtlDays * 24 * 60 * 60 * 1000,
   );
-  await authRepository.createSession({
+  const session = await authRepository.createSession({
     id: sessionId,
     userId: user.id,
     tokenHash: hashOpaqueToken(refreshToken),
     expiresAt: refreshExpiresAt,
     ipAddress: ctx.ipAddress,
     userAgent: ctx.userAgent,
-  });
+  }, user.passwordHash);
+  if (!session) throw AppError.unauthorized(ERROR_CODES.AUTH_SESSION_INVALID);
   const accessToken = signAccessToken({
     sub: user.id,
     roles: user.roleCodes,
@@ -82,8 +87,7 @@ export const authService = {
   /**
    * Public self-registration. Only ever creates a DONOR — STAFF/ADMIN
    * accounts are provisioned by an admin (Phase 8), never through this
-   * endpoint. Not yet part of `docs/api/frontend-contract.md`; confirm scope
-   * with the PM before shipping the route.
+   * endpoint. See the Phase 2 auth contract for the public DONOR flow.
    */
   async register(input: unknown, ctx: RequestContext): Promise<AuthResult> {
     const data = validateRegister(input);
@@ -102,6 +106,11 @@ export const authService = {
       fullName: data.fullName,
       phone: data.phone,
       donorRoleId: donorRole.id,
+    }).catch((error: unknown) => {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw AppError.conflict(ERROR_CODES.AUTH_EMAIL_EXISTS);
+      }
+      throw error;
     });
 
     await auditLogService.recordSafely(
@@ -211,7 +220,7 @@ export const authService = {
     const nextExpiresAt = new Date(
       Date.now() + authConfig.refreshTokenTtlDays * 24 * 60 * 60 * 1000,
     );
-    await authRepository.rotateSession(session.id, {
+    const rotated = await authRepository.rotateSession(session.id, {
       id: nextSessionId,
       userId: user.id,
       tokenHash: hashOpaqueToken(nextRefreshToken),
@@ -219,6 +228,15 @@ export const authService = {
       ipAddress: ctx.ipAddress,
       userAgent: ctx.userAgent,
     });
+    if (!rotated) {
+      // The claim failed because a concurrent request consumed this token
+      // first (single-use held) or the token expired in between. The token is
+      // dead either way; replaying it LATER is still detected by the revoked
+      // branch above, so the whole chain must NOT be revoked here — a honest
+      // concurrent retry (double tab/double submit) must not log the winner
+      // out. Genuine replay detection stays in the `session.revokedAt` check.
+      throw AppError.unauthorized(ERROR_CODES.AUTH_SESSION_INVALID);
+    }
 
     const accessToken = signAccessToken({
       sub: user.id,
@@ -235,19 +253,20 @@ export const authService = {
   /** Idempotent: an already-invalid or missing token is not an error. */
   async logout(rawToken: string | undefined): Promise<void> {
     if (!rawToken) return;
+    let sessionId: string;
     try {
-      const claims = verifyRefreshToken(rawToken);
-      await authRepository.revokeSession(claims.sid);
+      sessionId = verifyRefreshToken(rawToken).sid;
     } catch {
-      // Expired/garbled token — nothing meaningful to revoke.
+      return;
     }
+    await authRepository.revokeSession(sessionId);
   },
 
   /**
    * Always resolves the same way regardless of whether the email exists, to
    * avoid leaking which addresses are registered. The raw token is returned
-   * only outside production — Phase 8 replaces this with an actual email
-   * send; until then the FE needs a way to obtain the token in dev.
+   * only in development without SMTP. SMTP failures are logged without
+   * credentials/tokens and retain the generic response to avoid enumeration.
    */
   async forgotPassword(
     input: unknown,
@@ -256,9 +275,8 @@ export const authService = {
     const user = await authRepository.findByEmailWithAccess(data.email);
     if (!user) return { devResetToken: null };
 
-    await authRepository.invalidateActiveResetTokens(user.id);
     const rawToken = generateOpaqueToken();
-    await authRepository.createResetToken({
+    const resetToken = await authRepository.createResetToken({
       userId: user.id,
       tokenHash: hashOpaqueToken(rawToken),
       expiresAt: new Date(
@@ -266,13 +284,14 @@ export const authService = {
       ),
     });
 
-    if (process.env.NODE_ENV === 'production') {
-      // TODO(Phase 8): send rawToken by email instead of logging it.
-      console.info(`Password reset requested for user ${user.id}`);
+    try {
+      await passwordResetMailer.send(user.email, rawToken);
+    } catch {
+      await authRepository.invalidateResetToken(resetToken.id);
+      console.error('Password reset email delivery failed', { userId: user.id });
       return { devResetToken: null };
     }
-    console.info(`[dev] Password reset token for ${data.email}: ${rawToken}`);
-    return { devResetToken: rawToken };
+    return { devResetToken: passwordResetMailer.exposesDevelopmentToken ? rawToken : null };
   },
 
   async resetPassword(input: unknown): Promise<void> {
@@ -289,10 +308,8 @@ export const authService = {
     }
 
     const passwordHash = await hashPassword(data.newPassword);
-    await authRepository.updatePasswordHash(resetToken.userId, passwordHash);
-    await authRepository.markResetTokenUsed(resetToken.id);
-    // Changing the password invalidates every existing session.
-    await authRepository.revokeAllSessionsForUser(resetToken.userId);
+    const consumed = await authRepository.consumeResetToken(resetToken.id, resetToken.userId, passwordHash);
+    if (!consumed) throw AppError.badRequest(ERROR_CODES.AUTH_RESET_TOKEN_INVALID);
 
     await auditLogService.recordSafely(
       {
@@ -307,14 +324,14 @@ export const authService = {
 
   async getMe(userId: string): Promise<CurrentUser> {
     const user = await authRepository.findByIdWithAccess(userId);
-    if (!user) throw AppError.unauthorized(ERROR_CODES.UNAUTHENTICATED);
+    if (!user?.isActive) throw AppError.unauthorized(ERROR_CODES.UNAUTHENTICATED);
     return toCurrentUser(user);
   },
 
   async updateMe(userId: string, input: unknown): Promise<CurrentUser> {
     const data = validateUpdateMe(input);
     const user = await authRepository.findByIdWithAccess(userId);
-    if (!user) throw AppError.unauthorized(ERROR_CODES.UNAUTHENTICATED);
+    if (!user?.isActive) throw AppError.unauthorized(ERROR_CODES.UNAUTHENTICATED);
 
     const wantsContactUpdate =
       data.phone !== undefined || data.address !== undefined;
@@ -324,18 +341,7 @@ export const authService = {
       });
     }
 
-    if (data.fullName !== undefined) {
-      await authRepository.updateFullName(userId, data.fullName);
-    }
-    if (wantsContactUpdate) {
-      await authRepository.upsertDonorProfileContact(userId, {
-        phone: data.phone,
-        address: data.address,
-      });
-    }
-
-    const updated = await authRepository.findByIdWithAccess(userId);
-    if (!updated) throw AppError.internal('User vanished right after update');
+    const updated = await authRepository.updateProfile(userId, data);
     return toCurrentUser(updated);
   },
 };

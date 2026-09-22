@@ -660,6 +660,9 @@ export interface CurrentUser {
   id: string;
   email: string;
   fullName: string;
+  /** DONOR contact details; null for accounts without a donor profile. */
+  phone?: string | null;
+  address?: string | null;
   roles: RoleCode[];
   permissions: PermissionCode[];
 }
