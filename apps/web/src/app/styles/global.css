@@ -1,0 +1,16 @@
+/*
+ * Global stylesheet entry point.
+ *
+ * `main.tsx` imports this file; it @imports the layers in dependency order so
+ * every layer can rely on the tokens defined in `tokens.css`. Vite inlines
+ * these at build time, producing a single stylesheet.
+ */
+
+/* Inter — premium sans-serif matching reference direction */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+@import './tokens.css';
+@import './base.css';
+@import './components.css';
+@import './auth.css';
+@import './app.css';

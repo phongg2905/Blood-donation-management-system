@@ -7,3 +7,8 @@ coverage/
 *.log
 .DS_Store
 
+# Local visual QA screenshots; regenerate when validating responsive layouts.
+docs/ui/auth-blood-donation-qa/
+docs/ui/auth-layout-qa/
+docs/ui/auth-template-02-qa/
+

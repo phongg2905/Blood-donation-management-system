@@ -23,7 +23,7 @@
     "db:deploy": "pnpm --filter @blood/api db:deploy",
     "db:studio": "pnpm --filter @blood/api db:studio",
     "db:seed": "pnpm --filter @blood/api db:seed",
-    "test": "pnpm --filter @blood/api test"
+    "test": "pnpm build:shared && pnpm -r test"
   },
   "devDependencies": {
     "@blood/eslint-config": "workspace:*",
