@@ -19,7 +19,12 @@ export function AuthVisual() {
         viewBox="0 0 100 120"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
-        style={{ width: '100%', height: '100%', position: 'relative', zIndex: 1 }}
+        style={{
+          width: '100%',
+          height: '100%',
+          position: 'relative',
+          zIndex: 1,
+        }}
       >
         {/* Outer drop — crimson fill with glow */}
         <defs>
@@ -33,7 +38,12 @@ export function AuthVisual() {
             <stop offset="100%" stopColor="rgb(192 39 63 / 0)" />
           </radialGradient>
           <filter id="dropShadow">
-            <feDropShadow dx="0" dy="8" stdDeviation="10" floodColor="rgb(192 39 63 / 0.6)" />
+            <feDropShadow
+              dx="0"
+              dy="8"
+              stdDeviation="10"
+              floodColor="rgb(192 39 63 / 0.6)"
+            />
           </filter>
         </defs>
 
@@ -68,12 +78,44 @@ export function AuthVisual() {
 
         {/* Floating cross marks */}
         <g opacity="0.4">
-          <line x1="88" y1="28" x2="88" y2="36" stroke="white" strokeWidth="2" strokeLinecap="round" />
-          <line x1="84" y1="32" x2="92" y2="32" stroke="white" strokeWidth="2" strokeLinecap="round" />
+          <line
+            x1="88"
+            y1="28"
+            x2="88"
+            y2="36"
+            stroke="white"
+            strokeWidth="2"
+            strokeLinecap="round"
+          />
+          <line
+            x1="84"
+            y1="32"
+            x2="92"
+            y2="32"
+            stroke="white"
+            strokeWidth="2"
+            strokeLinecap="round"
+          />
         </g>
         <g opacity="0.25">
-          <line x1="10" y1="75" x2="10" y2="81" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
-          <line x1="7" y1="78" x2="13" y2="78" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
+          <line
+            x1="10"
+            y1="75"
+            x2="10"
+            y2="81"
+            stroke="white"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
+          <line
+            x1="7"
+            y1="78"
+            x2="13"
+            y2="78"
+            stroke="white"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
         </g>
       </svg>
 

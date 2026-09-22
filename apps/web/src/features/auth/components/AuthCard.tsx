@@ -29,13 +29,9 @@ export function AuthCard({
   return (
     <section className="auth-card">
       <header className="auth-card__header">
-        {eyebrow ? (
-          <span className="auth-card__eyebrow">{eyebrow}</span>
-        ) : null}
+        {eyebrow ? <span className="auth-card__eyebrow">{eyebrow}</span> : null}
         <h1 className="auth-card__title">{title}</h1>
-        {subtitle ? (
-          <p className="auth-card__subtitle">{subtitle}</p>
-        ) : null}
+        {subtitle ? <p className="auth-card__subtitle">{subtitle}</p> : null}
       </header>
 
       <div className="auth-card__body">{children}</div>
