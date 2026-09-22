@@ -13,7 +13,7 @@ export interface StatusMessageProps {
   tone?: StatusTone;
   title?: string;
   children?: ReactNode;
-  /** Extra context, e.g. the raw error code — useful while the API is mocked. */
+  /** Extra context, such as a raw API error code. */
   detail?: ReactNode;
   className?: string;
 }

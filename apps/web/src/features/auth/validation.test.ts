@@ -7,6 +7,7 @@ import {
   pickFieldErrors,
   validateForgotPassword,
   validateLogin,
+  validateProfile,
   validateRegister,
   validateResetPassword,
 } from './validation';
@@ -63,7 +64,7 @@ describe('validateRegister', () => {
     expect(errors.password).toContain(String(PASSWORD_MIN_LENGTH));
   });
 
-  it('requires a digit and a letter in the password', () => {
+  it('requires a digit, lowercase and uppercase character in the password', () => {
     expect(
       validateRegister({
         ...base,
@@ -77,7 +78,14 @@ describe('validateRegister', () => {
         password: '12345678',
         confirmPassword: '12345678',
       }).password,
-    ).toContain('chữ cái');
+    ).toContain('chữ thường');
+    expect(
+      validateRegister({
+        ...base,
+        password: 'lowercase1',
+        confirmPassword: 'lowercase1',
+      }).password,
+    ).toContain('chữ hoa');
   });
 
   it('rejects a mismatched confirmation', () => {
@@ -123,6 +131,15 @@ describe('validateResetPassword', () => {
 });
 
 describe('password requirements', () => {
+  it('enforces the backend maximum of 128 characters', () => {
+    expect(isPasswordStrong('Aa1' + 'x'.repeat(125))).toBe(true);
+    const password = 'Aa1' + 'x'.repeat(126);
+    expect(isPasswordStrong(password)).toBe(false);
+    expect(
+      validateResetPassword({ password, confirmPassword: password }).password,
+    ).toContain('128');
+  });
+
   it('accepts a password that meets every rule', () => {
     expect(isPasswordStrong(VALID_PASSWORD)).toBe(true);
   });
@@ -142,6 +159,49 @@ describe('normalizeEmail', () => {
     expect(normalizeEmail('  Donor@Example.Local ')).toBe(
       'donor@example.local',
     );
+  });
+});
+
+describe('validateProfile', () => {
+  it('matches the backend full name bounds of 1 to 200 trimmed characters', () => {
+    expect(validateProfile({ fullName: ' A ' })).toEqual({});
+    expect(validateProfile({ fullName: 'A'.repeat(200) })).toEqual({});
+    expect(validateProfile({ fullName: '  ' }).fullName).toBeDefined();
+    expect(validateProfile({ fullName: 'A'.repeat(201) }).fullName).toContain(
+      '200',
+    );
+  });
+
+  it('validates DONOR contact fields against the backend bounds', () => {
+    expect(
+      validateProfile({ fullName: 'A', phone: '0901234567', address: 'Q.1' }),
+    ).toEqual({});
+    expect(
+      validateProfile({ fullName: 'A', phone: '0901234567', address: 'x' }),
+    ).toEqual({});
+    expect(
+      validateProfile({ fullName: 'A', phone: '0123456', address: 'Địa chỉ' })
+        .phone,
+    ).toContain('8–20');
+    expect(
+      validateProfile({ fullName: 'A', phone: '0'.repeat(21), address: '' })
+        .phone,
+    ).toContain('8–20');
+    expect(
+      validateProfile({
+        fullName: 'A',
+        phone: '0901234567',
+        address: 'x'.repeat(501),
+      }).address,
+    ).toContain('500');
+    expect(
+      validateProfile({ fullName: 'A', phone: '   ', address: '  ' }).phone,
+    ).toBeDefined();
+  });
+
+  it('skips contact validation when the form does not show those fields', () => {
+    // STAFF/ADMIN profile sends only fullName.
+    expect(validateProfile({ fullName: 'A' })).toEqual({});
   });
 });
 

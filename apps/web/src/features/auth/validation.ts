@@ -2,9 +2,8 @@
  * Auth form validation.
  *
  * Shared validation (`@blood/shared-validation`) only ships the generic uuid
- * schemas today, so the auth rules live here. They mirror what the API is
- * expected to enforce — changing a rule here without changing the API would let
- * a form pass locally and fail on submit, so both sides must move together.
+ * schemas today, so the auth rules live here. Follow the delivered API rules;
+ * do not change backend validation to accommodate a frontend form.
  */
 
 import type { ApiFieldErrors } from '@blood/shared-types';
@@ -33,11 +32,12 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 /**
  * Password policy.
  *
- * The Phase 1 API has no auth endpoint yet, so no server-side policy exists.
- * Minimum: 8 characters, at least one letter and one digit. Recorded as an open
- * item in `apps/web/TASK_UNTIL_AUTH_INTEGRATED.md`.
+ * Mirrors the API policy: at least 8 characters, lowercase, uppercase and a
+ * digit. Keeping this in sync avoids a form passing locally then failing on
+ * submit.
  */
 export const PASSWORD_MIN_LENGTH = 8;
+export const PASSWORD_MAX_LENGTH = 128;
 
 export interface PasswordRequirement {
   id: string;
@@ -62,14 +62,14 @@ export const PASSWORD_REQUIREMENTS: readonly PasswordRequirement[] = [
     test: (value) => value.length >= PASSWORD_MIN_LENGTH,
   },
   {
-    id: 'letter',
-    label: 'Có ít nhất 1 chữ cái',
-    test: (value) => /[A-Za-zÀ-ỹ]/.test(value),
-  },
-  {
     id: 'digit',
     label: 'Có ít nhất 1 chữ số',
     test: (value) => /\d/.test(value),
+  },
+  {
+    id: 'max-length',
+    label: `Tối đa ${PASSWORD_MAX_LENGTH} ký tự`,
+    test: (value) => value.length <= PASSWORD_MAX_LENGTH,
   },
 ];
 
@@ -90,12 +90,43 @@ function validateEmail(email: string): string | undefined {
   return undefined;
 }
 
+function validateFullName(fullName: string): string | undefined {
+  if (!fullName.trim()) return 'Vui lòng nhập họ và tên.';
+  if (fullName.trim().length > 200)
+    return 'Họ và tên không được quá 200 ký tự.';
+  return undefined;
+}
+
 function validatePassword(password: string): string | undefined {
   if (!password) return 'Vui lòng nhập mật khẩu.';
   const unmet = unmetPasswordRequirements(password);
   if (unmet.length > 0) {
     return `Mật khẩu cần: ${unmet.map((item) => item.label.toLowerCase()).join(', ')}.`;
   }
+  return undefined;
+}
+
+/**
+ * BE rules for DONOR contact fields (updateMeSchema). Keeping the mirrors in
+ * sync avoids a form passing locally then failing on submit.
+ */
+export const PHONE_MIN_LENGTH = 8;
+export const PHONE_MAX_LENGTH = 20;
+export const ADDRESS_MAX_LENGTH = 500;
+
+function validatePhone(phone: string): string | undefined {
+  const trimmed = phone.trim();
+  if (!trimmed) return 'Vui lòng nhập số điện thoại.';
+  if (trimmed.length < PHONE_MIN_LENGTH || trimmed.length > PHONE_MAX_LENGTH)
+    return `Số điện thoại phải có ${PHONE_MIN_LENGTH}–${PHONE_MAX_LENGTH} ký tự.`;
+  return undefined;
+}
+
+function validateAddress(address: string): string | undefined {
+  const trimmed = address.trim();
+  if (!trimmed) return 'Vui lòng nhập địa chỉ.';
+  if (trimmed.length > ADDRESS_MAX_LENGTH)
+    return `Địa chỉ không được quá ${ADDRESS_MAX_LENGTH} ký tự.`;
   return undefined;
 }
 
@@ -143,9 +174,8 @@ export function validateRegister(
   values: RegisterValues,
 ): FieldErrors<RegisterField> {
   const errors: FieldErrors<RegisterField> = {};
-  if (!values.fullName.trim()) errors.fullName = 'Vui lòng nhập họ và tên.';
-  else if (values.fullName.trim().length < 2)
-    errors.fullName = 'Họ và tên quá ngắn.';
+  const fullNameError = validateFullName(values.fullName);
+  if (fullNameError) errors.fullName = fullNameError;
 
   const emailError = validateEmail(values.email);
   if (emailError) errors.email = emailError;
@@ -199,15 +229,29 @@ export function validateResetPassword(values: {
 
 /* -------------------------------------------------------------- Profile -- */
 
-export type ProfileField = 'fullName';
+export type ProfileField = 'fullName' | 'phone' | 'address';
 
 export function validateProfile(values: {
   fullName: string;
+  /** Contact fields only apply to DONOR accounts; undefined skips them. */
+  phone?: string | undefined;
+  /** Contact fields only apply to DONOR accounts; undefined skips them. */
+  address?: string | undefined;
 }): FieldErrors<ProfileField> {
   const errors: FieldErrors<ProfileField> = {};
-  if (!values.fullName.trim()) errors.fullName = 'Vui lòng nhập họ và tên.';
-  else if (values.fullName.trim().length < 2)
-    errors.fullName = 'Họ và tên quá ngắn.';
+  const fullNameError = validateFullName(values.fullName);
+  if (fullNameError) errors.fullName = fullNameError;
+
+  // Only validate fields the form actually shows/edits: a STAFF/ADMIN profile
+  // never sends phone/address, matching the delivered API behaviour.
+  if (values.phone !== undefined) {
+    const phoneError = validatePhone(values.phone);
+    if (phoneError) errors.phone = phoneError;
+  }
+  if (values.address !== undefined) {
+    const addressError = validateAddress(values.address);
+    if (addressError) errors.address = addressError;
+  }
   return errors;
 }
 

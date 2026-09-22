@@ -4,7 +4,14 @@ import type {
   PermissionCode,
   RoleCode,
 } from '@blood/shared-types';
-import type { LoginInput, UpdateProfileInput } from '../types';
+import type {
+  ForgotPasswordInput,
+  ForgotPasswordResult,
+  LoginInput,
+  RegisterInput,
+  ResetPasswordInput,
+  UpdateProfileInput,
+} from '../types';
 
 export type AuthStatus = 'loading' | 'authenticated' | 'anonymous';
 
@@ -16,6 +23,9 @@ export interface AuthContextValue {
   /** True during the initial session restore. */
   isLoading: boolean;
   login(input: LoginInput): Promise<CurrentUser>;
+  register(input: RegisterInput): Promise<CurrentUser>;
+  forgotPassword(input: ForgotPasswordInput): Promise<ForgotPasswordResult>;
+  resetPassword(input: ResetPasswordInput): Promise<void>;
   logout(): Promise<void>;
   /** Updates the signed-in user's profile and refreshes `currentUser`. */
   updateProfile(input: UpdateProfileInput): Promise<CurrentUser>;

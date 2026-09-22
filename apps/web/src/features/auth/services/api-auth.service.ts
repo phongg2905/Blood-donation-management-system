@@ -20,11 +20,8 @@ import type {
 /**
  * Real adapter for the Phase 2 auth API.
  *
- * Endpoints marked `[confirmed]` are in `docs/api/frontend-contract.md`.
- * Endpoints marked `[unconfirmed]` are **not** in the contract yet — they use the
- * conventional path and are recorded in `TASK_UNTIL_AUTH_INTEGRATED.md`, so they
- * must be re-checked (path, request body, response shape, status codes) before
- * this adapter is switched on.
+ * Endpoints are implemented by `apps/api/src/modules/auth` and use the shared
+ * `{ success, data }` response envelope.
  *
  * Token handling: the access token lives in memory (see `services/api.ts`) and
  * travels as `Authorization: Bearer`. The refresh token is an HttpOnly cookie
@@ -63,8 +60,8 @@ export class ApiAuthService implements AuthService {
    * Public registration. Sends only `{ fullName, email, password }` — the API
    * assigns the DONOR role; the client cannot request a role.
    */
-  async register(input: RegisterInput): Promise<void> {
-    await apiPost<unknown>(
+  async register(input: RegisterInput): Promise<AuthUser> {
+    const response = await apiPost<LoginResponse>(
       REGISTER_PATH,
       {
         fullName: input.fullName,
@@ -73,6 +70,8 @@ export class ApiAuthService implements AuthService {
       },
       { anonymous: true },
     );
+    setAccessToken(response.data.accessToken);
+    return response.data.user;
   }
 
   async logout(): Promise<void> {
@@ -130,7 +129,9 @@ export class ApiAuthService implements AuthService {
     }
   }
 
-  async forgotPassword({ email }: ForgotPasswordInput): Promise<ForgotPasswordResult> {
+  async forgotPassword({
+    email,
+  }: ForgotPasswordInput): Promise<ForgotPasswordResult> {
     const response = await apiPost<ForgotPasswordResult>(
       FORGOT_PATH,
       { email },
@@ -142,7 +143,7 @@ export class ApiAuthService implements AuthService {
   async resetPassword({ token, password }: ResetPasswordInput): Promise<void> {
     await apiPost<unknown>(
       RESET_PATH,
-      { token, password },
+      { token, newPassword: password },
       { anonymous: true },
     );
   }

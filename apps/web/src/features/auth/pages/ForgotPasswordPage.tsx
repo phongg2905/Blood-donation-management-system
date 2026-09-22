@@ -12,8 +12,8 @@ import { describeAuthError } from '../auth-errors';
 import type { AuthErrorView } from '../auth-errors';
 import { AuthCard } from '../components/AuthCard';
 import { AuthLayout } from '../components/AuthLayout';
+import { useAuth } from '../hooks/useAuth';
 import { AUTH_ROUTES } from '../routing';
-import { getAuthService } from '../services/auth-service.resolver';
 import {
   hasErrors,
   normalizeEmail,
@@ -25,6 +25,7 @@ import type { FieldErrors, ForgotPasswordField } from '../validation';
 const FORGOT_FIELDS = ['email'] as const;
 
 export function ForgotPasswordPage() {
+  const { forgotPassword } = useAuth();
   const [email, setEmail] = useState('');
   const [errors, setErrors] = useState<FieldErrors<ForgotPasswordField>>({});
   const [formError, setFormError] = useState<AuthErrorView | null>(null);
@@ -43,7 +44,7 @@ export function ForgotPasswordPage() {
 
     setSubmitting(true);
     try {
-      const result = await getAuthService().forgotPassword({
+      const result = await forgotPassword({
         email: normalizeEmail(email),
       });
       setDevResetToken(result.devResetToken ?? null);

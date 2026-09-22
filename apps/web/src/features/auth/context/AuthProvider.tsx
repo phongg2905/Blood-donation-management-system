@@ -6,7 +6,14 @@ import type {
   RoleCode,
 } from '@blood/shared-types';
 import { getAuthService } from '../services/auth-service.resolver';
-import type { AuthService, LoginInput, UpdateProfileInput } from '../types';
+import type {
+  AuthService,
+  ForgotPasswordInput,
+  LoginInput,
+  RegisterInput,
+  ResetPasswordInput,
+  UpdateProfileInput,
+} from '../types';
 import { AuthContext } from './auth-context';
 import type { AuthContextValue, AuthStatus } from './auth-context';
 
@@ -53,6 +60,25 @@ export function AuthProvider({ children, service }: AuthProviderProps) {
     [authService, applyUser],
   );
 
+  const register = useCallback(
+    async (input: RegisterInput) => {
+      const user = await authService.register(input);
+      applyUser(user);
+      return user;
+    },
+    [authService, applyUser],
+  );
+
+  const forgotPassword = useCallback(
+    (input: ForgotPasswordInput) => authService.forgotPassword(input),
+    [authService],
+  );
+
+  const resetPassword = useCallback(
+    (input: ResetPasswordInput) => authService.resetPassword(input),
+    [authService],
+  );
+
   const logout = useCallback(async () => {
     try {
       await authService.logout();
@@ -86,6 +112,9 @@ export function AuthProvider({ children, service }: AuthProviderProps) {
       isAuthenticated: status === 'authenticated' && currentUser !== null,
       isLoading: status === 'loading',
       login,
+      register,
+      forgotPassword,
+      resetPassword,
       logout,
       updateProfile,
       refreshCurrentUser,
@@ -98,7 +127,17 @@ export function AuthProvider({ children, service }: AuthProviderProps) {
       hasAllPermissions: (required: readonly PermissionCode[]) =>
         required.every((permission) => permissions.includes(permission)),
     };
-  }, [currentUser, status, login, logout, updateProfile, refreshCurrentUser]);
+  }, [
+    currentUser,
+    status,
+    login,
+    register,
+    forgotPassword,
+    resetPassword,
+    logout,
+    updateProfile,
+    refreshCurrentUser,
+  ]);
 
   return <AuthContext value={value}>{children}</AuthContext>;
 }

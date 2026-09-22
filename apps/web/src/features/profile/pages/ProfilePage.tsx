@@ -18,7 +18,11 @@ import {
 } from '@/features/auth/validation';
 import type { FieldErrors, ProfileField } from '@/features/auth/validation';
 
-const PROFILE_FIELDS = ['fullName'] as const;
+const PROFILE_FIELDS = ['fullName', 'phone', 'address'] as const;
+
+/** Contact fields exist only for DONOR accounts; STAFF/ADMIN must not send them. */
+const hasContactFields = (user: CurrentUser): boolean =>
+  user.roles.includes('DONOR');
 
 /** Get user initials for avatar placeholder. */
 function getInitials(name: string): string {
@@ -69,6 +73,18 @@ function IdentityPanel({ user }: { user: CurrentUser }) {
           <dt className="detail-list__label">Họ và tên</dt>
           <dd className="detail-list__value">{user.fullName}</dd>
         </div>
+        {user.phone ? (
+          <div className="detail-list__row">
+            <dt className="detail-list__label">Số điện thoại</dt>
+            <dd className="detail-list__value">{user.phone}</dd>
+          </div>
+        ) : null}
+        {user.address ? (
+          <div className="detail-list__row">
+            <dt className="detail-list__label">Địa chỉ</dt>
+            <dd className="detail-list__value">{user.address}</dd>
+          </div>
+        ) : null}
         <div className="detail-list__row">
           <dt className="detail-list__label">Vai trò</dt>
           <dd className="detail-list__value">
@@ -114,12 +130,16 @@ function PermissionsPanel({ user }: { user: CurrentUser }) {
 /**
  * Profile editor.
  *
- * `PATCH /auth/me` also accepts `phone`/`address`, but `CurrentUser` does not
- * return them yet, so those inputs stay disabled until the API echoes them back.
+ * `phone`/`address` are editable only for DONOR accounts: the delivered API
+ * stores them in `DonorProfile` and echoes them back in `CurrentUser`, while
+ * STAFF/ADMIN must not send them (`VALIDATION_ERROR`).
  */
 function ProfileDetails({ user }: { user: CurrentUser }) {
   const { updateProfile } = useAuth();
+  const editContacts = hasContactFields(user);
   const [fullName, setFullName] = useState(user.fullName);
+  const [phone, setPhone] = useState(user.phone ?? '');
+  const [address, setAddress] = useState(user.address ?? '');
   const [errors, setErrors] = useState<FieldErrors<ProfileField>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [formErrorCode, setFormErrorCode] = useState<string | null>(null);
@@ -130,7 +150,10 @@ function ProfileDetails({ user }: { user: CurrentUser }) {
     event.preventDefault();
     if (submitting) return;
 
-    const nextErrors = validateProfile({ fullName });
+    const nextErrors = validateProfile({
+      fullName,
+      ...(editContacts ? { phone, address } : {}),
+    });
     setErrors(nextErrors);
     setFormError(null);
     setFormErrorCode(null);
@@ -139,7 +162,10 @@ function ProfileDetails({ user }: { user: CurrentUser }) {
 
     setSubmitting(true);
     try {
-      await updateProfile({ fullName: fullName.trim() });
+      await updateProfile({
+        fullName: fullName.trim(),
+        ...(editContacts ? { phone: phone.trim(), address: address.trim() } : {}),
+      });
       setSaved(true);
     } catch (error) {
       const described = describeAuthError(error);
@@ -182,6 +208,46 @@ function ProfileDetails({ user }: { user: CurrentUser }) {
           />
         </FormField>
 
+        {editContacts ? (
+          <>
+            <FormField
+              id="profile-phone"
+              label="Số điện thoại"
+              required
+              error={errors.phone}
+            >
+              <Input
+                name="phone"
+                type="tel"
+                autoComplete="tel"
+                value={phone}
+                onChange={(event) => {
+                  setPhone(event.target.value);
+                  setSaved(false);
+                }}
+                disabled={submitting}
+              />
+            </FormField>
+            <FormField
+              id="profile-address"
+              label="Địa chỉ"
+              required
+              error={errors.address}
+            >
+              <Input
+                name="address"
+                autoComplete="street-address"
+                value={address}
+                onChange={(event) => {
+                  setAddress(event.target.value);
+                  setSaved(false);
+                }}
+                disabled={submitting}
+              />
+            </FormField>
+          </>
+        ) : null}
+
         <div className="panel__actions">
           <Button type="submit" isLoading={submitting} loadingLabel="Đang lưu…">
             Lưu thay đổi
@@ -191,6 +257,8 @@ function ProfileDetails({ user }: { user: CurrentUser }) {
             variant="ghost"
             onClick={() => {
               setFullName(user.fullName);
+              setPhone(user.phone ?? '');
+              setAddress(user.address ?? '');
               setErrors({});
               setFormError(null);
               setSaved(false);

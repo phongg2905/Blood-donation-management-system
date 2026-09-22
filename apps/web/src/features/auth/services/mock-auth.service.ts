@@ -16,11 +16,8 @@ import type {
 /**
  * Mock auth adapter.
  *
- * Exists so the whole auth surface can be built, tested and demoed while the
- * Phase 2 API is still missing. It is only reachable when
- * `VITE_USE_MOCK_API !== 'false'`; see `auth-service.resolver.ts`. Delete this
- * file (and the demo fixtures) once the real endpoints are integrated — the
- * checklist lives in `apps/web/TASK_UNTIL_AUTH_INTEGRATED.md`.
+ * Used by tests and by the explicit `VITE_USE_MOCK_API=true` development mode.
+ * The application otherwise uses the backend auth API.
  */
 
 interface DemoAccount {
@@ -171,11 +168,13 @@ export class MockAuthService implements AuthService {
     return readJson<StoredUser[]>(STORAGE_KEYS.users, []);
   }
 
-  private profileOverrides(): Record<string, { fullName?: string }> {
-    return readJson<Record<string, { fullName?: string }>>(
-      STORAGE_KEYS.profiles,
-      {},
-    );
+  private profileOverrides(): Record<
+    string,
+    { fullName?: string; phone?: string; address?: string }
+  > {
+    return readJson<
+      Record<string, { fullName?: string; phone?: string; address?: string }>
+    >(STORAGE_KEYS.profiles, {});
   }
 
   private demoToStored(account: DemoAccount): StoredUser {
@@ -206,6 +205,11 @@ export class MockAuthService implements AuthService {
       id: stored.id,
       email: stored.email,
       fullName: override?.fullName ?? stored.fullName,
+      // Mirrors the delivered API: contact fields exist only for DONOR
+      // accounts (stored in DonorProfile) and are null until filled in.
+      ...(stored.role === 'DONOR'
+        ? { phone: override?.phone ?? null, address: override?.address ?? null }
+        : {}),
       roles: [stored.role],
       permissions: permissionsFor(stored.role),
     };
@@ -240,7 +244,11 @@ export class MockAuthService implements AuthService {
    * Public registration. The role is hard-coded to DONOR: there is deliberately
    * no way for a client to self-assign a staff or admin role.
    */
-  async register({ fullName, email, password }: RegisterInput): Promise<void> {
+  async register({
+    fullName,
+    email,
+    password,
+  }: RegisterInput): Promise<AuthUser> {
     await this.simulateLatency();
     if (this.findUser(email)) {
       throw new ApiRequestError(
@@ -259,6 +267,8 @@ export class MockAuthService implements AuthService {
       isActive: true,
     };
     writeJson(STORAGE_KEYS.users, [...this.registeredUsers(), user]);
+    writeJson(STORAGE_KEYS.session, { userId: user.id });
+    return this.toUser(user);
   }
 
   async logout(): Promise<void> {
@@ -286,10 +296,14 @@ export class MockAuthService implements AuthService {
   }
 
   /** Always resolves: revealing whether an email exists would leak accounts. */
-  async forgotPassword({ email }: ForgotPasswordInput): Promise<ForgotPasswordResult> {
+  async forgotPassword({
+    email,
+  }: ForgotPasswordInput): Promise<ForgotPasswordResult> {
     await this.simulateLatency();
     void email;
-    return {};
+    return {
+      message: 'Nếu email tồn tại, hướng dẫn đặt lại mật khẩu đã được gửi',
+    };
   }
 
   async resetPassword({ token, password }: ResetPasswordInput): Promise<void> {
@@ -318,9 +332,22 @@ export class MockAuthService implements AuthService {
     if (!current) {
       throw new ApiRequestError('UNAUTHENTICATED', 'Bạn cần đăng nhập.', 401);
     }
-    if (input.fullName !== undefined) {
+    if (
+      input.fullName !== undefined ||
+      input.phone !== undefined ||
+      input.address !== undefined
+    ) {
       const overrides = this.profileOverrides();
-      overrides[current.id] = { fullName: input.fullName.trim() };
+      overrides[current.id] = {
+        ...overrides[current.id],
+        ...(input.fullName !== undefined
+          ? { fullName: input.fullName.trim() }
+          : {}),
+        ...(input.phone !== undefined ? { phone: input.phone.trim() } : {}),
+        ...(input.address !== undefined
+          ? { address: input.address.trim() }
+          : {}),
+      };
       writeJson(STORAGE_KEYS.profiles, overrides);
     }
     const refreshed = await this.getCurrentUser();

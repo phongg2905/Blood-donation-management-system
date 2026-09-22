@@ -15,12 +15,8 @@ export interface AuthErrorView {
  * Codes the auth screens react to.
  *
  * `UNAUTHENTICATED` / `FORBIDDEN` / `VALIDATION_ERROR` come from `ERROR_CODES`
- * in `@blood/shared-types`. The credential-specific codes below are **not** in
- * the shared catalogue yet: Phase 1 lists `UNAUTHENTICATED` for a failed login
- * and does not define a register or reset-password endpoint at all, so these are
- * FE-side semantics the mock adapter emits. They are listed in
- * `apps/web/TASK_UNTIL_AUTH_INTEGRATED.md` to be reconciled with the real
- * endpoints. The UI maps both spellings, so no screen breaks either way.
+ * in `@blood/shared-types`. Legacy aliases remain for the opt-in mock adapter;
+ * the real API emits the `AUTH_*` variants.
  */
 export const AUTH_ERROR_CODES = {
   INVALID_CREDENTIALS: 'INVALID_CREDENTIALS',

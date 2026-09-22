@@ -34,6 +34,8 @@ export interface ForgotPasswordInput {
 
 /** Development-only token returned while email delivery is unavailable. */
 export interface ForgotPasswordResult {
+  /** Deliberately identical for known and unknown email addresses. */
+  message: string;
   devResetToken?: string;
 }
 
@@ -46,9 +48,10 @@ export interface ResetPasswordInput {
 /**
  * `PATCH /auth/me` request DTO.
  *
- * The contract accepts `phone`/`address`, but `CurrentUser` does not return
- * them yet, so the profile screen only edits `fullName` for now. Keeping the
- * full DTO here means enabling the other fields later needs no type changes.
+ * `phone`/`address` apply to DONOR accounts (stored in `DonorProfile`) and are
+ * echoed back in `CurrentUser`; STAFF/ADMIN must not send them
+ * (`VALIDATION_ERROR`). The profile UI only shows the contact fields for
+ * accounts whose `CurrentUser` actually carries them.
  */
 export interface UpdateProfileInput {
   fullName?: string;
@@ -65,8 +68,8 @@ export interface UpdateProfileInput {
 export interface AuthService {
   /** Resolves the signed-in user; throws on bad credentials / inactive account. */
   login(input: LoginInput): Promise<AuthUser>;
-  /** Registers a DONOR. Does not sign the user in. */
-  register(input: RegisterInput): Promise<void>;
+  /** Registers and signs in a DONOR using the session returned by the API. */
+  register(input: RegisterInput): Promise<AuthUser>;
   /** Revokes the session server-side. Must not throw for an already-dead session. */
   logout(): Promise<void>;
   /** Current user, or `null` when there is no usable session. */
