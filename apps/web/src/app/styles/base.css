@@ -142,3 +142,9 @@ textarea {
 .text-center {
   text-align: center;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}

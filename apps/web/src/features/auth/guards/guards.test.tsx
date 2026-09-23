@@ -37,9 +37,7 @@ describe('ProtectedRoute', () => {
       route: '/secret',
     });
 
-    expect(
-      screen.getByText('Đang kiểm tra phiên đăng nhập…'),
-    ).toBeInTheDocument();
+    expect(screen.getByText('Đang tải…')).toBeInTheDocument();
   });
 
   it('renders the protected content for a signed-in user', async () => {

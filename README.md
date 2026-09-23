@@ -144,9 +144,15 @@ Trên Windows dùng `curl.exe` nếu curl là alias PowerShell.
 `pnpm test` chạy test của API (cần PostgreSQL đang chạy) và test frontend (Vitest + jsdom, không cần database).
 API test kiểm tra health, middleware, validation nghiệp vụ, constraint/quan hệ mới, tranh chấp capacity, cùng các test nền tảng Phase 1 (role/permission, state transition, khung giờ inactive/full, trùng lịch, campaign rule, screening/donation/certificate, envelope lỗi và hash mật khẩu). API tests rollback hoặc dọn đúng fixture của mình sau khi chạy.
 Frontend test kiểm tra mock auth cho cả 5 role, ProtectedRoute, PermissionGuard, router, validation form và luồng login/register.
-Mở `http://localhost:5173/system-status` sẽ thấy **API: OK** và **PostgreSQL: connected**. Trang `/` giờ chuyển hướng: chưa đăng nhập → `/login`, đã đăng nhập → trang theo vai trò.
-Nếu database mất kết nối, health trả HTTP 503 và trang trạng thái hiển thị lỗi; dùng nút Kiểm tra lại sau khi khôi phục.
-Frontend mặc định dùng API auth thật. Đặt `VITE_USE_MOCK_API=true` chỉ khi cần phát triển giao diện độc lập; trang đăng nhập sẽ hiển thị các tài khoản demo trong chế độ này.
+Trang `/` là Home dành cho người đã đăng nhập; khách chưa đăng nhập được chuyển tới `/login`.
+Sau login/register, user đến Home; `/profile` mặc định chỉ xem và có nút chỉnh sửa.
+Trang chẩn đoán `/system-status` và tài khoản demo đã được gỡ khỏi giao diện người dùng.
+Kiểm tra hạ tầng bằng `GET /api/health` hoặc lệnh curl bên trên.
+Frontend mặc định dùng API auth thật. `VITE_USE_MOCK_API=true` vẫn dành riêng cho phát triển giao diện độc lập; tài khoản fixture được khai báo trong mock service, không hiển thị trên UI.
+
+Chi tiết frontend Phase 2.5: [Báo cáo UX/UI và kiểm thử](apps/web/docs/phase-2.5.md).
+Art direction và cấu trúc trang chủ: [Landing editorial redesign](apps/web/docs/landing-redesign.md).
+
 Vite proxy chỉ phục vụ development; khi triển khai build web cần reverse proxy /api hoặc cấu hình VITE_API_BASE_URL trước build.
 
 ## Commands

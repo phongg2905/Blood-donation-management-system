@@ -21,11 +21,12 @@ hoàn thành phase của đội BE.
   `address`; STAFF/ADMIN chỉ sửa `fullName` (gửi phone/address cho tài khoản
   không phải DONOR bị BE từ chối `VALIDATION_ERROR`). FE đối chiếu luật
   8–20 ký tự cho phone và 1–500 ký tự cho address theo validator BE.
-- Quên mật khẩu sử dụng `devResetToken` khi BE trả về ở môi trường phát triển
-  (khi đã cấu hình SMTP, BE gửi email và không trả token).
+- Từ Phase 2.5, giao diện quên mật khẩu không render `devResetToken` hoặc liên
+  kết development. Contract của adapter không đổi; email thật vẫn cần SMTP.
 - Login/register và forgot/reset-password bị BE giới hạn theo IP
   (mặc định 10 và 5 request/15 phút). Vượt hạn trả HTTP 429 với
-  `error.code = "FORBIDDEN"`; FE hiện `error.message` như lỗi thường.
+  `error.code = "FORBIDDEN"`; FE hiển thị thông báo chờ thử lại dựa trên HTTP 429,
+  không hiển thị mã lỗi hoặc thông báo nội bộ chưa được ánh xạ.
 - Giới hạn tên 1–200 ký tự sau trim và mật khẩu mới 8–128 ký tự,
   có chữ thường, chữ hoa và chữ số, theo validator hiện có của BE.
 
@@ -59,7 +60,7 @@ pnpm.cmd --filter @blood/web build
 - Sau reset: refresh token cũ bị từ chối, mật khẩu cũ không đăng nhập được,
   mật khẩu mới đăng nhập được, dùng lại reset token theo thứ tự bị từ chối.
 - Response `CurrentUser` thực tế có `id, email, fullName, phone, address,
-  roles, permissions` (phone/address nullable, chỉ DONOR có giá trị).
+roles, permissions` (phone/address nullable, chỉ DONOR có giá trị).
 - Đây là kiểm tra adapter FE qua Node với cookie được chuyển tiếp trong script;
   chưa phải kiểm thử trình duyệt đối với SameSite/Secure/CORS hoặc gửi email thật.
 

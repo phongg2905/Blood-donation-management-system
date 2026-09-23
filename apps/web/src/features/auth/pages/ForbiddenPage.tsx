@@ -18,14 +18,14 @@ export function ForbiddenPage() {
     <ErrorPage
       code="403"
       title="Bạn không có quyền truy cập"
-      message="Tài khoản của bạn đã đăng nhập nhưng không được cấp quyền cho chức năng này. Nếu bạn cho rằng đây là nhầm lẫn, hãy liên hệ quản trị viên để được cấp quyền phù hợp."
+      message="Bạn chưa thể sử dụng chức năng này. Hãy quay về trang chủ hoặc liên hệ người quản lý nếu cần hỗ trợ."
     >
       <Button variant="secondary" onClick={() => navigate(-1)}>
         ← Quay lại
       </Button>
       {currentUser ? (
         <Link className="btn btn--primary" to={resolveLandingPath(currentUser)}>
-          Về trang của tôi
+          Về trang chủ
         </Link>
       ) : (
         <Link className="btn btn--primary" to={AUTH_ROUTES.login}>

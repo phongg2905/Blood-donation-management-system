@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { ROLE_NAMES } from '@blood/shared-types';
 import type { CurrentUser } from '@blood/shared-types';
@@ -20,157 +20,55 @@ import type { FieldErrors, ProfileField } from '@/features/auth/validation';
 
 const PROFILE_FIELDS = ['fullName', 'phone', 'address'] as const;
 
-/** Contact fields exist only for DONOR accounts; STAFF/ADMIN must not send them. */
-const hasContactFields = (user: CurrentUser): boolean =>
-  user.roles.includes('DONOR');
-
-/** Get user initials for avatar placeholder. */
-function getInitials(name: string): string {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join('')
-    .toUpperCase();
-}
-
-/** Profile summary with avatar, name, email, and role badges. */
-function ProfileSummary({ user }: { user: CurrentUser }) {
-  return (
-    <div className="profile-summary" aria-label="Thông tin tổng quan">
-      <div className="profile-avatar" aria-hidden="true">
-        {getInitials(user.fullName)}
-      </div>
-      <div className="profile-summary__info">
-        <h2 className="profile-summary__name">{user.fullName}</h2>
-        <p className="profile-summary__email">{user.email}</p>
-        <div className="profile-summary__roles">
-          {user.roles.map((role) => (
-            <span className="chip chip--brand" key={role}>
-              {ROLE_NAMES[role]}
-            </span>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/** Read-only identity / account information block. */
-function IdentityPanel({ user }: { user: CurrentUser }) {
-  return (
-    <section className="panel" aria-labelledby="identity-heading">
-      <h3 className="panel__title" id="identity-heading">
-        Thông tin tài khoản
-      </h3>
-      <dl className="detail-list">
-        <div className="detail-list__row">
-          <dt className="detail-list__label">Email</dt>
-          <dd className="detail-list__value">{user.email}</dd>
-        </div>
-        <div className="detail-list__row">
-          <dt className="detail-list__label">Họ và tên</dt>
-          <dd className="detail-list__value">{user.fullName}</dd>
-        </div>
-        {user.phone ? (
-          <div className="detail-list__row">
-            <dt className="detail-list__label">Số điện thoại</dt>
-            <dd className="detail-list__value">{user.phone}</dd>
-          </div>
-        ) : null}
-        {user.address ? (
-          <div className="detail-list__row">
-            <dt className="detail-list__label">Địa chỉ</dt>
-            <dd className="detail-list__value">{user.address}</dd>
-          </div>
-        ) : null}
-        <div className="detail-list__row">
-          <dt className="detail-list__label">Vai trò</dt>
-          <dd className="detail-list__value">
-            <span className="chip-row">
-              {user.roles.map((role) => (
-                <span className="chip chip--brand" key={role}>
-                  {ROLE_NAMES[role]}
-                </span>
-              ))}
-            </span>
-          </dd>
-        </div>
-      </dl>
-      <p className="panel__hint">
-        Email và vai trò chỉ có thể thay đổi bởi quản trị viên.
-      </p>
-    </section>
-  );
-}
-
-/** Read-only permission list. */
-function PermissionsPanel({ user }: { user: CurrentUser }) {
-  return (
-    <section className="panel" aria-labelledby="permissions-heading">
-      <h3 className="panel__title" id="permissions-heading">
-        Quyền được cấp ({user.permissions.length})
-      </h3>
-      <div className="chip-row">
-        {user.permissions.map((permission) => (
-          <span className="chip" key={permission}>
-            {permission}
-          </span>
-        ))}
-      </div>
-      <p className="panel__hint">
-        Danh sách này lấy trực tiếp từ phiên đăng nhập và được dùng để ẩn/hiện
-        chức năng trên giao diện.
-      </p>
-    </section>
-  );
-}
-
-/**
- * Profile editor.
- *
- * `phone`/`address` are editable only for DONOR accounts: the delivered API
- * stores them in `DonorProfile` and echoes them back in `CurrentUser`, while
- * STAFF/ADMIN must not send them (`VALIDATION_ERROR`).
- */
-function ProfileDetails({ user }: { user: CurrentUser }) {
+function ProfileEditor({
+  user,
+  onCancel,
+  onSaved,
+}: {
+  user: CurrentUser;
+  onCancel: () => void;
+  onSaved: () => void;
+}) {
   const { updateProfile } = useAuth();
-  const editContacts = hasContactFields(user);
+  // Contact fields belong to DonorProfile; other accounts must not send them.
+  const editContacts = user.roles.includes('DONOR');
   const [fullName, setFullName] = useState(user.fullName);
   const [phone, setPhone] = useState(user.phone ?? '');
   const [address, setAddress] = useState(user.address ?? '');
   const [errors, setErrors] = useState<FieldErrors<ProfileField>>({});
   const [formError, setFormError] = useState<string | null>(null);
-  const [formErrorCode, setFormErrorCode] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const nameRef = useRef<HTMLInputElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  useLayoutEffect(() => {
+    nameRef.current?.focus();
+  }, []);
+  useLayoutEffect(() => {
+    if (hasErrors(errors))
+      formRef.current
+        ?.querySelector<HTMLInputElement>('[aria-invalid="true"]')
+        ?.focus();
+  }, [errors]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (submitting) return;
-
-    const nextErrors = validateProfile({
-      fullName,
-      ...(editContacts ? { phone, address } : {}),
-    });
+    const values = {
+      fullName: fullName.trim(),
+      ...(editContacts ? { phone: phone.trim(), address: address.trim() } : {}),
+    };
+    const nextErrors = validateProfile(values);
     setErrors(nextErrors);
     setFormError(null);
-    setFormErrorCode(null);
-    setSaved(false);
     if (hasErrors(nextErrors)) return;
-
     setSubmitting(true);
     try {
-      await updateProfile({
-        fullName: fullName.trim(),
-        ...(editContacts ? { phone: phone.trim(), address: address.trim() } : {}),
-      });
-      setSaved(true);
+      await updateProfile(values);
+      onSaved();
     } catch (error) {
       const described = describeAuthError(error);
       setFormError(described.message);
-      setFormErrorCode(described.code);
       setErrors(pickFieldErrors(described.fields, PROFILE_FIELDS));
     } finally {
       setSubmitting(false);
@@ -179,17 +77,17 @@ function ProfileDetails({ user }: { user: CurrentUser }) {
 
   return (
     <section className="panel" aria-labelledby="profile-edit-heading">
-      <h3 className="panel__title" id="profile-edit-heading">
-        Cập nhật thông tin
-      </h3>
-      <form className="form-stack" onSubmit={handleSubmit} noValidate>
-        <FormError message={formError} code={formErrorCode} />
-        {saved ? (
-          <StatusMessage tone="success">
-            Thông tin cá nhân đã được cập nhật.
-          </StatusMessage>
-        ) : null}
-
+      <h2 className="panel__title" id="profile-edit-heading">
+        Chỉnh sửa thông tin
+      </h2>
+      <form
+        ref={formRef}
+        className="form-stack"
+        onSubmit={handleSubmit}
+        noValidate
+        aria-busy={submitting}
+      >
+        <FormError message={formError} />
         <FormField
           id="profile-fullname"
           label="Họ và tên"
@@ -197,17 +95,22 @@ function ProfileDetails({ user }: { user: CurrentUser }) {
           error={errors.fullName}
         >
           <Input
+            ref={nameRef}
             name="fullName"
             autoComplete="name"
+            maxLength={200}
             value={fullName}
-            onChange={(event) => {
-              setFullName(event.target.value);
-              setSaved(false);
-            }}
+            onChange={(event) => setFullName(event.target.value)}
             disabled={submitting}
           />
         </FormField>
-
+        <FormField
+          id="profile-email"
+          label="Email"
+          hint="Email được dùng để đăng nhập và không thể sửa tại đây."
+        >
+          <Input name="email" type="email" value={user.email} readOnly />
+        </FormField>
         {editContacts ? (
           <>
             <FormField
@@ -220,11 +123,9 @@ function ProfileDetails({ user }: { user: CurrentUser }) {
                 name="phone"
                 type="tel"
                 autoComplete="tel"
+                maxLength={20}
                 value={phone}
-                onChange={(event) => {
-                  setPhone(event.target.value);
-                  setSaved(false);
-                }}
+                onChange={(event) => setPhone(event.target.value)}
                 disabled={submitting}
               />
             </FormField>
@@ -237,35 +138,20 @@ function ProfileDetails({ user }: { user: CurrentUser }) {
               <Input
                 name="address"
                 autoComplete="street-address"
+                maxLength={500}
                 value={address}
-                onChange={(event) => {
-                  setAddress(event.target.value);
-                  setSaved(false);
-                }}
+                onChange={(event) => setAddress(event.target.value)}
                 disabled={submitting}
               />
             </FormField>
           </>
         ) : null}
-
         <div className="panel__actions">
           <Button type="submit" isLoading={submitting} loadingLabel="Đang lưu…">
             Lưu thay đổi
           </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => {
-              setFullName(user.fullName);
-              setPhone(user.phone ?? '');
-              setAddress(user.address ?? '');
-              setErrors({});
-              setFormError(null);
-              setSaved(false);
-            }}
-            disabled={submitting}
-          >
-            Hoàn tác
+          <Button variant="secondary" onClick={onCancel} disabled={submitting}>
+            Hủy
           </Button>
         </div>
       </form>
@@ -273,38 +159,119 @@ function ProfileDetails({ user }: { user: CurrentUser }) {
   );
 }
 
-/** Authenticated profile screen. */
-export function ProfilePage() {
-  const { currentUser } = useAuth();
+function ProfileContent({ user }: { user: CurrentUser }) {
+  const { hasPermission } = useAuth();
+  const [editing, setEditing] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const editRef = useRef<HTMLButtonElement>(null);
+  const restoreFocus = useRef(false);
+  const canEdit = hasPermission('auth.profile.update');
 
-  if (!currentUser) {
-    return (
-      <StatusMessage tone="warning" title="Chưa có phiên đăng nhập">
-        Vui lòng đăng nhập lại để xem thông tin cá nhân.
-      </StatusMessage>
-    );
+  useLayoutEffect(() => {
+    if (!editing && restoreFocus.current) {
+      editRef.current?.focus();
+      restoreFocus.current = false;
+    }
+  }, [editing]);
+
+  function closeEditor(success = false) {
+    restoreFocus.current = true;
+    setEditing(false);
+    setSaved(success);
   }
 
+  const details = [
+    ['Họ và tên', user.fullName],
+    ['Email', user.email],
+    ...(user.roles.includes('DONOR')
+      ? [
+          ['Số điện thoại', user.phone || 'Chưa cập nhật'],
+          ['Địa chỉ', user.address || 'Chưa cập nhật'],
+        ]
+      : []),
+  ];
+  const initials = user.fullName
+    .trim()
+    .split(/\s+/)
+    .slice(-2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase();
+
   return (
-    <>
-      <header className="page-header">
-        <p className="eyebrow">Tài khoản</p>
-        <h1 className="page-header__title">Thông tin cá nhân</h1>
-        <p className="page-header__lead">
-          Quản lý thông tin nhận diện và xem vai trò, quyền hiện có của bạn.
-        </p>
-      </header>
-
-      <div className="profile-layout">
-        <ProfileSummary user={currentUser} />
-
-        <div className="profile-grid">
-          <IdentityPanel user={currentUser} />
-          <PermissionsPanel user={currentUser} />
-          {/* Keyed by id so switching account never shows stale draft values. */}
-          <ProfileDetails key={currentUser.id} user={currentUser} />
+    <div className="profile-page">
+      <header className="page-header profile-header">
+        <div>
+          <p className="eyebrow">Tài khoản của bạn</p>
+          <h1 className="page-header__title">Thông tin cá nhân</h1>
+          <p className="page-header__lead">
+            Một chút thông tin để kết nối và đồng hành cùng bạn.
+          </p>
         </div>
+        {canEdit && !editing ? (
+          <Button
+            ref={editRef}
+            variant="secondary"
+            onClick={() => {
+              setSaved(false);
+              setEditing(true);
+            }}
+          >
+            Chỉnh sửa thông tin
+          </Button>
+        ) : null}
+      </header>
+      <div className="profile-layout">
+        {saved ? (
+          <StatusMessage tone="success">
+            Thông tin cá nhân đã được cập nhật.
+          </StatusMessage>
+        ) : null}
+        <section className="profile-summary" aria-label="Thông tin tổng quan">
+          <div className="profile-avatar" aria-hidden="true">
+            {initials}
+          </div>
+          <div className="profile-summary__info">
+            <h2 className="profile-summary__name">{user.fullName}</h2>
+            <p className="profile-summary__email">{user.email}</p>
+            <div className="profile-summary__roles">
+              {user.roles.map((role) => (
+                <span className="chip chip--brand" key={role}>
+                  {ROLE_NAMES[role]}
+                </span>
+              ))}
+            </div>
+          </div>
+        </section>
+        {editing && canEdit ? (
+          <ProfileEditor
+            user={user}
+            onCancel={() => closeEditor()}
+            onSaved={() => closeEditor(true)}
+          />
+        ) : (
+          <section className="panel" aria-labelledby="identity-heading">
+            <h2 className="panel__title" id="identity-heading">
+              Thông tin liên hệ
+            </h2>
+            <dl className="detail-list profile-details">
+              {details.map(([label, value]) => (
+                <div className="detail-list__row" key={label}>
+                  <dt className="detail-list__label">{label}</dt>
+                  <dd className="detail-list__value">{value}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        )}
       </div>
-    </>
+    </div>
   );
+}
+
+export function ProfilePage() {
+  const { currentUser } = useAuth();
+  return currentUser ? (
+    <ProfileContent key={currentUser.id} user={currentUser} />
+  ) : null;
 }

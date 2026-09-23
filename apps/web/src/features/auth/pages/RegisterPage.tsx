@@ -53,7 +53,7 @@ export function RegisterPage() {
   const [submitting, setSubmitting] = useState(false);
 
   if (status === 'loading') {
-    return <PageLoader message="Đang kiểm tra phiên đăng nhập…" />;
+    return <PageLoader message="Đang tải…" />;
   }
   if (currentUser) {
     return <Navigate to={resolveLandingPath(currentUser)} replace />;
@@ -101,7 +101,7 @@ export function RegisterPage() {
       <AuthCard
         eyebrow="Đăng ký"
         title="Tạo tài khoản người hiến"
-        subtitle="Tài khoản đăng ký công khai luôn có vai trò Người hiến máu."
+        subtitle="Bắt đầu hành trình sẻ chia cùng cộng đồng hiến máu."
         footer={
           <div className="auth-card__links">
             <span>Đã có tài khoản? </span>
@@ -110,7 +110,7 @@ export function RegisterPage() {
         }
       >
         <form className="auth-card__form" onSubmit={handleSubmit} noValidate>
-          <FormError message={formError?.message} code={formError?.code} />
+          <FormError message={formError?.message} />
 
           <FormField
             id="register-fullname"

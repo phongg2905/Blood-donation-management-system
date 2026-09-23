@@ -1,0 +1,1517 @@
+/*
+ * Authenticated landing page — editorial art direction.
+ *
+ * The page reads as one story: a dark cover, a light chapter, a dark chapter,
+ * and so on, so sections alternate DARK → LIGHT → DARK → LIGHT instead of
+ * sharing a single surface. Composition relies on typography, whitespace,
+ * hairlines and one recurring blood-drop motif rather than cards, borders and
+ * shadows.
+ *
+ * Everything here is scoped to `.app-shell--home` (set by `AppShell` when the
+ * route is `/`), so no other screen is affected. Colour comes from the project
+ * tokens in `tokens.css`; a few landing-only values are declared once, below.
+ */
+
+/* ============================================================ Tokens == */
+
+.app-shell--home {
+  /* Surfaces */
+  --landing-ink: #17110f;
+  --landing-burgundy: #3d0b16;
+  --landing-ivory: #faf6f3;
+  --landing-paper: #fffdfb;
+  --landing-blush: #fbe9ec;
+
+  /* Accents */
+  --landing-crimson: var(--color-brand-600);
+  --landing-rose: var(--color-brand-400);
+  --landing-blush-soft: var(--color-brand-200);
+  --landing-blush-strong: var(--color-brand-300);
+
+  /* Layout */
+  --landing-gutter: clamp(var(--space-5), 5vw, var(--space-16));
+  --landing-gutter-total: calc(var(--landing-gutter) * 2);
+  --landing-max: 1240px;
+  --landing-measure: 54ch;
+
+  /*
+   * Per-chapter rhythm. Desktop and short-window rules refill these tokens
+   * instead of overriding individual properties, so every chapter can be
+   * tightened to one screen at once.
+   */
+  --landing-section-padding: clamp(var(--space-16), 9vw, 8rem);
+  --landing-block-margin: clamp(var(--space-10), 6vw, var(--space-16));
+  --landing-row-padding: var(--space-5);
+  --landing-head-title: clamp(2rem, 4.2vw, 3.75rem);
+  --landing-frame-ratio: 16 / 9;
+
+  /* Tone defaults (light); dark sections override these. */
+  --landing-rule: rgb(23 17 15 / 14%);
+  --landing-accent: var(--color-brand-600);
+  /*
+   * Decorative chapter numeral. Large enough for the 3:1 large-text floor, but
+   * deliberately kept a touch stronger than the floor so thin strokes are still
+   * comfortable at laptop sizes and browser zoom.
+   */
+  --landing-index: rgb(168 25 46 / 72%);
+  /* Meaningful step numerals: readable at body sizes. */
+  --landing-number: var(--color-brand-500);
+  --landing-muted: var(--color-ink-500);
+  --landing-focus: var(--color-brand-600);
+
+  background: var(--landing-ivory);
+  color: var(--color-ink-800);
+}
+
+/* =========================================================== Shell == */
+
+/*
+ * Masthead. Nearly opaque on purpose: a blurred, see-through bar smears the
+ * text that scrolls beneath it, so the landing keeps a solid surface instead.
+ */
+.app-shell--home .app-header {
+  background: rgb(23 17 15 / 94%);
+  border-bottom: 1px solid rgb(255 255 255 / 9%);
+  box-shadow: none;
+}
+
+.app-shell--home .app-main {
+  max-width: none;
+  padding: 0;
+}
+
+.app-shell--home .app-nav__link {
+  position: relative;
+  border-radius: 0;
+  background: transparent;
+  color: rgb(255 255 255 / 70%);
+}
+
+.app-shell--home .app-nav__link::after {
+  content: '';
+  position: absolute;
+  right: var(--space-3);
+  bottom: 10px;
+  left: var(--space-3);
+  height: 1px;
+  background: currentColor;
+  opacity: 0;
+  transform: scaleX(0.35);
+  transition:
+    opacity var(--transition-base),
+    transform var(--transition-base);
+}
+
+.app-shell--home .app-nav__link:hover,
+.app-shell--home .app-nav__link[aria-current='page'] {
+  background: transparent;
+  color: #fff;
+}
+
+.app-shell--home .app-nav__link:hover::after,
+.app-shell--home .app-nav__link[aria-current='page']::after {
+  opacity: 0.75;
+  transform: none;
+}
+
+.app-shell--home .session__name {
+  color: #fff;
+}
+
+.app-shell--home .session__role {
+  color: rgb(255 255 255 / 62%);
+}
+
+.app-shell--home .session__avatar {
+  background: rgb(255 255 255 / 14%);
+  color: #fff;
+}
+
+.app-shell--home .account-menu summary:hover {
+  background: rgb(255 255 255 / 8%);
+}
+
+.app-shell--home .account-menu__panel {
+  background: var(--color-panel-dark);
+  border-color: rgb(255 255 255 / 14%);
+}
+
+.app-shell--home .account-menu__panel a {
+  color: #fff;
+}
+
+.app-shell--home .account-menu__panel a:hover {
+  background: rgb(255 255 255 / 10%);
+  color: #fff;
+}
+
+/* Logout stays visually quieter than any business call to action. */
+.app-shell--home .account-menu__panel .btn {
+  color: rgb(255 255 255 / 68%);
+}
+
+.app-shell--home .account-menu__panel .btn:hover:not(:disabled) {
+  background: rgb(255 255 255 / 10%);
+  color: #fff;
+}
+
+.app-shell--home .app-header :focus-visible {
+  outline-color: var(--landing-blush-soft);
+}
+
+/* The footer continues the closing scene. */
+.app-shell--home .app-footer {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: var(--space-8)
+    max(var(--landing-gutter), calc((100% - var(--landing-max)) / 2));
+  align-items: baseline;
+  background: #24060e;
+  border-top: 1px solid rgb(255 255 255 / 12%);
+  color: rgb(255 255 255 / 58%);
+}
+
+.app-shell--home .app-footer span {
+  color: #fff;
+}
+
+/* ============================================================ Page == */
+
+.landing {
+  display: flex;
+  flex-direction: column;
+  background: var(--landing-ivory);
+}
+
+/*
+ * Every chapter shares the same measure and vertical rhythm.
+ *
+ * `--landing-header` is measured by `useLandingPaging` (the masthead wraps on
+ * narrow screens, so its height is not a constant) and falls back to the design
+ * token before the effect has run.
+ */
+.landing-section,
+.landing-hero {
+  position: relative;
+  scroll-margin-top: calc(
+    var(--landing-header, var(--header-height)) + var(--space-4)
+  );
+}
+
+.landing-section {
+  overflow: hidden;
+  padding-block: var(--landing-section-padding);
+}
+
+.landing-section__inner {
+  position: relative;
+  z-index: 1;
+  width: min(100% - var(--landing-gutter-total), var(--landing-max));
+  margin-inline: auto;
+}
+
+/* ── Chapter tones ─────────────────────────────────────────────────── */
+
+.landing-section--ivory {
+  background: var(--landing-ivory);
+  color: var(--color-ink-800);
+}
+
+.landing-section--paper {
+  background: var(--landing-paper);
+  color: var(--color-ink-800);
+}
+
+.landing-section--blush {
+  background: var(--landing-blush);
+  color: var(--color-ink-900);
+  --landing-rule: rgb(168 25 46 / 18%);
+  --landing-accent: var(--color-brand-700);
+  --landing-index: rgb(168 25 46 / 80%);
+  --landing-number: var(--color-brand-600);
+  --landing-muted: var(--color-ink-600);
+}
+
+.landing-section--dark {
+  background: var(--landing-ink);
+  color: rgb(255 255 255 / 78%);
+  --landing-rule: rgb(255 255 255 / 14%);
+  --landing-accent: var(--landing-blush-soft);
+  --landing-index: rgb(249 201 208 / 74%);
+  --landing-number: var(--landing-blush-strong);
+  --landing-muted: rgb(255 255 255 / 66%);
+  --landing-focus: var(--landing-blush-soft);
+}
+
+.landing-section--dark :is(h1, h2, h3, h4),
+.landing-section--closing :is(h1, h2, h3, h4) {
+  color: #fff;
+}
+
+/* ── Shared editorial primitives ───────────────────────────────────── */
+
+.landing-eyebrow {
+  margin: 0;
+  color: var(--landing-accent);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.16em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.landing-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--landing-accent);
+  font-weight: var(--weight-semibold);
+}
+
+.landing-link:hover {
+  color: var(--landing-accent);
+  text-decoration: none;
+}
+
+.landing-link--inverse {
+  color: #fff;
+}
+
+.landing-link--inverse:hover {
+  color: var(--landing-blush-soft);
+}
+
+.landing-link__mark {
+  transition: transform var(--transition-base);
+}
+
+.landing-link:hover .landing-link__mark,
+.landing-actions__item .landing-link:hover .landing-actions__mark {
+  transform: translate(3px, -3px);
+}
+
+.landing-link:focus-visible {
+  outline: 2px solid var(--landing-focus);
+  outline-offset: 3px;
+  border-radius: var(--radius-xs);
+}
+
+/* Large, low-radius call to action — no pill, no card. */
+.landing-cta {
+  min-height: 54px;
+  padding-inline: var(--space-8);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-base);
+}
+
+.landing-cta:disabled {
+  background: var(--color-brand-700);
+  color: #fff;
+  cursor: not-allowed;
+  opacity: 1;
+  box-shadow: none;
+}
+
+.landing-cta:focus-visible {
+  outline: 2px solid var(--landing-focus);
+  outline-offset: 3px;
+  box-shadow: none;
+}
+
+/*
+ * base.css colours every heading ink; the cover is dark, so its headings and
+ * the statement inherit white instead. The accent line keeps its own colour
+ * because it is set on the span itself.
+ */
+.landing-hero :is(h1, h2, h3, h4) {
+  color: #fff;
+}
+
+/* ── Chapter head ──────────────────────────────────────────────────── */
+
+.landing-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+}
+
+.landing-head__index {
+  margin: 0;
+  color: var(--landing-index);
+  font-size: clamp(1.75rem, 3vw, 2.75rem);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--weight-extrabold);
+  letter-spacing: -0.05em;
+  line-height: 1;
+}
+
+.landing-head__title {
+  margin-top: var(--space-4);
+  font-size: var(--landing-head-title);
+  font-weight: var(--weight-extrabold);
+  letter-spacing: -0.045em;
+  line-height: 0.98;
+}
+
+.landing-head__line {
+  display: block;
+}
+
+.landing-head__lead {
+  max-width: var(--landing-measure);
+  margin-top: var(--space-5);
+  color: var(--landing-muted);
+  font-size: var(--text-base);
+  line-height: var(--leading-relaxed);
+}
+
+/* ============================================================== Hero == */
+
+.landing-hero {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  /* Content-driven: never a hard 100vh, so the next chapter always peeks. */
+  min-height: clamp(540px, 74vh, 720px);
+  min-height: clamp(540px, 74svh, 720px);
+  /* A token, so paged desktop can add the masthead's height on top of it. */
+  --landing-hero-padding: var(--space-10);
+  padding: var(--landing-hero-padding) var(--landing-gutter);
+  background:
+    radial-gradient(circle at 82% 12%, rgb(212 86 110 / 26%), transparent 44%),
+    radial-gradient(circle at 6% 92%, rgb(120 30 180 / 16%), transparent 46%),
+    linear-gradient(162deg, #22141a 0%, var(--landing-ink) 48%, #320914 100%);
+  color: rgb(255 255 255 / 78%);
+  --landing-accent: var(--landing-blush-soft);
+  --landing-muted: rgb(255 255 255 / 66%);
+  --landing-focus: var(--landing-blush-soft);
+}
+
+.landing-hero__grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  flex: 1;
+  grid-template-columns: minmax(0, 1fr);
+  gap: clamp(var(--space-10), 6vw, var(--space-16));
+  align-content: center;
+  width: min(100%, var(--landing-max));
+  margin-inline: auto;
+}
+
+.landing-hero__copy {
+  min-width: 0;
+}
+
+.landing-hero__greeting {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: rgb(255 255 255 / 68%);
+  font-size: var(--text-sm);
+}
+
+.landing-hero__greeting::before {
+  content: '';
+  flex: none;
+  width: 44px;
+  height: 1px;
+  background: var(--landing-blush-strong);
+}
+
+.landing-hero .landing-eyebrow {
+  margin-top: var(--space-6);
+}
+
+.landing-hero__title {
+  margin-top: var(--space-4);
+  font-size: clamp(2.6rem, 6.2vw, 5.4rem);
+  font-weight: var(--weight-extrabold);
+  letter-spacing: -0.045em;
+  line-height: 0.94;
+}
+
+.landing-hero__line {
+  display: block;
+}
+
+.landing-hero__line--accent {
+  color: var(--landing-blush-soft);
+}
+
+.landing-hero__lead {
+  max-width: var(--landing-measure);
+  margin-top: var(--space-6);
+  font-size: var(--text-lg);
+  line-height: var(--leading-relaxed);
+  color: rgb(255 255 255 / 74%);
+}
+
+.landing-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-5) var(--space-8);
+  margin-top: var(--space-8);
+}
+
+.landing-registration {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: flex-start;
+}
+
+.landing-registration__note {
+  color: rgb(255 255 255 / 60%);
+  font-size: var(--text-xs);
+}
+
+/* ── Cover art: rings, flow and the drop ───────────────────────────── */
+
+/* Decoration never intercepts a click or a hit test. */
+.landing-hero__art,
+.landing-hero__rings,
+.landing-hero__flow,
+.landing-impact__art {
+  pointer-events: none;
+}
+
+.landing-hero__visual {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-5);
+  margin: 0;
+}
+
+.landing-hero__art {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: min(100%, 440px);
+  aspect-ratio: 1;
+  isolation: isolate;
+}
+
+.landing-hero__rings {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  /* Deterministic spin origin across engines. */
+  transform-box: view-box;
+  transform-origin: center;
+  animation: landing-spin 120s linear infinite;
+}
+
+.landing-hero__rings circle {
+  fill: none;
+  stroke: rgb(249 201 208 / 26%);
+  stroke-width: 1;
+  stroke-dasharray: 2 11;
+}
+
+.landing-hero__rings circle:nth-child(2) {
+  stroke: rgb(255 255 255 / 12%);
+  stroke-dasharray: none;
+}
+
+.landing-hero__rings circle:nth-child(3) {
+  stroke: rgb(192 39 63 / 38%);
+  stroke-dasharray: 3 16;
+}
+
+.landing-hero__flow {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 24px;
+  /* Kept inside the art box: a longer line would paint over the caption. */
+  height: 100%;
+  transform: translateX(-50%);
+}
+
+.landing-hero__flow path {
+  fill: none;
+  stroke: rgb(249 201 208 / 34%);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-dasharray: 10 16;
+  animation: landing-flow 3.6s linear infinite;
+}
+
+.landing-hero__drop {
+  position: relative;
+  width: clamp(168px, 28vw, 296px);
+  aspect-ratio: 1;
+  border-radius: 0 50% 50% 50%;
+  background: radial-gradient(
+    circle at 34% 26%,
+    #ffd9de 0%,
+    #f2879a 24%,
+    var(--color-brand-500) 50%,
+    var(--color-brand-800) 78%,
+    var(--landing-burgundy) 100%
+  );
+  box-shadow:
+    0 0 0 1px rgb(249 201 208 / 16%),
+    0 40px 110px rgb(168 25 46 / 42%),
+    inset -14px -20px 60px rgb(61 11 22 / 55%);
+  transform: rotate(45deg);
+  animation: landing-drop 12s var(--ease-in-out) infinite;
+}
+
+.landing-hero__drop::after {
+  content: '';
+  position: absolute;
+  top: 12%;
+  left: 10%;
+  width: 36%;
+  height: 30%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgb(255 255 255 / 52%), transparent 72%);
+}
+
+.landing-hero__caption {
+  max-width: 32ch;
+  color: rgb(255 255 255 / 58%);
+  font-size: var(--text-xs);
+  letter-spacing: 0.04em;
+  line-height: var(--leading-relaxed);
+  text-align: center;
+}
+
+.landing-hero__scroll {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  align-self: center;
+  margin-top: var(--space-12);
+  color: rgb(255 255 255 / 62%);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.landing-hero__scroll:hover {
+  color: #fff;
+  text-decoration: none;
+}
+
+.landing-hero__scroll-line {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  width: 88px;
+  height: 1px;
+  background: rgb(255 255 255 / 22%);
+}
+
+.landing-hero__scroll-line::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--landing-blush-soft);
+  animation: landing-scroll-hint 3.2s var(--ease-in-out) infinite;
+}
+
+/* ======================================================= Human story == */
+
+.landing-story {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: clamp(var(--space-8), 5vw, var(--space-16));
+  margin-top: var(--landing-block-margin);
+}
+
+.landing-story__figure {
+  margin: 0;
+  isolation: isolate;
+}
+
+.landing-story__frame {
+  position: relative;
+  display: block;
+  overflow: hidden;
+}
+
+.landing-story__frame img {
+  width: 100%;
+  height: auto;
+  aspect-ratio: var(--landing-frame-ratio);
+  object-fit: cover;
+  filter: grayscale(1) contrast(1.08) brightness(1.03);
+}
+
+/* Warm duotone so the illustration reads as one art-directed image. */
+.landing-story__frame::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    118deg,
+    rgb(168 25 46 / 46%),
+    rgb(61 11 22 / 32%)
+  );
+  mix-blend-mode: multiply;
+}
+
+.landing-story__caption {
+  margin-top: var(--space-4);
+  color: var(--landing-muted);
+  font-size: var(--text-xs);
+  letter-spacing: 0.04em;
+}
+
+.landing-story__quote {
+  margin-top: clamp(var(--space-6), 4vw, var(--space-10));
+  padding-left: var(--space-6);
+  border-left: 2px solid var(--landing-crimson);
+  color: var(--color-ink-900);
+  font-size: clamp(1.5rem, 2.6vw, 2.25rem);
+  font-weight: var(--weight-bold);
+  letter-spacing: -0.03em;
+  line-height: 1.16;
+}
+
+.landing-story__points-title {
+  color: var(--landing-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.landing-story__list {
+  margin: var(--space-5) 0 0;
+  padding: 0;
+  border-top: 1px solid var(--landing-rule);
+  list-style: none;
+}
+
+.landing-story__item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-1);
+  padding-block: var(--landing-row-padding);
+  border-bottom: 1px solid var(--landing-rule);
+}
+
+.landing-story__item-title {
+  color: var(--color-ink-900);
+  font-size: var(--text-base);
+  font-weight: var(--weight-bold);
+}
+
+.landing-story__item-text {
+  color: var(--landing-muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-relaxed);
+}
+
+/* =========================================================== Journey == */
+
+.landing-journey {
+  margin-top: var(--landing-block-margin);
+}
+
+.landing-journey__list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.landing-journey__step {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  column-gap: var(--space-5);
+  padding-block: var(--landing-row-padding);
+  border-top: 1px solid var(--landing-rule);
+}
+
+.landing-journey__number {
+  grid-row: span 2;
+  margin: 0;
+  color: var(--landing-number);
+  font-size: var(--text-lg);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--weight-extrabold);
+  letter-spacing: -0.04em;
+  line-height: 1.1;
+}
+
+.landing-journey__title {
+  font-size: var(--text-base);
+  font-weight: var(--weight-bold);
+}
+
+.landing-journey__text {
+  margin-top: var(--space-2);
+  color: var(--landing-muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-relaxed);
+}
+
+/* ============================================================ Impact == */
+
+.landing-impact__art {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.landing-impact__flow {
+  position: absolute;
+  right: 0;
+  bottom: -4%;
+  left: 0;
+  width: 100%;
+  height: auto;
+}
+
+.landing-impact__flow path {
+  fill: none;
+  stroke: rgb(168 25 46 / 22%);
+  stroke-width: 1.5;
+}
+
+.landing-impact__ripple {
+  position: absolute;
+  top: 10%;
+  right: -8%;
+  width: min(46vw, 430px);
+  aspect-ratio: 1;
+  border: 1px solid rgb(168 25 46 / 16%);
+  border-radius: 50%;
+}
+
+.landing-impact__ripple--wide {
+  top: 24%;
+  right: -2%;
+  width: min(32vw, 290px);
+  border-color: rgb(168 25 46 / 11%);
+}
+
+.landing-impact__scene {
+  position: relative;
+  z-index: 1;
+  max-width: 60rem;
+}
+
+.landing-impact__index {
+  margin-bottom: var(--space-4);
+}
+
+.landing-impact__title {
+  margin-top: var(--space-6);
+  color: var(--landing-burgundy);
+  font-size: clamp(2.4rem, 6.6vw, 5.5rem);
+  font-weight: var(--weight-extrabold);
+  letter-spacing: -0.05em;
+  line-height: 0.92;
+}
+
+.landing-impact__line {
+  display: block;
+}
+
+.landing-impact__line + .landing-impact__line {
+  color: var(--landing-crimson);
+}
+
+.landing-impact__story {
+  max-width: var(--landing-measure);
+  margin-top: clamp(var(--space-6), 4vw, var(--space-10));
+  color: var(--color-ink-700);
+  font-size: clamp(1.05rem, 1.6vw, 1.375rem);
+  line-height: var(--leading-relaxed);
+}
+
+.landing-impact__note {
+  max-width: var(--landing-measure);
+  margin-top: var(--space-8);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--landing-rule);
+  /* `--landing-muted` keeps this at the same contrast as every other muted
+     line, which plain ink-500 was slightly under on the blush surface. */
+  color: var(--landing-muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-relaxed);
+}
+
+/* ========================================================== Campaign == */
+
+.landing-campaign {
+  display: grid;
+  gap: var(--space-5);
+  margin-top: var(--landing-block-margin);
+}
+
+.landing-campaign__status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--landing-blush-soft);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.landing-campaign__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--landing-rose);
+  box-shadow: 0 0 0 4px rgb(212 86 110 / 22%);
+}
+
+.landing-campaign__title {
+  max-width: 26ch;
+  font-size: clamp(1.5rem, 3vw, 2.5rem);
+  font-weight: var(--weight-bold);
+  letter-spacing: -0.03em;
+  line-height: 1.08;
+}
+
+.landing-campaign__text {
+  max-width: 58ch;
+  color: var(--landing-muted);
+  font-size: var(--text-base);
+  line-height: var(--leading-relaxed);
+}
+
+.landing-campaign__slots {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  margin: var(--space-4) 0 0;
+}
+
+.landing-campaign__slot {
+  padding-block: var(--landing-row-padding);
+  border-top: 1px solid var(--landing-rule);
+}
+
+.landing-campaign__slot dt {
+  color: rgb(255 255 255 / 62%);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.landing-campaign__slot dd {
+  margin: var(--space-3) 0 0;
+  color: rgb(255 255 255 / 82%);
+  font-size: var(--text-lg);
+}
+
+/* ======================================================= Preparation == */
+
+.landing-prep {
+  margin-top: var(--landing-block-margin);
+}
+
+.landing-prep__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.landing-prep__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-2);
+  padding-block: var(--landing-row-padding);
+  border-top: 1px solid var(--landing-rule);
+}
+
+.landing-prep__list > li:last-child {
+  border-bottom: 1px solid var(--landing-rule);
+}
+
+.landing-prep__number {
+  color: var(--landing-number);
+  font-size: var(--text-lg);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--weight-extrabold);
+  letter-spacing: -0.04em;
+  line-height: 1.1;
+}
+
+.landing-prep__title {
+  font-size: clamp(1.125rem, 1.8vw, 1.5rem);
+  font-weight: var(--weight-bold);
+  letter-spacing: -0.02em;
+}
+
+.landing-prep__text {
+  color: var(--landing-muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-relaxed);
+}
+
+/* ==================================================== Personal actions == */
+
+.landing-actions {
+  margin-top: var(--landing-block-margin);
+}
+
+.landing-actions__list {
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--landing-rule);
+  list-style: none;
+}
+
+.landing-actions__item {
+  border-bottom: 1px solid var(--landing-rule);
+}
+
+.landing-actions__item .landing-link {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-1) var(--space-6);
+  align-items: center;
+  padding-block: var(--landing-row-padding);
+  color: var(--color-ink-900);
+}
+
+.landing-actions__item .landing-link:hover {
+  color: var(--color-brand-700);
+}
+
+.landing-actions__label {
+  font-size: clamp(1.35rem, 2.6vw, 2rem);
+  font-weight: var(--weight-bold);
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+.landing-actions__text {
+  grid-column: 1 / -1;
+  color: var(--landing-muted);
+  font-size: var(--text-sm);
+}
+
+.landing-actions__mark {
+  grid-row: 1;
+  grid-column: 2;
+  color: var(--landing-accent);
+  /* Bold ink so the thin arrow stays crisp at small sizes. */
+  font-weight: var(--weight-bold);
+  transition: transform var(--transition-base);
+}
+
+/* ========================================================== Closing == */
+
+.landing-section--closing {
+  background:
+    radial-gradient(circle at 50% 118%, rgb(212 86 110 / 26%), transparent 62%),
+    linear-gradient(
+      180deg,
+      #2b0913 0%,
+      var(--landing-burgundy) 58%,
+      #24060e 100%
+    );
+  color: rgb(255 255 255 / 78%);
+  --landing-rule: rgb(255 255 255 / 14%);
+  --landing-accent: var(--landing-blush-soft);
+  --landing-index: rgb(249 201 208 / 78%);
+  --landing-number: var(--landing-blush-strong);
+  --landing-muted: rgb(255 255 255 / 66%);
+  --landing-focus: var(--landing-blush-soft);
+}
+
+.landing-closing__index {
+  margin-bottom: var(--space-5);
+}
+
+.landing-closing__glow {
+  position: absolute;
+  bottom: -46%;
+  left: 50%;
+  z-index: 0;
+  width: min(130vw, 900px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgb(192 39 63 / 30%), transparent 62%);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.landing-closing {
+  max-width: 46rem;
+  margin-inline: auto;
+  text-align: center;
+}
+
+/* The drop motif closes the story. */
+.landing-closing::before {
+  content: '';
+  display: block;
+  width: 46px;
+  height: 46px;
+  margin: 0 auto var(--space-8);
+  border-radius: 0 50% 50% 50%;
+  background: radial-gradient(
+    circle at 34% 26%,
+    #ffd9de,
+    var(--color-brand-500) 56%,
+    var(--color-brand-800)
+  );
+  transform: rotate(45deg);
+}
+
+.landing-closing__title {
+  margin-top: var(--space-5);
+  font-size: clamp(2.25rem, 5.4vw, 4.5rem);
+  font-weight: var(--weight-extrabold);
+  letter-spacing: -0.05em;
+  line-height: 0.98;
+}
+
+.landing-closing__lead {
+  max-width: 42ch;
+  margin: var(--space-6) auto 0;
+  color: rgb(255 255 255 / 72%);
+  font-size: var(--text-lg);
+  line-height: var(--leading-relaxed);
+}
+
+.landing-closing__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  margin-top: var(--space-8);
+}
+
+.landing-closing__note {
+  max-width: 44ch;
+  color: rgb(255 255 255 / 60%);
+  font-size: var(--text-xs);
+  line-height: var(--leading-relaxed);
+}
+
+/* ========================================================== Motion == */
+
+/*
+ * Content arrives after the page turn has settled, so the fade is quick: the
+ * text should reach full contrast almost as soon as the page stops rather than
+ * linger half-transparent.
+ */
+.landing-reveal {
+  opacity: 0;
+  transform: translateY(14px);
+  transition:
+    opacity 400ms var(--ease-out),
+    transform 420ms var(--ease-out);
+}
+
+.landing-reveal--visible {
+  opacity: 1;
+  transform: none;
+}
+
+@keyframes landing-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes landing-flow {
+  to {
+    stroke-dashoffset: -52;
+  }
+}
+
+@keyframes landing-drop {
+  50% {
+    transform: rotate(45deg) translate(0, -14px);
+  }
+}
+
+@keyframes landing-scroll-hint {
+  0% {
+    transform: translateX(-100%);
+  }
+  60%,
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* ====================================================== Responsive == */
+
+/*
+ * Desktop rhythm. From 1024px up every chapter has to fit the band under the
+ * masthead, so the block rhythm is tighter and the story crop cinematic. The
+ * airiness of a tall screen comes from centering each chapter in its page, not
+ * from padding, so the same rhythm works from a 650px laptop viewport up.
+ */
+@media (min-width: 1024px) {
+  .app-shell--home {
+    --landing-section-padding: clamp(var(--space-8), 3vw, var(--space-12));
+    --landing-block-margin: var(--space-8);
+    --landing-row-padding: var(--space-4);
+    --landing-head-title: clamp(1.75rem, 3vw, 2.75rem);
+    --landing-frame-ratio: 3 / 1;
+  }
+
+  .landing-head__lead {
+    margin-top: var(--space-3);
+  }
+
+  .landing-story__quote,
+  .landing-journey__title {
+    margin-top: var(--space-5);
+  }
+
+  .landing-campaign__slots {
+    margin-top: var(--space-2);
+  }
+}
+
+/*
+ * Wide desktop: the story's details sit in two columns. Below this width the
+ * sub-columns wrap more than they save, so they stay a single column.
+ */
+@media (min-width: 1280px) {
+  .landing-story__list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: var(--space-8);
+    border-top: 0;
+  }
+
+  .landing-story__item {
+    padding-block: var(--landing-row-padding);
+    border-top: 1px solid var(--landing-rule);
+    border-bottom: 0;
+  }
+
+  .landing-story__item:last-child {
+    grid-column: span 2;
+  }
+}
+
+/* Short desktop viewport (laptop with browser chrome): compact cover. */
+@media (min-width: 1024px) and (max-height: 860px) {
+  .landing-hero__title {
+    font-size: clamp(2.25rem, 4.6vw, 3.75rem);
+  }
+
+  .landing-hero__lead {
+    font-size: var(--text-base);
+  }
+
+  .landing-hero__art {
+    width: min(100%, 360px);
+  }
+}
+
+/* Shortest desktop viewport: pull every chapter in further so a page fits. */
+@media (min-width: 1024px) and (max-height: 760px) {
+  .app-shell--home {
+    --landing-section-padding: var(--space-6);
+    --landing-block-margin: var(--space-6);
+    --landing-frame-ratio: 4 / 1;
+  }
+
+  /* The closing scene is the tallest chapter on a short screen: the motif and
+     the action block step in, which is enough to fit the page. */
+  .landing-closing::before {
+    width: 36px;
+    height: 36px;
+    margin-bottom: var(--space-5);
+  }
+
+  .landing-closing__actions {
+    margin-top: var(--space-6);
+    gap: var(--space-3);
+  }
+
+  .landing-campaign {
+    gap: var(--space-4);
+  }
+
+  .landing-hero {
+    --landing-hero-padding: var(--space-8);
+  }
+
+  .landing-hero__title {
+    font-size: clamp(2rem, 3.8vw, 3rem);
+  }
+
+  .landing-hero__art {
+    width: min(100%, 320px);
+  }
+
+  .landing-hero__scroll {
+    margin-top: var(--space-6);
+  }
+}
+
+/*
+ * Paged desktop. `useLandingPaging` sets the mode; each chapter becomes one
+ * screen and snapping guarantees a gesture cannot stop mid-chapter. The
+ * `soft` mode is the safety valve: only gentle proximity snapping, so a
+ * chapter that cannot fit stays fully readable.
+ */
+@media (min-width: 1024px) {
+  html[data-landing-paging='full'] {
+    scroll-snap-type: y mandatory;
+  }
+
+  html[data-landing-paging='soft'] {
+    scroll-snap-type: y proximity;
+  }
+
+  /* While `usePagedScroll` eases a page turn, snapping gets out of the way. */
+  html[data-landing-paging='full'][data-landing-glide] {
+    scroll-snap-type: none;
+  }
+
+  html[data-landing-paging='full'] .landing-hero,
+  html[data-landing-paging='full'] .landing-section,
+  html[data-landing-paging='soft'] .landing-hero,
+  html[data-landing-paging='soft'] .landing-section {
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+    /* Anchors and snap positions agree: the masthead sits above a chapter. */
+    scroll-margin-top: var(--landing-header, var(--header-height));
+  }
+
+  /*
+   * A chapter is one screen: it spans the whole viewport and reserves the
+   * masthead's height as its own top padding, so its background still reaches
+   * the top of the screen and hiding the bar uncovers *this* chapter rather
+   * than the one above it.
+   */
+  html[data-landing-paging='full'] .app-shell--home .app-header {
+    position: fixed;
+    left: 0;
+    right: 0;
+  }
+
+  html[data-landing-paging='full'] .landing-hero,
+  html[data-landing-paging='full'] .landing-section {
+    min-height: 100svh;
+    /* The snap point is the top of the chapter itself. */
+    scroll-margin-top: 0;
+  }
+
+  html[data-landing-paging='full'] .landing-hero {
+    padding-top: calc(
+      var(--landing-hero-padding) +
+        var(--landing-header, var(--header-height))
+    );
+  }
+
+  html[data-landing-paging='full'] .landing-section {
+    padding-top: calc(
+      var(--landing-section-padding) +
+        var(--landing-header, var(--header-height))
+    );
+  }
+
+  html[data-landing-paging='full'] .landing-hero {
+    justify-content: center;
+  }
+
+  html[data-landing-paging='full'] .landing-section {
+    display: grid;
+    align-content: center;
+  }
+
+  /* The footer is its own snap stop, so the end of the page stays reachable. */
+  html[data-landing-paging='full'] .app-footer,
+  html[data-landing-paging='soft'] .app-footer {
+    scroll-snap-align: end;
+    scroll-snap-stop: always;
+  }
+}
+
+/* Tablet and up: two-column cover, asymmetric story. */
+@media (min-width: 900px) {
+  .landing-hero__grid {
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+    align-items: center;
+    gap: clamp(var(--space-8), 4vw, var(--space-16));
+  }
+
+  .landing-story {
+    grid-template-columns: minmax(0, 6fr) minmax(0, 5fr);
+    align-items: start;
+  }
+
+  .landing-story__points {
+    padding-top: var(--space-2);
+  }
+
+  /* One continuous hairline carrying five steps. */
+  .landing-journey__list {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .landing-journey__step {
+    display: block;
+    padding: var(--landing-row-padding) var(--space-5) 0 0;
+  }
+
+  .landing-journey__number {
+    display: block;
+    font-size: clamp(1.5rem, 2.2vw, 2rem);
+  }
+
+  .landing-journey__title {
+    margin-top: var(--space-6);
+  }
+
+  .landing-campaign__slots {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .landing-campaign__slot {
+    padding-right: var(--space-6);
+  }
+
+  .landing-story__item {
+    grid-template-columns: minmax(0, 9rem) minmax(0, 1fr);
+    gap: var(--space-5);
+    align-items: start;
+  }
+
+  .landing-actions__item .landing-link {
+    grid-template-columns: minmax(0, 20rem) minmax(0, 1fr) auto;
+  }
+
+  .landing-actions__text {
+    grid-column: 2;
+  }
+
+  .landing-actions__mark {
+    grid-row: 1;
+    grid-column: 3;
+  }
+}
+
+@media (min-width: 768px) {
+  .landing-head {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: clamp(var(--space-6), 4vw, var(--space-12));
+    align-items: start;
+  }
+
+  .landing-prep__row {
+    grid-template-columns: 3.5rem minmax(0, 15rem) minmax(0, 1fr);
+    gap: var(--space-8);
+    align-items: baseline;
+    padding-block: var(--landing-row-padding);
+  }
+}
+
+/* Below the two-column cover: stack, and let the next chapter peek. */
+@media (max-width: 899px) {
+  .landing-hero {
+    min-height: 0;
+  }
+
+  .landing-hero__visual {
+    order: 2;
+  }
+
+  .landing-hero__art {
+    width: min(100%, 340px);
+  }
+
+  .landing-hero__caption {
+    max-width: 26ch;
+  }
+}
+
+@media (max-width: 720px) {
+  .landing-section {
+    padding-block: clamp(var(--space-12), 12vw, var(--space-16));
+    /* A little air below the wrapped masthead, so a jump never tucks a
+       heading under it. */
+    scroll-margin-top: calc(
+      var(--landing-header, var(--header-height)) + var(--space-4)
+    );
+  }
+
+  .landing-hero {
+    --landing-hero-padding: var(--space-8);
+  }
+
+  .landing-hero__art {
+    width: min(100%, 260px);
+  }
+
+  .landing-hero__scroll {
+    margin-top: var(--space-8);
+  }
+
+  .landing-impact__ripple,
+  .landing-impact__ripple--wide {
+    width: 70vw;
+    right: -30%;
+  }
+
+  .landing-cta {
+    width: 100%;
+  }
+
+  .landing-registration {
+    width: 100%;
+  }
+
+  .landing-closing::before {
+    width: 38px;
+    height: 38px;
+  }
+}
+
+@media (max-width: 480px) {
+  .landing-hero__greeting {
+    font-size: var(--text-xs);
+  }
+
+  .landing-hero__title {
+    font-size: clamp(2.15rem, 10.5vw, 3rem);
+  }
+
+  .landing-head__title {
+    font-size: clamp(1.85rem, 8.5vw, 2.5rem);
+  }
+}
+
+/* Decorative motion is the first thing to go. */
+@media (prefers-reduced-motion: reduce) {
+  .landing-reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  .landing-hero__rings,
+  .landing-hero__drop,
+  .landing-hero__scroll-line::after {
+    animation: none;
+  }
+
+  .landing-hero__flow path {
+    animation: none;
+    stroke-dasharray: none;
+  }
+}
