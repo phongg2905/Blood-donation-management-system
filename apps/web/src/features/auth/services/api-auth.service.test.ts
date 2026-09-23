@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { getAccessToken, setAccessToken } from '@/services/api';
+import {
+  getAccessToken,
+  resetRefreshQueue,
+  setAccessToken,
+  setRefreshHandler,
+} from '@/services/api';
 import { ApiAuthService } from './api-auth.service';
 // Read-only contract checks against the delivered backend validation.
 import {
@@ -24,6 +29,8 @@ const ok = (data: unknown) =>
 
 afterEach(() => {
   setAccessToken(null);
+  setRefreshHandler(null);
+  resetRefreshQueue();
   vi.unstubAllGlobals();
 });
 

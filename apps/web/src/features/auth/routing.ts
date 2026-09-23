@@ -1,4 +1,4 @@
-import type { CurrentUser, RoleCode } from '@blood/shared-types';
+import type { ActorCode, CurrentUser, LegacyRoleCode, AllRoleCode } from '@blood/shared-types';
 
 /** Every auth-related path in one place, so no page hard-codes a string. */
 export const AUTH_ROUTES = {
@@ -13,13 +13,21 @@ export const AUTH_ROUTES = {
 export type AppLayoutKind = 'donor' | 'staff' | 'admin';
 
 /**
- * Landing path per role.
+ * Landing path per actor.
  *
- * Phase 2.5 sends every role to the authenticated home. When Phase 3 adds
+ * Phase 2.5 sends every actor to the authenticated home. When Phase 3 adds
  * real dashboards this table is the single place to change — pages read the
  * result and never decide a destination themselves.
  */
-const ROLE_LANDING_PATHS: Readonly<Record<RoleCode, string>> = {
+const ACTOR_LANDING_PATHS: Readonly<Record<ActorCode, string>> = {
+  DONOR: AUTH_ROUTES.home,
+  DONATION_STAFF: AUTH_ROUTES.home,
+  COORDINATOR: AUTH_ROUTES.home,
+  SYSTEM_ADMIN: AUTH_ROUTES.home,
+};
+
+/** Legacy role → landing path fallback. */
+const LEGACY_LANDING_PATHS: Readonly<Record<LegacyRoleCode, string>> = {
   DONOR: AUTH_ROUTES.home,
   RECEPTION_STAFF: AUTH_ROUTES.home,
   MEDICAL_STAFF: AUTH_ROUTES.home,
@@ -28,7 +36,31 @@ const ROLE_LANDING_PATHS: Readonly<Record<RoleCode, string>> = {
 };
 
 /** Most-privileged first. Used for layout choice and landing resolution. */
-const ROLE_PRIORITY: readonly RoleCode[] = [
+const ACTOR_PRIORITY: readonly ActorCode[] = [
+  'SYSTEM_ADMIN',
+  'COORDINATOR',
+  'DONATION_STAFF',
+  'DONOR',
+];
+
+/** Legacy roles that map to the staff shell. */
+const STAFF_LEGACY_ROLES: readonly LegacyRoleCode[] = [
+  'RECEPTION_STAFF',
+  'MEDICAL_STAFF',
+  'BLOOD_COLLECTION_STAFF',
+];
+
+/** Legacy role → layout kind mapping. */
+const LEGACY_ROLE_LAYOUT_KIND: Readonly<Record<LegacyRoleCode, AppLayoutKind>> = {
+  DONOR: 'donor',
+  RECEPTION_STAFF: 'staff',
+  MEDICAL_STAFF: 'staff',
+  BLOOD_COLLECTION_STAFF: 'staff',
+  ADMIN: 'admin',
+};
+
+/** Most-privileged first (legacy). Used for layout choice when only legacy roles are present. */
+const LEGACY_ROLE_PRIORITY: readonly LegacyRoleCode[] = [
   'ADMIN',
   'BLOOD_COLLECTION_STAFF',
   'MEDICAL_STAFF',
@@ -36,28 +68,60 @@ const ROLE_PRIORITY: readonly RoleCode[] = [
   'DONOR',
 ];
 
-export const primaryRole = (roles: readonly RoleCode[]): RoleCode | null => {
-  for (const role of ROLE_PRIORITY) {
+export const primaryRole = (
+  roles: readonly AllRoleCode[] = [],
+): AllRoleCode | null => {
+  // First check new actor codes
+  for (const actor of ACTOR_PRIORITY) {
+    if (actor !== 'DONOR' && roles.includes(actor)) return actor;
+  }
+  // Then check legacy role codes
+  for (const role of LEGACY_ROLE_PRIORITY) {
     if (roles.includes(role)) return role;
   }
   return null;
 };
 
 /**
- * Which app shell a user gets: DONOR → donor shell, the three staff roles →
- * staff shell, ADMIN → admin shell (`§18` of the Phase 2 brief).
+ * Which app shell a user gets: DONOR → donor shell, DONATION_STAFF/legacy staff → staff shell,
+ * COORDINATOR → staff shell, SYSTEM_ADMIN → admin shell.
+ *
+ * NOTE: COORDINATOR uses the staff shell because it operational work (campaign
+ * management) rather than full admin privileges. SYSTEM_ADMIN uses the admin shell.
  */
 export function resolveLayoutKind(
-  roles: readonly RoleCode[] | undefined,
+  roles: readonly AllRoleCode[] | undefined,
 ): AppLayoutKind {
   const role = primaryRole(roles ?? []);
-  if (role === 'ADMIN') return 'admin';
-  if (role === null || role === 'DONOR') return 'donor';
+  if (!role) return 'donor';
+  if (role === 'SYSTEM_ADMIN') return 'admin';
+  if (role === 'DONOR') return 'donor';
+  // DONATION_STAFF and legacy staff roles → staff shell
+  if (role === 'DONATION_STAFF') return 'staff';
+  if (STAFF_LEGACY_ROLES.includes(role as LegacyRoleCode)) return 'staff';
+  if (role === 'ADMIN') return LEGACY_ROLE_LAYOUT_KIND[role];
+  // COORDINATOR falls through to staff
   return 'staff';
 }
 
-/** Roles that belong to the staff shell. */
-export const STAFF_ROLES: readonly RoleCode[] = [
+/** Landing path per actor, falling back to legacy role resolution. */
+export function resolveLandingPath(user: CurrentUser | null): string {
+  const role = primaryRole(user?.roles ?? []);
+  if (!role) return user ? AUTH_ROUTES.forbidden : AUTH_ROUTES.login;
+  // New actor: all go to home
+  if (role === 'DONOR' || role === 'DONATION_STAFF' || role === 'COORDINATOR' || role === 'SYSTEM_ADMIN') return ACTOR_LANDING_PATHS[role];
+  // Legacy role
+  return LEGACY_LANDING_PATHS[role as LegacyRoleCode];
+}
+
+/** Roles that belong to the staff shell (including legacy staff roles and DONATION_STAFF). */
+export const STAFF_ROLES: readonly AllRoleCode[] = [
+  'DONATION_STAFF',
+  ...STAFF_LEGACY_ROLES,
+];
+
+/** Legacy roles that map to DONATION_STAFF actor. */
+export const LEGACY_STAFF_ROLES: readonly LegacyRoleCode[] = [
   'RECEPTION_STAFF',
   'MEDICAL_STAFF',
   'BLOOD_COLLECTION_STAFF',
@@ -84,16 +148,6 @@ export function isSafeRedirectPath(path: unknown): path is string {
 }
 
 /** Where the user should land after signing in. */
-export function resolveLandingPath(user: CurrentUser | null): string {
-  const role = primaryRole(user?.roles ?? []);
-  if (!role) return user ? AUTH_ROUTES.forbidden : AUTH_ROUTES.login;
-  return ROLE_LANDING_PATHS[role];
-}
-
-/**
- * Post-login destination: the page the user was blocked from when there is one
- * (set by `ProtectedRoute` via router state), otherwise the role landing page.
- */
 export function resolvePostLoginPath(
   user: CurrentUser | null,
   from?: unknown,

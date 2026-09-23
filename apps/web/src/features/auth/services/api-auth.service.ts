@@ -4,7 +4,9 @@ import {
   apiGet,
   apiPatch,
   apiPost,
+  refreshSession,
   setAccessToken,
+  setRefreshHandler,
 } from '@/services/api';
 import type {
   AuthService,
@@ -26,6 +28,12 @@ import type {
  * Token handling: the access token lives in memory (see `services/api.ts`) and
  * travels as `Authorization: Bearer`. The refresh token is an HttpOnly cookie
  * handled entirely by the browser — no token is ever written to localStorage.
+ *
+ * The refresh cookie is single-use (the backend rotates it on every refresh
+ * and revokes the whole session chain when a rotated-out cookie is replayed),
+ * so this service installs one shared refresh handler into the transport
+ * layer: concurrent 401s share a single `POST /auth/refresh` instead of each
+ * racing to consume the cookie.
  */
 
 interface LoginResponse {
@@ -46,6 +54,11 @@ const FORGOT_PATH = '/auth/forgot-password';
 const RESET_PATH = '/auth/reset-password';
 
 export class ApiAuthService implements AuthService {
+  constructor() {
+    // The transport retries a failed request once through this handler.
+    setRefreshHandler(() => this.refresh());
+  }
+
   async login({ email, password }: LoginInput): Promise<AuthUser> {
     const response = await apiPost<LoginResponse>(
       LOGIN_PATH,
@@ -84,22 +97,12 @@ export class ApiAuthService implements AuthService {
   }
 
   /**
-   * `GET /auth/me`, with one silent refresh attempt when the access token has
-   * expired. Returns `null` instead of throwing so the auth bootstrap can treat
-   * "no session" as a normal state.
+   * `GET /auth/me`. The transport already retried once through the shared
+   * refresh when the access token had expired, so a 401 here means there is no
+   * usable session. Returns `null` instead of throwing so the auth bootstrap
+   * can treat "no session" as a normal state.
    */
   async getCurrentUser(): Promise<AuthUser | null> {
-    try {
-      const response = await apiGet<CurrentUser>(ME_PATH);
-      return response.data;
-    } catch (error) {
-      if (!(error instanceof ApiRequestError) || error.status !== 401)
-        throw error;
-    }
-
-    const refreshed = await this.refresh();
-    if (!refreshed) return null;
-
     try {
       const response = await apiGet<CurrentUser>(ME_PATH);
       return response.data;
@@ -112,21 +115,29 @@ export class ApiAuthService implements AuthService {
     }
   }
 
-  /** Rotates the session using the refresh cookie. `false` when it is gone. */
+  /**
+   * Rotates the session using the refresh cookie. Concurrent callers share one
+   * request (single-flight in `services/api.ts`) — the single-use cookie is
+   * consumed at most once. Resolves `false` when it is gone or expired.
+   */
   private async refresh(): Promise<boolean> {
-    try {
-      const response = await apiPost<RefreshResponse>(REFRESH_PATH, undefined, {
-        anonymous: true,
-      });
-      setAccessToken(response.data.accessToken);
-      return true;
-    } catch (error) {
-      if (error instanceof ApiRequestError && error.status === 401) {
-        setAccessToken(null);
-        return false;
+    return refreshSession(async () => {
+      try {
+        const response = await apiPost<RefreshResponse>(
+          REFRESH_PATH,
+          undefined,
+          { anonymous: true },
+        );
+        setAccessToken(response.data.accessToken);
+        return true;
+      } catch (error) {
+        if (error instanceof ApiRequestError && error.status === 401) {
+          setAccessToken(null);
+          return false;
+        }
+        throw error;
       }
-      throw error;
-    }
+    });
   }
 
   async forgotPassword({

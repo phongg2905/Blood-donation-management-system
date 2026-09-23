@@ -11,7 +11,7 @@ export interface NavItem {
 /**
  * Navigation for the authenticated shell.
  *
- * Phase 2 only lists what actually exists. Phase 3+ appends entries here — the
+ * Lists implemented routes only — the
  * header renders whatever is visible, so no layout needs to change, and no link
  * is ever rendered for a permission the user lacks.
  *
@@ -20,6 +20,7 @@ export interface NavItem {
  */
 export const APP_NAV_ITEMS: readonly NavItem[] = [
   { label: 'Trang chủ', to: AUTH_ROUTES.home },
+  { label: 'Đợt hiến máu', to: '/campaigns', permission: 'campaign.read' },
 ];
 
 export const visibleNavItems = (

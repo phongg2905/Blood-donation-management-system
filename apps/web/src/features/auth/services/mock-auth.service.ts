@@ -1,5 +1,5 @@
 import { ROLE_PERMISSIONS } from '@blood/shared-types';
-import type { CurrentUser, RoleCode } from '@blood/shared-types';
+import type { CurrentUser, LegacyRoleCode } from '@blood/shared-types';
 import { ApiRequestError } from '@/services/api';
 import { AUTH_ERROR_CODES } from '../auth-errors';
 import type {
@@ -24,7 +24,7 @@ interface DemoAccount {
   email: string;
   password: string;
   fullName: string;
-  role: RoleCode;
+  role: LegacyRoleCode;
   isActive: boolean;
 }
 
@@ -100,7 +100,7 @@ interface StoredUser {
   fullName: string;
   /** Mock only — a real backend stores a hash and never returns it. */
   password: string;
-  role: RoleCode;
+  role: LegacyRoleCode;
   isActive: boolean;
 }
 
@@ -152,7 +152,7 @@ function clearValue(key: string): void {
 const normalizeEmail = (value: string): string => value.trim().toLowerCase();
 
 /** Permissions always come from the shared matrix — never re-declared here. */
-const permissionsFor = (role: RoleCode): CurrentUser['permissions'] => [
+const permissionsFor = (role: LegacyRoleCode): CurrentUser['permissions'] => [
   ...ROLE_PERMISSIONS[role],
 ];
 

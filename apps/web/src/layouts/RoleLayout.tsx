@@ -13,14 +13,15 @@ export interface RoleLayoutProps {
 /**
  * Chooses the shell for the signed-in user.
  *
- * This is the single place the role → layout mapping lives (`§18`):
- * DONOR → donor shell, staff roles → staff shell, ADMIN → admin shell. It runs
- * *inside* `ProtectedRoute`, so `currentUser` is always present here.
+ * This is the single place the actor → layout mapping lives:
+ * DONOR → donor shell, DONATION_STAFF/COORDINATOR → staff shell,
+ * SYSTEM_ADMIN → admin shell. It runs *inside* `ProtectedRoute`,
+ * so `currentUser` is always present here.
  */
 export function RoleLayout({ children }: RoleLayoutProps) {
   const { currentUser } = useAuth();
   const content = children ?? <Outlet />;
-  const kind = resolveLayoutKind(currentUser?.roles);
+  const kind = resolveLayoutKind(currentUser?.roles ?? []);
 
   if (kind === 'admin') return <AdminLayout>{content}</AdminLayout>;
   if (kind === 'staff') return <StaffLayout>{content}</StaffLayout>;

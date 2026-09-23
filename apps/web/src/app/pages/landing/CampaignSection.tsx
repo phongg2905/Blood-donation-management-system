@@ -1,4 +1,12 @@
+import { useState } from 'react';
 import { useAuth } from '@/features/auth/hooks/useAuth';
+import { Link } from 'react-router-dom';
+import {
+  useCampaignRepository,
+  mockCampaignsEnabled,
+} from '@/features/campaigns/repository';
+import { useCampaignQuery } from '@/features/campaigns/hooks';
+import { formatDate } from '@/features/campaigns/domain';
 import { LANDING_ANCHORS, LANDING_CHAPTERS } from './landing-content';
 import { Reveal } from './Reveal';
 import { SectionHead } from './SectionHead';
@@ -6,12 +14,20 @@ import { SectionHead } from './SectionHead';
 /**
  * Section 05 — upcoming campaigns.
  *
- * Campaigns arrive in Phase 3. Until the API exists the section renders an
- * empty state that names the fields a real campaign will fill in, instead of
- * inventing a schedule. Rendered only for users who may read campaigns.
+ * Uses the same repository as the campaign pages, with development fixtures
+ * explicitly labelled. Rendered only for users who may read campaigns.
  */
 export function CampaignSection() {
   const { hasPermission } = useAuth();
+  const repository = useCampaignRepository();
+  const [from] = useState(() => new Date().toISOString());
+  const result = useCampaignQuery(
+    'landing-upcoming',
+    () =>
+      repository.list({ status: 'OPEN', from, page: 1, limit: 1, sort: 'asc' }),
+    hasPermission('campaign.read'),
+  );
+  const campaign = result.data?.items[0];
   if (!hasPermission('campaign.read')) return null;
 
   return (
@@ -26,36 +42,61 @@ export function CampaignSection() {
           eyebrow="Cơ hội sẻ chia tiếp theo"
           titleId="campaigns-title"
           title={['Đợt hiến máu', 'sắp tới.']}
-          lead="Khi một đợt hiến được công bố, bạn sẽ thấy đầy đủ thời gian, địa điểm và số chỗ còn lại ngay tại đây."
+          lead="Tìm thời gian và địa điểm phù hợp để cùng cộng đồng sẻ chia sự sống."
         />
 
         <Reveal className="landing-campaign">
           <p className="landing-campaign__status">
             <span className="landing-campaign__dot" aria-hidden="true" />
-            Sắp ra mắt
+            {mockCampaignsEnabled
+              ? 'Dữ liệu minh họa · Phát triển'
+              : 'Cơ hội sẻ chia'}
           </p>
           <h3 className="landing-campaign__title">
-            Chưa có đợt hiến máu nào được công bố.
+            {result.loading
+              ? 'Đang tìm đợt hiến sắp tới…'
+              : result.error
+                ? 'Chưa thể tải lịch hiến máu.'
+                : (campaign?.name ?? 'Chưa có đợt hiến máu nào được công bố.')}
           </h3>
           <p className="landing-campaign__text">
-            Chức năng xem đợt hiến và đăng ký trực tuyến đang được chuẩn bị.
-            Chúng tôi sẽ hiển thị đúng dữ liệu của đợt hiến thật khi tính năng
-            này được mở.
+            {campaign?.description ??
+              'Khám phá danh sách đợt hiến để xem lịch và thông tin chi tiết. Đăng ký trực tuyến sắp ra mắt.'}
           </p>
           <dl className="landing-campaign__slots">
             <div className="landing-campaign__slot">
               <dt>Thời gian</dt>
-              <dd>Chưa công bố</dd>
+              <dd>
+                {campaign ? formatDate(campaign.startsAt) : 'Chưa công bố'}
+              </dd>
             </div>
             <div className="landing-campaign__slot">
               <dt>Địa điểm</dt>
-              <dd>Chưa công bố</dd>
+              <dd>{campaign?.location ?? 'Chưa công bố'}</dd>
             </div>
             <div className="landing-campaign__slot">
-              <dt>Số chỗ còn lại</dt>
-              <dd>Chưa công bố</dd>
+              <dt>Chỉ tiêu người hiến</dt>
+              <dd>
+                {campaign?.targetDonors?.toLocaleString('vi-VN') ??
+                  'Chưa công bố'}
+              </dd>
             </div>
           </dl>
+          <Link
+            className="btn btn--primary"
+            to={campaign ? `/campaigns/${campaign.id}` : '/campaigns'}
+          >
+            {campaign ? 'Xem chi tiết đợt hiến' : 'Khám phá đợt hiến'}
+          </Link>
+          {result.error ? (
+            <button
+              type="button"
+              className="btn btn--secondary"
+              onClick={result.retry}
+            >
+              Thử lại
+            </button>
+          ) : null}
         </Reveal>
       </div>
     </section>
