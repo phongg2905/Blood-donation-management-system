@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { PageLoader } from '@/components/common/PageLoader';
@@ -29,6 +29,11 @@ import {
 import type { FieldErrors, LoginField } from '../validation';
 
 const LOGIN_FIELDS = ['email', 'password'] as const;
+// Removable development helper; excluded from production imports/bundle.
+const DemoAccountPicker =
+  import.meta.env.DEV && import.meta.env.VITE_SHOW_DEMO_LOGIN !== 'false'
+    ? lazy(() => import('../demo/DemoAccountPicker'))
+    : null;
 
 export function LoginPage() {
   const { status, currentUser, login } = useAuth();
@@ -150,6 +155,20 @@ export function LoginPage() {
             Đăng nhập
           </Button>
         </form>
+        {DemoAccountPicker && (
+          <Suspense fallback={null}>
+            <DemoAccountPicker
+              disabled={submitting}
+              onSelect={(credentials) => {
+                setEmail(credentials.email);
+                setPassword(credentials.password);
+                setErrors({});
+                setFormError(null);
+                document.getElementById('login-email')?.focus();
+              }}
+            />
+          </Suspense>
+        )}
       </AuthCard>
     </AuthLayout>
   );

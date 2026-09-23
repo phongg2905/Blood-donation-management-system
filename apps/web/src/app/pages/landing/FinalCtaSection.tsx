@@ -1,4 +1,5 @@
 import { useAuth } from '@/features/auth/hooks/useAuth';
+import { Link } from 'react-router-dom';
 import { LANDING_ANCHORS } from './landing-content';
 import { Reveal } from './Reveal';
 
@@ -32,6 +33,11 @@ export function FinalCtaSection() {
           </p>
 
           <div className="landing-closing__actions">
+            {hasPermission('campaign.read') && (
+              <Link className="btn btn--primary landing-cta" to="/campaigns">
+                Khám phá đợt hiến
+              </Link>
+            )}
             {canRegister ? (
               <>
                 <a

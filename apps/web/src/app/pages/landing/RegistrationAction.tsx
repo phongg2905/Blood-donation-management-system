@@ -9,7 +9,7 @@ export interface RegistrationActionProps {
 /**
  * The only "Đăng ký hiến máu" control on the landing page.
  *
- * Campaigns and registrations are not implemented yet (Phase 3), so the control
+ * Registration belongs to Phase 4, so the control
  * is rendered disabled next to a visible explanation instead of pretending to
  * open a workflow that does not exist. It renders once, in the hero, so the
  * closing call to action can point back at it.

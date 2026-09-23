@@ -28,6 +28,38 @@ export const setAccessToken = (token: string | null): void => {
 
 export const getAccessToken = (): string | null => accessToken;
 
+/**
+ * Single-flight refresh coordination.
+ *
+ * The refresh cookie is single-use (the backend rotates it on every
+ * `POST /auth/refresh` and revokes the whole session chain when a rotated-out
+ * cookie is replayed). Two overlapping 401s that each fired their own refresh
+ * would therefore kill the session — the losing request looks like a replay.
+ * This happened on every page reload in development: React StrictMode runs
+ * the auth bootstrap effect twice, both calls hit `/auth/me` without a token
+ * and both raced to refresh. Everyone with an expired access token now awaits
+ * one shared refresh promise instead.
+ */
+let refreshInFlight: Promise<boolean> | null = null;
+
+/**
+ * Runs the session rotation through the refresh cookie. All concurrent callers
+ * share a single request; the cookie is consumed at most once and every waiter
+ * receives the same outcome. Resolves `false` when the cookie is gone/expired,
+ * which is a normal anonymous state rather than an error.
+ */
+export const refreshSession = (refresh: () => Promise<boolean>): Promise<boolean> => {
+  refreshInFlight ??= refresh().finally(() => {
+    refreshInFlight = null;
+  });
+  return refreshInFlight;
+};
+
+/** Test hook: drop any shared refresh promise between tests. */
+export const resetRefreshQueue = (): void => {
+  refreshInFlight = null;
+};
+
 /** Normalised API failure. Branch on `code`, never on `message`. */
 export class ApiRequestError extends Error {
   readonly code: string;
@@ -75,6 +107,19 @@ export interface RequestOptions {
  */
 export type ApiSuccessResult<T> = ApiSuccess<T> & { meta?: PaginationMeta };
 
+/**
+ * Installed by `ApiAuthService` (see `features/auth/services/api-auth.service.ts`)
+ * to avoid a circular import. Returns `true` when the access token was
+ * replaced with a fresh one and the failed request is worth retrying once.
+ */
+export type RefreshHandler = () => Promise<boolean>;
+
+let refreshHandler: RefreshHandler | null = null;
+
+export const setRefreshHandler = (handler: RefreshHandler | null): void => {
+  refreshHandler = handler;
+};
+
 const isApiFailure = <T>(
   body: unknown,
 ): body is Extract<ApiResponse<T>, { success: false }> =>
@@ -88,6 +133,31 @@ async function request<T>(
   path: string,
   payload?: unknown,
   options: RequestOptions = {},
+): Promise<ApiSuccessResult<T>> {
+  try {
+    return await requestOnce<T>(method, path, payload, options);
+  } catch (error) {
+    // One silent retry through the refresh cookie when the access token has
+    // expired. Concurrent 401s share a single refresh (single-flight), so the
+    // single-use cookie is never consumed twice. `/auth/refresh` itself never
+    // retries — that would loop on a dead cookie.
+    const handler = refreshHandler;
+    const retriable =
+      handler !== null &&
+      !options.anonymous &&
+      error instanceof ApiRequestError &&
+      error.status === 401;
+    if (!retriable || handler === null) throw error;
+    if (!(await handler().catch(() => false))) throw error;
+    return requestOnce<T>(method, path, payload, options);
+  }
+}
+
+async function requestOnce<T>(
+  method: string,
+  path: string,
+  payload: unknown,
+  options: RequestOptions,
 ): Promise<ApiSuccessResult<T>> {
   const { signal, anonymous = false, timeoutMs = DEFAULT_TIMEOUT_MS } = options;
   const headers: Record<string, string> = { Accept: 'application/json' };

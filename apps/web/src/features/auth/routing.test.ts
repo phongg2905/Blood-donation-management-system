@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { CurrentUser, RoleCode } from '@blood/shared-types';
+import { isRoleCode, ROLE_NAMES } from '@blood/shared-types';
 import {
   AUTH_ROUTES,
   isSafeRedirectPath,
@@ -20,6 +21,21 @@ const userWith = (roles: RoleCode[]): CurrentUser => ({
 });
 
 describe('primaryRole', () => {
+  it('supports new actors alongside legacy sessions', () => {
+    for (const role of ['DONATION_STAFF', 'COORDINATOR', 'SYSTEM_ADMIN'] as const) {
+      expect(isRoleCode(role)).toBe(true);
+      expect(ROLE_NAMES[role]).toBeTruthy();
+      expect(primaryRole(['DONOR', role])).toBe(role);
+      expect(resolveLandingPath(userWith([role]))).toBe('/');
+      expect(resolveLayoutKind([role])).toBe(
+        role === 'SYSTEM_ADMIN' ? 'admin' : 'staff',
+      );
+    }
+    expect(isRoleCode('ADMIN')).toBe(true);
+    expect(isRoleCode('UNKNOWN_ROLE')).toBe(false);
+    expect(primaryRole(['DONOR', 'RECEPTION_STAFF'])).toBe('RECEPTION_STAFF');
+  });
+
   it('picks the most privileged role', () => {
     expect(primaryRole(['DONOR', 'ADMIN'])).toBe('ADMIN');
     expect(primaryRole(['RECEPTION_STAFF', 'MEDICAL_STAFF'])).toBe(

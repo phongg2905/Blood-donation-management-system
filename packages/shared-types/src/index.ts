@@ -7,26 +7,69 @@
  */
 
 /* -------------------------------------------------------------------------- */
-/* Roles                                                                      */
+ /* Roles / Actors                                                             */
 /* -------------------------------------------------------------------------- */
 
-/** The system uses exactly five roles. Legacy role codes are not supported. */
-export const ROLE_CODES = [
+/** The system uses exactly four actor codes for the new frontend model. */
+export const ACTOR_CODES = [
+  'DONOR',
+  'DONATION_STAFF',
+  'COORDINATOR',
+  'SYSTEM_ADMIN',
+] as const;
+export type ActorCode = (typeof ACTOR_CODES)[number];
+
+/** Legacy role codes — kept for backward compatibility with existing sessions. */
+export const LEGACY_ROLE_CODES = [
   'DONOR',
   'RECEPTION_STAFF',
   'MEDICAL_STAFF',
   'BLOOD_COLLECTION_STAFF',
   'ADMIN',
 ] as const;
-export type RoleCode = (typeof ROLE_CODES)[number];
+export type LegacyRoleCode = (typeof LEGACY_ROLE_CODES)[number];
 
-export const ROLE_NAMES: Readonly<Record<RoleCode, string>> = {
+/** Maps each legacy role code to its corresponding new actor code. */
+export const LEGACY_TO_ACTOR: Readonly<Record<LegacyRoleCode, ActorCode>> = {
+  DONOR: 'DONOR',
+  RECEPTION_STAFF: 'DONATION_STAFF',
+  MEDICAL_STAFF: 'DONATION_STAFF',
+  BLOOD_COLLECTION_STAFF: 'DONATION_STAFF',
+  ADMIN: 'SYSTEM_ADMIN',
+};
+
+/** All role/actor codes that the frontend may encounter. */
+export const ALL_ROLE_CODES = [
+  ...ACTOR_CODES,
+  ...LEGACY_ROLE_CODES,
+] as const;
+export type AllRoleCode = (typeof ALL_ROLE_CODES)[number];
+
+/** Compatibility type for consumers that accept both role generations. */
+export type RoleCode = ActorCode | LegacyRoleCode;
+
+/** Existing backend seed catalogue; new actors do not imply new grants. */
+export const ROLE_CODES = LEGACY_ROLE_CODES;
+
+/** Human-readable labels for new actor codes. */
+export const ACTOR_NAMES: Readonly<Record<ActorCode, string>> = {
   DONOR: 'Người hiến máu',
+  DONATION_STAFF: 'Nhân viên tiếp nhận / sàng lọc',
+  COORDINATOR: 'Điều phối viên',
+  SYSTEM_ADMIN: 'Quản trị hệ thống',
+};
+
+/** Human-readable labels — includes both new actors and legacy roles. */
+export const ALL_ROLE_NAMES: Readonly<Record<AllRoleCode, string>> = {
+  ...ACTOR_NAMES,
   RECEPTION_STAFF: 'Nhân viên tiếp nhận',
   MEDICAL_STAFF: 'Nhân viên y tế',
   BLOOD_COLLECTION_STAFF: 'Nhân viên lấy máu',
   ADMIN: 'Quản trị viên',
 };
+
+/** Compatibility labels for both role generations. */
+export const ROLE_NAMES = ALL_ROLE_NAMES;
 
 /* -------------------------------------------------------------------------- */
 /* Permissions                                                                */
@@ -196,7 +239,7 @@ const BLOOD_COLLECTION_STAFF_PERMISSIONS = [
 
 /** ADMIN owns every permission; explicit so the matrix stays auditable. */
 export const ROLE_PERMISSIONS: Readonly<
-  Record<RoleCode, readonly PermissionCode[]>
+  Record<LegacyRoleCode, readonly PermissionCode[]>
 > = {
   DONOR: DONOR_PERMISSIONS,
   RECEPTION_STAFF: RECEPTION_STAFF_PERMISSIONS,
@@ -205,8 +248,8 @@ export const ROLE_PERMISSIONS: Readonly<
   ADMIN: PERMISSION_CODES,
 };
 
-export const isRoleCode = (value: string): value is RoleCode =>
-  (ROLE_CODES as readonly string[]).includes(value);
+export const isRoleCode = (value: string): value is AllRoleCode =>
+  (ALL_ROLE_CODES as readonly string[]).includes(value);
 
 export const isPermissionCode = (value: string): value is PermissionCode =>
   (PERMISSION_CODES as readonly string[]).includes(value);
@@ -663,7 +706,7 @@ export interface CurrentUser {
   /** DONOR contact details; null for accounts without a donor profile. */
   phone?: string | null;
   address?: string | null;
-  roles: RoleCode[];
+  roles: AllRoleCode[];
   permissions: PermissionCode[];
 }
 

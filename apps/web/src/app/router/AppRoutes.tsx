@@ -11,6 +11,14 @@ import { AUTH_ROUTES } from '@/features/auth/routing';
 import { ProfilePage } from '@/features/profile/pages/ProfilePage';
 import { RoleLayout } from '@/layouts/RoleLayout';
 import { HomePage } from '../pages/HomePage';
+import {
+  CampaignListPage,
+  CampaignDetailPage,
+  CampaignCreatePage,
+  CampaignEditPage,
+} from '@/features/campaigns/CampaignPages';
+import { TimeSlotPage } from '@/features/campaigns/TimeSlotPage';
+import { CampaignStaffPage } from '@/features/campaigns/CampaignStaffPage';
 
 /**
  * Route table.
@@ -39,6 +47,47 @@ export function AppRoutes() {
       <Route element={<ProtectedRoute />}>
         <Route element={<RoleLayout />}>
           <Route path={AUTH_ROUTES.home} element={<HomePage />} />
+          <Route
+            element={<PermissionGuard requiredPermission="campaign.read" />}
+          >
+            <Route path="/campaigns" element={<CampaignListPage />} />
+            <Route
+              path="/campaigns/:campaignId"
+              element={<CampaignDetailPage />}
+            />
+            <Route
+              path="/campaigns/new"
+              element={
+                <PermissionGuard requiredPermission="campaign.create">
+                  <CampaignCreatePage />
+                </PermissionGuard>
+              }
+            />
+            <Route
+              path="/campaigns/:campaignId/edit"
+              element={
+                <PermissionGuard requiredPermission="campaign.update">
+                  <CampaignEditPage />
+                </PermissionGuard>
+              }
+            />
+            <Route
+              path="/campaigns/:campaignId/timeslots"
+              element={
+                <PermissionGuard requiredPermission="timeslot.read">
+                  <TimeSlotPage />
+                </PermissionGuard>
+              }
+            />
+            <Route
+              path="/campaigns/:campaignId/staff"
+              element={
+                <PermissionGuard requiredPermission="campaign_staff.read">
+                  <CampaignStaffPage />
+                </PermissionGuard>
+              }
+            />
+          </Route>
           <Route
             path="/profile"
             element={
