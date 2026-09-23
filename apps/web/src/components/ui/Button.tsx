@@ -42,7 +42,7 @@ export function Button({
       {...rest}
       type={type}
       className={classes}
-      disabled={disabled ?? false}
+      disabled={isLoading || disabled}
       aria-busy={isLoading || undefined}
     >
       {isLoading ? (

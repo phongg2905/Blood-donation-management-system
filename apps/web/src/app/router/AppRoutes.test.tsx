@@ -57,18 +57,18 @@ describe('public routes', () => {
     ).toBeInTheDocument();
   });
 
-  it('renders the 404 screen for an unknown route and shows the path', async () => {
+  it('renders the 404 screen for an unknown route without exposing the path', async () => {
     mount('/khong-ton-tai');
     expect(
       await screen.findByRole('heading', { name: 'Không tìm thấy trang' }),
     ).toBeInTheDocument();
-    expect(screen.getByText('/khong-ton-tai')).toBeInTheDocument();
+    expect(screen.queryByText('/khong-ton-tai')).not.toBeInTheDocument();
   });
 
-  it('keeps the health-check screen reachable at /system-status', async () => {
+  it('does not expose the developer health screen', async () => {
     mount('/system-status');
     expect(
-      await screen.findByRole('heading', { name: 'Hệ thống quản lý hiến máu' }),
+      await screen.findByRole('heading', { name: 'Không tìm thấy trang' }),
     ).toBeInTheDocument();
   });
 });
@@ -88,7 +88,7 @@ describe('root redirect', () => {
     renderWithAuth(<AppRoutes />, { service, route: '/' });
 
     expect(
-      await screen.findByRole('heading', { name: 'Thông tin cá nhân' }),
+      await screen.findByRole('heading', { name: /Trao một phần máu/ }),
     ).toBeInTheDocument();
   });
 });

@@ -21,7 +21,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const location = useLocation();
 
   if (status === 'loading') {
-    return <PageLoader message="Đang kiểm tra phiên đăng nhập…" />;
+    return <PageLoader message="Đang tải…" />;
   }
 
   if (status === 'anonymous') {

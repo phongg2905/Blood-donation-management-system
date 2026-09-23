@@ -247,7 +247,7 @@
 }
 
 .auth-form-panel .password .input {
-  padding-right: var(--space-11);
+  padding-right: var(--space-16);
 }
 
 /* Submit button */
@@ -340,127 +340,8 @@
 }
 
 .password-requirements li[data-met='true'] .password-requirements__mark {
-  background: var(--color-success-500);
+  background: var(--color-success-600);
   color: #ffffff;
-}
-
-/* ── Mock Accounts Panel (Compact Dev Helper) ─────────────────────── */
-
-.mock-accounts-panel {
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-lg);
-  background: var(--color-surface-muted);
-  overflow: hidden;
-  font-size: var(--text-xs);
-}
-
-.mock-accounts-panel__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 14px;
-  cursor: pointer;
-  user-select: none;
-  background: transparent;
-  border: none;
-  width: 100%;
-  font-size: var(--text-xs);
-  font-weight: var(--weight-semibold);
-  color: var(--color-ink-500);
-  transition:
-    background-color var(--transition-fast),
-    color var(--transition-fast);
-}
-
-.mock-accounts-panel__header:hover {
-  background: var(--color-surface-sunken);
-  color: var(--color-ink-700);
-}
-
-.mock-accounts-panel__body[hidden] {
-  display: none;
-}
-
-.mock-accounts-panel__body {
-  padding: 12px 14px 14px;
-  border-top: 1px solid var(--color-border-subtle);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.mock-accounts-panel__lead {
-  color: var(--color-ink-400);
-  margin: 0;
-  font-size: 11px;
-}
-
-.mock-accounts-panel__grid {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.mock-accounts-panel__card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 10px;
-  border-radius: var(--radius-md);
-  border: 1px solid transparent;
-  background: var(--color-surface);
-  cursor: pointer;
-  text-align: left;
-  transition:
-    background-color var(--transition-fast),
-    border-color var(--transition-fast);
-}
-
-.mock-accounts-panel__card:hover {
-  background: var(--color-surface-sunken);
-  border-color: var(--color-border-strong);
-}
-
-.mock-accounts-panel__identity {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-
-.mock-accounts-panel__role {
-  font-weight: var(--weight-bold);
-  color: var(--color-ink-800);
-  font-size: 11px;
-}
-
-.mock-accounts-panel__email {
-  color: var(--color-ink-400);
-  font-size: 10px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-}
-
-.mock-accounts-panel__badge {
-  font-size: 9px;
-  font-weight: var(--weight-bold);
-  padding: 1px var(--space-1_5);
-  border-radius: var(--radius-sm);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-
-.mock-accounts-panel__badge--donor {
-  background: rgb(20 184 166 / 0.12);
-  color: rgb(13 148 136);
-}
-
-.mock-accounts-panel__badge--staff {
-  background: rgb(59 130 246 / 0.12);
-  color: rgb(37 99 235);
-}
-
-.mock-accounts-panel__badge--admin {
-  background: rgb(192 39 63 / 0.12);
-  color: var(--color-brand-600);
 }
 
 /* Error pages follow the supplied standalone 403 and 404 compositions. */
@@ -513,17 +394,7 @@
   line-height: 1.6;
   margin: 0;
 }
-.error-page__meta {
-  max-width: 100%;
-  font-size: var(--text-xs);
-  color: var(--error-muted);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  overflow-wrap: anywhere;
-  padding: 8px 12px;
-  background: #f2f7f8;
-  border: 1px solid #dce9ec;
-  border-radius: var(--radius-md);
-}
+
 .error-page__actions {
   display: flex;
   flex-wrap: wrap;
@@ -548,13 +419,7 @@
 .error-page--403 .error-page__title {
   color: #35335c;
 }
-.error-page--403 .error-page__actions .btn--primary,
-.error-page--403 .error-page__actions .btn--secondary {
-  background: linear-gradient(135deg, #24bfd0, #0da9bf);
-  color: #fff;
-  border: 0;
-  box-shadow: 0 9px 18px rgb(20 179 198 / 22%);
-}
+
 .error-page--404 {
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr);
@@ -574,12 +439,6 @@
   align-self: center;
   z-index: 1;
   margin-top: clamp(35px, 10vh, 100px);
-}
-.error-page--404 .error-page__actions .btn--primary,
-.error-page--404 .error-page__actions .btn--secondary {
-  background: #22bac9;
-  color: #fff;
-  border: 0;
 }
 
 @media (max-width: 767px) {
@@ -618,5 +477,24 @@
   .auth-form-panel {
     background: #ead3e9;
     backdrop-filter: none;
+  }
+}
+
+/* Keep error actions on the shared primary/secondary hierarchy. */
+.error-page__content {
+  padding-bottom: var(--space-8);
+}
+.auth-scene-header {
+  position: relative;
+}
+@media (max-width: 480px) {
+  .auth-form-panel__content {
+    padding: var(--space-4);
+  }
+  .auth-form-panel {
+    padding: var(--space-6) var(--space-5);
+  }
+  .auth-form-panel .input {
+    font-size: var(--text-base);
   }
 }

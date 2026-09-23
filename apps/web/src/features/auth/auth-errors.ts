@@ -63,7 +63,11 @@ export function describeAuthError(
   if (error instanceof ApiRequestError) {
     return {
       code: error.code,
-      message: messages[error.code] ?? error.message,
+      message:
+        error.status === 429
+          ? 'Bạn đã thử quá nhiều lần. Vui lòng đợi ít phút rồi thử lại.'
+          : (messages[error.code] ??
+            'Chưa thể hoàn tất yêu cầu. Vui lòng thử lại.'),
       fields: error.fields,
     };
   }
@@ -78,10 +82,7 @@ export function describeAuthError(
   }
   return {
     code: AUTH_ERROR_CODES.UNKNOWN,
-    message:
-      error instanceof Error && error.message
-        ? error.message
-        : 'Đã xảy ra lỗi không xác định.',
+    message: 'Chưa thể hoàn tất yêu cầu. Vui lòng thử lại.',
     fields: null,
   };
 }

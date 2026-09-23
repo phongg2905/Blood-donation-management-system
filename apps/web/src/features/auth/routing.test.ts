@@ -62,8 +62,8 @@ describe('resolveLandingPath', () => {
   });
 
   it('lands donor and admin on their home', () => {
-    expect(resolveLandingPath(userWith(['DONOR']))).toBe('/profile');
-    expect(resolveLandingPath(userWith(['ADMIN']))).toBe('/profile');
+    expect(resolveLandingPath(userWith(['DONOR']))).toBe('/');
+    expect(resolveLandingPath(userWith(['ADMIN']))).toBe('/');
   });
 });
 
@@ -96,10 +96,8 @@ describe('resolvePostLoginPath', () => {
   it('falls back to the role landing page', () => {
     expect(
       resolvePostLoginPath(userWith(['ADMIN']), 'https://evil.example'),
-    ).toBe('/profile');
-    expect(resolvePostLoginPath(userWith(['DONOR']), undefined)).toBe(
-      '/profile',
-    );
+    ).toBe('/');
+    expect(resolvePostLoginPath(userWith(['DONOR']), undefined)).toBe('/');
   });
 });
 

@@ -127,7 +127,6 @@ export function ResetPasswordPage() {
           <div className="auth-card__form">
             <FormError
               message={tokenError?.message}
-              code={tokenError?.code}
               title="Liên kết không dùng được"
             />
             <Link
@@ -139,7 +138,7 @@ export function ResetPasswordPage() {
           </div>
         ) : (
           <form className="auth-card__form" onSubmit={handleSubmit} noValidate>
-            <FormError message={formError?.message} code={formError?.code} />
+            <FormError message={formError?.message} />
 
             <FormField
               id="reset-password"

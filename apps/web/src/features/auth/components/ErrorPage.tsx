@@ -4,7 +4,6 @@ export interface ErrorPageProps {
   code: '403' | '404';
   title: string;
   message: string;
-  meta?: string;
   children?: ReactNode;
 }
 
@@ -179,13 +178,7 @@ function ErrorArtwork({ code }: Pick<ErrorPageProps, 'code'>) {
   );
 }
 
-export function ErrorPage({
-  code,
-  title,
-  message,
-  meta,
-  children,
-}: ErrorPageProps) {
+export function ErrorPage({ code, title, message, children }: ErrorPageProps) {
   return (
     <main
       className={`error-page error-page--${code}`}
@@ -198,7 +191,6 @@ export function ErrorPage({
           {title}
         </h1>
         <p className="error-page__message">{message}</p>
-        {meta ? <p className="error-page__meta">{meta}</p> : null}
         {children ? (
           <div className="error-page__actions">{children}</div>
         ) : null}

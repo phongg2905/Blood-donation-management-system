@@ -69,7 +69,7 @@ describe('LoginPage', () => {
     ).toBeInTheDocument();
   });
 
-  it('signs a donor in and lands on the profile page', async () => {
+  it('signs a donor in and lands on the home page', async () => {
     const user = userEvent.setup();
     const { container } = mountLogin();
     await user.type(
@@ -80,7 +80,7 @@ describe('LoginPage', () => {
     await user.click(screen.getByRole('button', { name: 'Đăng nhập' }));
 
     expect(
-      await screen.findByRole('heading', { name: 'Thông tin cá nhân' }),
+      await screen.findByRole('heading', { name: /Trao một phần máu/ }),
     ).toBeInTheDocument();
     expect(container.querySelector('.session__role')?.textContent).toBe(
       'Người hiến máu',
@@ -98,7 +98,7 @@ describe('LoginPage', () => {
     await user.click(screen.getByRole('button', { name: 'Đăng nhập' }));
 
     expect(
-      await screen.findByRole('heading', { name: 'Thông tin cá nhân' }),
+      await screen.findByRole('heading', { name: /Trao một phần máu/ }),
     ).toBeInTheDocument();
     expect(container.querySelector('.session__role')?.textContent).toBe(
       'Quản trị viên',
@@ -157,7 +157,7 @@ describe('RegisterPage', () => {
     await user.click(screen.getByRole('button', { name: 'Tạo tài khoản' }));
 
     expect(
-      await screen.findByRole('heading', { name: 'Thông tin cá nhân' }),
+      await screen.findByRole('heading', { name: /Trao một phần máu/ }),
     ).toBeInTheDocument();
   });
 
@@ -288,6 +288,13 @@ describe('ProfilePage with the delivered backend contract', () => {
     });
     const save = vi.spyOn(service, 'updateProfile');
     renderWithAuth(<AppRoutes />, { service, route: '/profile' });
+    expect(
+      await screen.findByRole('heading', { name: 'Thông tin cá nhân' }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    await user.click(
+      screen.getByRole('button', { name: 'Chỉnh sửa thông tin' }),
+    );
 
     const fullName = await screen.findByLabelText(/^Họ và tên/);
     expect(screen.queryByLabelText('Số điện thoại')).not.toBeInTheDocument();
@@ -315,10 +322,15 @@ describe('ProfilePage with the delivered backend contract', () => {
     });
     const save = vi.spyOn(service, 'updateProfile');
     renderWithAuth(<AppRoutes />, { service, route: '/profile' });
-
     expect(
-      await screen.findByLabelText(/^Số điện thoại/),
+      await screen.findByRole('heading', { name: 'Thông tin cá nhân' }),
     ).toBeInTheDocument();
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    await user.click(
+      screen.getByRole('button', { name: 'Chỉnh sửa thông tin' }),
+    );
+
+    expect(await screen.findByLabelText(/^Số điện thoại/)).toBeInTheDocument();
     expect(screen.getByLabelText(/^Địa chỉ/)).toBeInTheDocument();
 
     await user.clear(await screen.findByLabelText(/^Họ và tên/));
@@ -354,6 +366,13 @@ describe('ProfilePage with the delivered backend contract', () => {
     });
     const save = vi.spyOn(service, 'updateProfile');
     renderWithAuth(<AppRoutes />, { service, route: '/profile' });
+    expect(
+      await screen.findByRole('heading', { name: 'Thông tin cá nhân' }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    await user.click(
+      screen.getByRole('button', { name: 'Chỉnh sửa thông tin' }),
+    );
 
     await user.clear(await screen.findByLabelText(/^Số điện thoại/));
     await user.type(screen.getByLabelText(/^Số điện thoại/), '123');

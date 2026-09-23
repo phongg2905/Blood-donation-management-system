@@ -13,7 +13,6 @@ import { describeLoginError } from '../auth-errors';
 import type { AuthErrorView } from '../auth-errors';
 import { AuthCard } from '../components/AuthCard';
 import { AuthLayout } from '../components/AuthLayout';
-import { MockAccountsPanel } from '../components/MockAccountsPanel';
 import { useAuth } from '../hooks/useAuth';
 import {
   AUTH_ROUTES,
@@ -21,7 +20,6 @@ import {
   redirectTargetFromState,
   resolvePostLoginPath,
 } from '../routing';
-import { isMockAuthEnabled } from '../services/auth-service.resolver';
 import {
   hasErrors,
   normalizeEmail,
@@ -43,8 +41,6 @@ export function LoginPage() {
   const [formError, setFormError] = useState<AuthErrorView | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const mockEnabled = isMockAuthEnabled();
-
   // Already signed in? Go straight to the intended destination.
   if (status !== 'loading' && currentUser) {
     return (
@@ -58,7 +54,7 @@ export function LoginPage() {
     );
   }
   if (status === 'loading') {
-    return <PageLoader message="Đang kiểm tra phiên đăng nhập…" />;
+    return <PageLoader message="Đang tải…" />;
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -102,12 +98,12 @@ export function LoginPage() {
         footer={
           <div className="auth-card__links">
             <span>Chưa có tài khoản? </span>
-            <Link to={AUTH_ROUTES.register}>Đăng ký hiến máu</Link>
+            <Link to={AUTH_ROUTES.register}>Tạo tài khoản</Link>
           </div>
         }
       >
         <form className="auth-card__form" onSubmit={handleSubmit} noValidate>
-          <FormError message={formError?.message} code={formError?.code} />
+          <FormError message={formError?.message} />
 
           <FormField
             id="login-email"
@@ -153,17 +149,6 @@ export function LoginPage() {
           >
             Đăng nhập
           </Button>
-
-          {mockEnabled ? (
-            <MockAccountsPanel
-              onSelect={(selectedEmail, selectedPassword) => {
-                setEmail(selectedEmail);
-                setPassword(selectedPassword);
-                setErrors({});
-                setFormError(null);
-              }}
-            />
-          ) : null}
         </form>
       </AuthCard>
     </AuthLayout>

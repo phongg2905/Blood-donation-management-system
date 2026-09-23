@@ -39,6 +39,7 @@ export function FormField({
   const control = isValidElement(children)
     ? cloneElement(children as ReactElement<Record<string, unknown>>, {
         id,
+        required,
         'aria-describedby': describedBy,
         'aria-invalid': error ? true : undefined,
       })

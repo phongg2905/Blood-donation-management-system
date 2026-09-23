@@ -2,12 +2,12 @@ import type { CurrentUser, RoleCode } from '@blood/shared-types';
 
 /** Every auth-related path in one place, so no page hard-codes a string. */
 export const AUTH_ROUTES = {
+  home: '/',
   login: '/login',
   register: '/register',
   forgotPassword: '/forgot-password',
   resetPassword: '/reset-password',
   forbidden: '/403',
-  systemStatus: '/system-status',
 } as const;
 
 export type AppLayoutKind = 'donor' | 'staff' | 'admin';
@@ -15,16 +15,16 @@ export type AppLayoutKind = 'donor' | 'staff' | 'admin';
 /**
  * Landing path per role.
  *
- * Phase 2 only ships `/profile`, so every role lands there. When Phase 3 adds
+ * Phase 2.5 sends every role to the authenticated home. When Phase 3 adds
  * real dashboards this table is the single place to change — pages read the
  * result and never decide a destination themselves.
  */
 const ROLE_LANDING_PATHS: Readonly<Record<RoleCode, string>> = {
-  DONOR: '/profile',
-  RECEPTION_STAFF: '/profile',
-  MEDICAL_STAFF: '/profile',
-  BLOOD_COLLECTION_STAFF: '/profile',
-  ADMIN: '/profile',
+  DONOR: AUTH_ROUTES.home,
+  RECEPTION_STAFF: AUTH_ROUTES.home,
+  MEDICAL_STAFF: AUTH_ROUTES.home,
+  BLOOD_COLLECTION_STAFF: AUTH_ROUTES.home,
+  ADMIN: AUTH_ROUTES.home,
 };
 
 /** Most-privileged first. Used for layout choice and landing resolution. */

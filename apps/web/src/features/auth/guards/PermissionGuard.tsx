@@ -35,7 +35,7 @@ export function PermissionGuard({
     useAuth();
 
   if (status === 'loading') {
-    return <PageLoader message="Đang kiểm tra quyền truy cập…" />;
+    return <PageLoader message="Đang tải…" />;
   }
   if (status === 'anonymous') {
     return <Navigate to={AUTH_ROUTES.login} replace />;
