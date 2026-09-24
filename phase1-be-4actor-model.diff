@@ -1,0 +1,1143 @@
+diff --git a/apps/api/prisma/migrations/20260924000000_phase1_actor_role_model/migration.sql b/apps/api/prisma/migrations/20260924000000_phase1_actor_role_model/migration.sql
+new file mode 100644
+index 0000000..0720ca0
+--- /dev/null
++++ b/apps/api/prisma/migrations/20260924000000_phase1_actor_role_model/migration.sql
+@@ -0,0 +1,50 @@
++-- Phase 1: migrate RBAC from the five legacy roles to the four-actor model
++-- from the task-assignment plan.
++--   RECEPTION_STAFF + MEDICAL_STAFF + BLOOD_COLLECTION_STAFF -> DONATION_STAFF
++--   ADMIN                                                    -> SYSTEM_ADMIN
++--   (new) COORDINATOR
++-- RolePermission rows are left for the next `pnpm db:seed` run to converge on
++-- ROLE_PERMISSIONS from @blood/shared-types (same pattern as the previous
++-- RBAC migration). Prisma wraps this in a transaction already.
++
++-- ---------------------------------------------------------------------------
++-- 1. Rename ADMIN -> SYSTEM_ADMIN in place (keeps id, UserRole, audit trail).
++-- ---------------------------------------------------------------------------
++
++UPDATE "Role" SET "code" = 'SYSTEM_ADMIN', "name" = 'Quản trị viên'
++WHERE "code" = 'ADMIN';
++
++-- ---------------------------------------------------------------------------
++-- 2. Rename RECEPTION_STAFF -> DONATION_STAFF in place, then fold
++--    MEDICAL_STAFF and BLOOD_COLLECTION_STAFF assignments into it.
++-- ---------------------------------------------------------------------------
++
++UPDATE "Role" SET "code" = 'DONATION_STAFF', "name" = 'Nhân viên tiếp nhận / sàng lọc'
++WHERE "code" = 'RECEPTION_STAFF';
++
++-- If there was no RECEPTION_STAFF row to rename (fresh/edge-case DB), make
++-- sure DONATION_STAFF exists before repointing the other two roles into it.
++INSERT INTO "Role" ("id", "createdAt", "updatedAt", "code", "name", "description")
++SELECT gen_random_uuid(), CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 'DONATION_STAFF', 'Nhân viên tiếp nhận / sàng lọc', NULL
++WHERE NOT EXISTS (SELECT 1 FROM "Role" WHERE "code" = 'DONATION_STAFF');
++
++INSERT INTO "UserRole" ("id", "createdAt", "updatedAt", "userId", "roleId")
++SELECT gen_random_uuid(), CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, ur."userId", target."id"
++FROM "UserRole" ur
++JOIN "Role" legacy ON legacy."id" = ur."roleId" AND legacy."code" IN ('MEDICAL_STAFF', 'BLOOD_COLLECTION_STAFF')
++CROSS JOIN (SELECT "id" FROM "Role" WHERE "code" = 'DONATION_STAFF') AS target
++ON CONFLICT ("userId", "roleId") DO NOTHING;
++
++DELETE FROM "UserRole"
++WHERE "roleId" IN (SELECT "id" FROM "Role" WHERE "code" IN ('MEDICAL_STAFF', 'BLOOD_COLLECTION_STAFF'));
++
++DELETE FROM "Role" WHERE "code" IN ('MEDICAL_STAFF', 'BLOOD_COLLECTION_STAFF');
++
++-- ---------------------------------------------------------------------------
++-- 3. Introduce the new COORDINATOR role (no legacy equivalent — it is a
++--    standalone actor, never merged into SYSTEM_ADMIN).
++-- ---------------------------------------------------------------------------
++
++INSERT INTO "Role" ("id", "createdAt", "updatedAt", "code", "name", "description")
++SELECT gen_random_uuid(), CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 'COORDINATOR', 'Điều phối viên', NULL
++WHERE NOT EXISTS (SELECT 1 FROM "Role" WHERE "code" = 'COORDINATOR');
+diff --git a/apps/api/src/app.test.ts b/apps/api/src/app.test.ts
+index e0f0425..66438be 100644
+--- a/apps/api/src/app.test.ts
++++ b/apps/api/src/app.test.ts
+@@ -86,12 +86,12 @@ test('middleware fails closed, validates input and handles async rejection', asy
+     (req, _res, next) => {
+       req.auth = {
+         userId: 'fixture',
+-        roles: ['MEDICAL_STAFF'],
++        roles: ['DONATION_STAFF'],
+         permissions: ['screening.review'],
+       };
+       next();
+     },
+-    requireRole('ADMIN'),
++    requireRole('SYSTEM_ADMIN'),
+     (_req, res) => res.sendStatus(204),
+   );
+   fixture.get(
+@@ -99,7 +99,7 @@ test('middleware fails closed, validates input and handles async rejection', asy
+     (req, _res, next) => {
+       req.auth = {
+         userId: 'fixture',
+-        roles: ['MEDICAL_STAFF'],
++        roles: ['DONATION_STAFF'],
+         permissions: ['screening.review'],
+       };
+       next();
+diff --git a/apps/api/src/database/seed/index.ts b/apps/api/src/database/seed/index.ts
+index 656cc35..02971c1 100644
+--- a/apps/api/src/database/seed/index.ts
++++ b/apps/api/src/database/seed/index.ts
+@@ -9,8 +9,9 @@ import { database } from '../../config/database';
+ import { env } from '../../config/env';
+ 
+ /**
+- * Idempotent Phase 1 seed: five roles, the permission catalogue, the
+- * role-permission matrix and an optional initial admin account.
++ * Idempotent Phase 1 seed: the four actor roles (DONOR, DONATION_STAFF,
++ * COORDINATOR, SYSTEM_ADMIN), the permission catalogue, the role-permission
++ * matrix and an optional initial system-admin account.
+  *
+  * Safe to run repeatedly. No credential is hard-coded: the admin password comes
+  * from ADMIN_PASSWORD and is stored only as a scrypt hash.
+@@ -116,9 +117,9 @@ async function seedAdmin(): Promise<void> {
+   });
+ 
+   const adminRole = await database.role.findUnique({
+-    where: { code: 'ADMIN' },
++    where: { code: 'SYSTEM_ADMIN' },
+   });
+-  if (!adminRole) throw new Error('Seed failed: ADMIN role is missing');
++  if (!adminRole) throw new Error('Seed failed: SYSTEM_ADMIN role is missing');
+ 
+   await database.userRole.upsert({
+     where: { userId_roleId: { userId: user.id, roleId: adminRole.id } },
+@@ -129,8 +130,8 @@ async function seedAdmin(): Promise<void> {
+ }
+ 
+ /**
+- * One demo account per non-ADMIN role, fixed email/password, so FE can test
+- * every permission set without waiting on `register` (DONOR only) or a
++ * One demo account per non-SYSTEM_ADMIN role, fixed email/password, so FE can
++ * test every permission set without waiting on `register` (DONOR only) or a
+  * staff-provisioning API (doesn't exist until Phase 8). Idempotent, and
+  * skipped entirely in production — these credentials are public in this
+  * source file and in `docs/api/README.md`.
+@@ -139,19 +140,14 @@ const DEMO_PASSWORD = 'Demo@Password1';
+ const DEMO_ACCOUNTS = [
+   { role: 'DONOR', email: 'donor.demo@example.local', fullName: 'Donor Demo' },
+   {
+-    role: 'RECEPTION_STAFF',
+-    email: 'reception.demo@example.local',
+-    fullName: 'Reception Staff Demo',
++    role: 'DONATION_STAFF',
++    email: 'donation-staff.demo@example.local',
++    fullName: 'Donation Staff Demo',
+   },
+   {
+-    role: 'MEDICAL_STAFF',
+-    email: 'medical.demo@example.local',
+-    fullName: 'Medical Staff Demo',
+-  },
+-  {
+-    role: 'BLOOD_COLLECTION_STAFF',
+-    email: 'collection.demo@example.local',
+-    fullName: 'Blood Collection Staff Demo',
++    role: 'COORDINATOR',
++    email: 'coordinator.demo@example.local',
++    fullName: 'Coordinator Demo',
+   },
+ ] as const;
+ 
+diff --git a/apps/api/src/modules/auth/auth.test.ts b/apps/api/src/modules/auth/auth.test.ts
+index ac2ef10..9c5ca14 100644
+--- a/apps/api/src/modules/auth/auth.test.ts
++++ b/apps/api/src/modules/auth/auth.test.ts
+@@ -455,13 +455,13 @@ describe('PATCH /auth/me', () => {
+     // No public endpoint provisions STAFF/ADMIN yet (Phase 8), so the fixture
+     // is created directly against the database, mirroring seedAdmin().
+     const role = await database.role.findUniqueOrThrow({
+-      where: { code: 'RECEPTION_STAFF' },
++      where: { code: 'DONATION_STAFF' },
+     });
+     const email = `${randomUUID()}@example.test`;
+     const user = await database.user.create({
+       data: {
+         email,
+-        fullName: 'Reception Staff Fixture',
++        fullName: 'Donation Staff Fixture',
+         passwordHash: await hashPassword(STRONG_PASSWORD),
+         isActive: true,
+         roles: { create: { roleId: role.id } },
+diff --git a/apps/api/src/modules/blood-bags/README.md b/apps/api/src/modules/blood-bags/README.md
+index 9e5713a..12f070d 100644
+--- a/apps/api/src/modules/blood-bags/README.md
++++ b/apps/api/src/modules/blood-bags/README.md
+@@ -11,5 +11,5 @@ Túi máu luôn gắn với một Donation; cấp chứng nhận thuộc Donatio
+ 
+ ## Quyền sở hữu
+ 
+-`bloodbag.read`, `bloodbag.create`, `bloodbag.update_status` thuộc **BLOOD_COLLECTION_STAFF** (và ADMIN). MEDICAL_STAFF và RECEPTION_STAFF không có quyền túi máu.
++`bloodbag.read`, `bloodbag.create`, `bloodbag.update_status` thuộc **chỉ DONATION_STAFF**. DONOR, COORDINATOR và SYSTEM_ADMIN không có quyền túi máu.
+ Phase 2 sẽ gọi `assertBagVolumesReconcile` trong transaction khi ghi nhận túi và ghi audit `BLOOD_BAG_CREATED` / `BLOOD_BAG_STATUS_CHANGED`.
+diff --git a/apps/api/src/modules/certificates/README.md b/apps/api/src/modules/certificates/README.md
+index e53ed4b..61389ed 100644
+--- a/apps/api/src/modules/certificates/README.md
++++ b/apps/api/src/modules/certificates/README.md
+@@ -12,8 +12,8 @@ Thu hồi ghi `status = REVOKED`, `revokedAt`, `revokeReason` trong cùng transa
+ 
+ ## Quyền sở hữu
+ 
+-- `certificate.read`: DONOR, MEDICAL_STAFF, BLOOD_COLLECTION_STAFF, ADMIN.
+-- `certificate.issue`: BLOOD_COLLECTION_STAFF, ADMIN — nhân viên lấy máu là role hoàn tất nghiệp vụ donation nên cấp chứng nhận.
+-- `certificate.revoke`: **chỉ ADMIN** vì đây là hành động quản trị nhạy cảm.
++- `certificate.read`: DONOR, DONATION_STAFF.
++- `certificate.issue`: **chỉ DONATION_STAFF** — role hoàn tất nghiệp vụ donation nên cấp chứng nhận.
++- `certificate.revoke`: **chỉ SYSTEM_ADMIN** vì đây là hành động quản trị nhạy cảm, tách khỏi nghiệp vụ hiến máu.
+ 
+-MEDICAL_STAFF không cấp/thu hồi chứng nhận; RECEPTION_STAFF không có quyền chứng nhận nào.
++COORDINATOR không có quyền chứng nhận nào (không quản lý nghiệp vụ hiến máu trực tiếp).
+diff --git a/apps/api/src/modules/check-ins/README.md b/apps/api/src/modules/check-ins/README.md
+index e52ade9..65efa1d 100644
+--- a/apps/api/src/modules/check-ins/README.md
++++ b/apps/api/src/modules/check-ins/README.md
+@@ -9,4 +9,4 @@ Phase 1 đã có rule (chưa có HTTP CRUD).
+ 
+ Phase 2 ghi audit `REGISTRATION_CHECKED_IN`.
+ 
+-`registration.checkin` và `registration.mark_no_show` chỉ thuộc **RECEPTION_STAFF** (và ADMIN). MEDICAL_STAFF và BLOOD_COLLECTION_STAFF không check-in.
++`registration.checkin` và `registration.mark_no_show` chỉ thuộc **DONATION_STAFF**. DONOR, COORDINATOR và SYSTEM_ADMIN không check-in.
+diff --git a/apps/api/src/modules/donations/README.md b/apps/api/src/modules/donations/README.md
+index e362800..491251b 100644
+--- a/apps/api/src/modules/donations/README.md
++++ b/apps/api/src/modules/donations/README.md
+@@ -15,5 +15,5 @@ Phase 2 ghi audit `DONATION_STARTED`, `DONATION_COMPLETED`, `DONATION_STOPPED`.
+ 
+ ## Quyền sở hữu
+ 
+-`donation.start`, `donation.complete`, `donation.stop` thuộc **BLOOD_COLLECTION_STAFF** (và ADMIN). MEDICAL_STAFF chỉ có `donation.read` để theo dõi; RECEPTION_STAFF chỉ có `registration.read` và không thao tác donation.
+-BLOOD_COLLECTION_STAFF chỉ bắt đầu được khi `Screening.status = ELIGIBLE` (`assertCanStartDonation`) và không có `screening.review`.
++`donation.start`, `donation.complete`, `donation.stop` thuộc **chỉ DONATION_STAFF**. COORDINATOR chỉ có `donation.read`-cấp báo cáo gián tiếp qua `report.read`, không thao tác donation trực tiếp.
++DONATION_STAFF chỉ bắt đầu được khi `Screening.status = ELIGIBLE` (`assertCanStartDonation`).
+diff --git a/apps/api/src/modules/registrations/README.md b/apps/api/src/modules/registrations/README.md
+index f26647f..a24273a 100644
+--- a/apps/api/src/modules/registrations/README.md
++++ b/apps/api/src/modules/registrations/README.md
+@@ -20,7 +20,7 @@ Các rule này đã được enforce trong `timeSlotService.schedule` và sẽ 
+ ## Quyền sở hữu
+ 
+ - `registration.create`, `registration.reschedule`, `registration.cancel`: **DONOR** (tự phục vụ).
+-- `registration.read`: DONOR, RECEPTION_STAFF, MEDICAL_STAFF, BLOOD_COLLECTION_STAFF, ADMIN.
+-- `registration.checkin`, `registration.mark_no_show`: **RECEPTION_STAFF** (nghiệp vụ tiếp nhận).
++- `registration.read`: DONOR, DONATION_STAFF, COORDINATOR.
++- `registration.checkin`, `registration.mark_no_show`: **chỉ DONATION_STAFF** (nghiệp vụ tiếp nhận).
+ 
+-MEDICAL_STAFF, BLOOD_COLLECTION_STAFF và RECEPTION_STAFF đều không có quyền tạo/huỷ đăng ký của donor.
++DONATION_STAFF và COORDINATOR đều không có quyền tạo/huỷ đăng ký của donor — chỉ chính DONOR mới làm được.
+diff --git a/apps/api/src/modules/roles/README.md b/apps/api/src/modules/roles/README.md
+index 1107630..740d5ce 100644
+--- a/apps/api/src/modules/roles/README.md
++++ b/apps/api/src/modules/roles/README.md
+@@ -1,28 +1,32 @@
+ # roles
+ 
+-Phase 1 đã cố định mô hình 5 role (nguồn duy nhất: `ROLE_CODES` trong `@blood/shared-types`):
++Phase 1 dùng mô hình 4 actor (nguồn duy nhất: `ROLE_CODES` / `ACTOR_CODES` trong `@blood/shared-types`):
+ 
+-| Code                     | Tên                 |
+-| ------------------------ | ------------------- |
+-| `DONOR`                  | Người hiến máu      |
+-| `RECEPTION_STAFF`        | Nhân viên tiếp nhận |
+-| `MEDICAL_STAFF`          | Nhân viên y tế      |
+-| `BLOOD_COLLECTION_STAFF` | Nhân viên lấy máu   |
+-| `ADMIN`                  | Quản trị viên       |
++| Code             | Tên                             |
++| ---------------- | -------------------------------- |
++| `DONOR`          | Người hiến máu                   |
++| `DONATION_STAFF` | Nhân viên tiếp nhận / sàng lọc    |
++| `COORDINATOR`    | Điều phối viên                   |
++| `SYSTEM_ADMIN`   | Quản trị viên                    |
+ 
+-Không còn `SCREENING_STAFF`, `DOCTOR`, `COORDINATOR` trong source, seed, guard hay test.
+-Migration `20260919000000_phase1_rbac_and_auth_sessions` đã gộp dữ liệu role cũ trong DB.
++Không còn `RECEPTION_STAFF`, `MEDICAL_STAFF`, `BLOOD_COLLECTION_STAFF`, `ADMIN` (và các role cũ hơn
++`SCREENING_STAFF`, `DOCTOR`) trong seed, guard hay test. Migration
++`20260924000000_phase1_actor_role_model` gộp `RECEPTION_STAFF` + `MEDICAL_STAFF` +
++`BLOOD_COLLECTION_STAFF` vào `DONATION_STAFF`, đổi tên `ADMIN` thành `SYSTEM_ADMIN`, và tạo mới
++`COORDINATOR` — `COORDINATOR` là actor độc lập, **không gộp** vào `SYSTEM_ADMIN`.
+ 
+-`pnpm db:seed` upsert 5 role và đồng bộ `RolePermission` theo `ROLE_PERMISSIONS` (tạo thiếu, xoá thừa, chạy lặp an toàn). Chưa có endpoint CRUD role (Phase 2, permission `role.read` / `role.manage`).
++`pnpm db:seed` upsert 4 role và đồng bộ `RolePermission` theo `ROLE_PERMISSIONS` (tạo thiếu, xoá thừa, chạy lặp an toàn). Chưa có endpoint CRUD role (Phase 2, permission `role.read` / `role.manage`).
+ 
+ ## Trách nhiệm và số permission
+ 
+-| Role                     | Trách nhiệm                                                          | Số permission |
+-| ------------------------ | -------------------------------------------------------------------- | ------------- |
+-| `DONOR`                  | Đăng ký hiến máu, khai báo sức khỏe, xem lịch sử/chứng nhận của mình | 15            |
+-| `RECEPTION_STAFF`        | Tra cứu người hiến, check-in, ghi nhận no-show                       | 10            |
+-| `MEDICAL_STAFF`          | Nhập chỉ số/xét nghiệm, kết luận sàng lọc trước hiến                 | 14            |
+-| `BLOOD_COLLECTION_STAFF` | Lấy máu, quản lý túi máu, ghi nhận phản ứng sau hiến, cấp chứng nhận | 18            |
+-| `ADMIN`                  | Toàn quyền hệ thống (superset)                                       | 53            |
++| Role             | Trách nhiệm                                                                                                | Số permission |
++| ---------------- | ----------------------------------------------------------------------------------------------------------- | -------------- |
++| `DONOR`          | Đăng ký hiến máu, khai báo sức khỏe, xem lịch sử/chứng nhận của mình                                         | 15             |
++| `DONATION_STAFF` | Check-in/tra cứu người hiến, sàng lọc/đánh giá, ghi nhận quá trình hiến, phản ứng sau hiến, cấp chứng nhận   | 25             |
++| `COORDINATOR`    | Tạo/quản lý đợt hiến, thiết lập lịch & chỉ tiêu, phân công nhân sự, theo dõi tiến độ & báo cáo               | 19             |
++| `SYSTEM_ADMIN`   | Quản lý tài khoản, role/permission, danh mục & cấu hình, audit log & báo cáo hệ thống                        | 16             |
+ 
+-Nguyên tắc: mỗi quyền nghiệp vụ (ghi) chỉ thuộc tối đa **một** role ngoài ADMIN; MEDICAL_STAFF không thực hiện lấy máu; `certificate.revoke` chỉ ADMIN. `notification.read` là quyền dùng chung duy nhất của cả 5 role.
++Nguyên tắc: mỗi quyền nghiệp vụ (ghi) chỉ thuộc đúng **một** role; `campaign.*`/`timeslot.*`/`campaign_staff.*`
++thuộc COORDINATOR; `screening.*`/`donation.*`/`bloodbag.*`/`reaction.*`/`certificate.issue` thuộc
++DONATION_STAFF; `certificate.revoke` chỉ SYSTEM_ADMIN. `notification.read` là quyền dùng chung duy nhất của
++cả 4 role.
+diff --git a/apps/api/src/modules/screenings/README.md b/apps/api/src/modules/screenings/README.md
+index 4fac1c5..f330c2b 100644
+--- a/apps/api/src/modules/screenings/README.md
++++ b/apps/api/src/modules/screenings/README.md
+@@ -17,4 +17,4 @@ Unique `(screeningId, code)` giữ một kết quả hiện hành cho mỗi mã.
+ 
+ ## Quyền sở hữu
+ 
+-`screening.read`, `screening.create`, `screening.update`, `screening.review` thuộc **MEDICAL_STAFF** (và ADMIN). BLOOD_COLLECTION_STAFF chỉ có `screening.read` để biết donor đã ELIGIBLE; RECEPTION_STAFF không có quyền sàng lọc. MEDICAL_STAFF kết luận ELIGIBLE/INELIGIBLE/DEFERRED nhưng không thực hiện lấy máu.
++`screening.read`, `screening.create`, `screening.update`, `screening.review` thuộc **chỉ DONATION_STAFF**. DONOR không có quyền sàng lọc; COORDINATOR và SYSTEM_ADMIN cũng không. DONATION_STAFF kết luận ELIGIBLE/INELIGIBLE/DEFERRED và thực hiện lấy máu — hai bước này gộp vào cùng một role kể từ mô hình 4-actor.
+diff --git a/apps/api/src/phase1.test.ts b/apps/api/src/phase1.test.ts
+index a30ff8d..2403386 100644
+--- a/apps/api/src/phase1.test.ts
++++ b/apps/api/src/phase1.test.ts
+@@ -11,8 +11,8 @@ import {
+   canTransition,
+   isPermissionCode,
+   isRoleCode,
++  type ActorCode,
+   type PermissionCode,
+-  type RoleCode,
+ } from '@blood/shared-types';
+ import { AppError } from './common/errors/app.error';
+ import {
+@@ -89,11 +89,11 @@ function throwsCode(run: () => unknown, code: string): void {
+   assert.throws(run, (error: unknown) => codeOf(error) === code);
+ }
+ 
+-const has = (role: RoleCode, permission: PermissionCode): boolean =>
++const has = (role: ActorCode, permission: PermissionCode): boolean =>
+   (ROLE_PERMISSIONS[role] as readonly string[]).includes(permission);
+ 
+ /** Roles holding a permission, in ROLE_CODES order. */
+-const rolesWith = (permission: PermissionCode): RoleCode[] =>
++const rolesWith = (permission: PermissionCode): ActorCode[] =>
+   ROLE_CODES.filter((role) => has(role, permission));
+ 
+ const start = new Date('2030-01-01T08:00:00Z');
+@@ -103,19 +103,13 @@ const end = new Date('2030-01-01T12:00:00Z');
+ /* 1. Roles and permissions                                                   */
+ /* -------------------------------------------------------------------------- */
+ 
+-test('the system exposes exactly five roles and no legacy role codes', () => {
++test('the system exposes exactly the four actor roles', () => {
+   assert.deepEqual(
+     [...ROLE_CODES],
+-    [
+-      'DONOR',
+-      'RECEPTION_STAFF',
+-      'MEDICAL_STAFF',
+-      'BLOOD_COLLECTION_STAFF',
+-      'ADMIN',
+-    ],
+-  );
+-  for (const legacy of ['SCREENING_STAFF', 'DOCTOR', 'COORDINATOR']) {
+-    assert.equal(isRoleCode(legacy), false, `${legacy} must not be a role`);
++    ['DONOR', 'DONATION_STAFF', 'COORDINATOR', 'SYSTEM_ADMIN'],
++  );
++  for (const unknown of ['SCREENING_STAFF', 'DOCTOR']) {
++    assert.equal(isRoleCode(unknown), false, `${unknown} must not be a role`);
+   }
+ });
+ 
+@@ -141,16 +135,6 @@ test('role-permission mapping is complete, valid and distinct', () => {
+     assert.equal(assigned.has(permission), true, `${permission} is unassigned`);
+   }
+ 
+-  // ADMIN is the superset and keeps every permission.
+-  assert.equal(ROLE_PERMISSIONS.ADMIN.length, PERMISSION_CODES.length);
+-  for (const permission of PERMISSION_CODES) {
+-    assert.equal(
+-      ROLE_PERMISSIONS.ADMIN.includes(permission),
+-      true,
+-      `ADMIN must own ${permission}`,
+-    );
+-  }
+-
+   // No duplicate entries inside a role.
+   for (const role of ROLE_CODES) {
+     assert.equal(
+@@ -167,120 +151,136 @@ test('role-permission mapping is complete, valid and distinct', () => {
+   assert.equal(has('DONOR', 'health_declaration.update'), true);
+   assert.equal(has('DONOR', 'user.manage'), false);
+   assert.equal(has('DONOR', 'registration.checkin'), false);
+-  assert.equal(has('DONOR', 'screening.read'), false);
+-  assert.equal(has('DONOR', 'donation.start'), false);
+-
+-  // MEDICAL_STAFF: pre-donation medicine only.
+-  assert.equal(has('MEDICAL_STAFF', 'screening.read'), true);
+-  assert.equal(has('MEDICAL_STAFF', 'screening.create'), true);
+-  assert.equal(has('MEDICAL_STAFF', 'screening.update'), true);
+-  assert.equal(has('MEDICAL_STAFF', 'screening.review'), true);
+-  assert.equal(has('MEDICAL_STAFF', 'health_declaration.read'), true);
+-  assert.equal(has('MEDICAL_STAFF', 'donation.read'), true);
+-  assert.equal(has('MEDICAL_STAFF', 'reaction.read'), true);
+-  assert.equal(has('MEDICAL_STAFF', 'certificate.read'), true);
+-  for (const removed of [
++  assert.equal(has('DONOR', 'campaign.create'), false);
++
++  // DONATION_STAFF: reception + screening + collection, merged.
++  for (const owned of [
++    'registration.checkin',
++    'registration.mark_no_show',
++    'screening.read',
++    'screening.create',
++    'screening.update',
++    'screening.review',
+     'donation.start',
+     'donation.complete',
+     'donation.stop',
++    'bloodbag.read',
+     'bloodbag.create',
+     'bloodbag.update_status',
+     'reaction.create',
+     'certificate.issue',
++  ] as const) {
++    assert.equal(
++      has('DONATION_STAFF', owned),
++      true,
++      `DONATION_STAFF must own ${owned}`,
++    );
++  }
++  for (const removed of [
+     'certificate.revoke',
+-    'registration.checkin',
+-    'registration.mark_no_show',
+-    'health_declaration.update',
++    'campaign.create',
++    'campaign_staff.assign',
++    'user.manage',
+   ] as const) {
+     assert.equal(
+-      has('MEDICAL_STAFF', removed),
++      has('DONATION_STAFF', removed),
+       false,
+-      `MEDICAL_STAFF must not own ${removed}`,
++      `DONATION_STAFF must not own ${removed}`,
+     );
+   }
+ 
+-  // BLOOD_COLLECTION_STAFF: everything after an ELIGIBLE conclusion.
++  // COORDINATOR: runs campaigns end-to-end, no clinical/system duties.
+   for (const owned of [
+-    'screening.read',
+-    'donation.read',
++    'campaign.create',
++    'campaign.update',
++    'campaign.open',
++    'campaign.close',
++    'campaign.cancel',
++    'timeslot.create',
++    'timeslot.update',
++    'timeslot.deactivate',
++    'campaign_staff.read',
++    'campaign_staff.assign',
++    'campaign_staff.remove',
++    'report.read',
++    'report.export',
++  ] as const) {
++    assert.equal(
++      has('COORDINATOR', owned),
++      true,
++      `COORDINATOR must own ${owned}`,
++    );
++  }
++  for (const removed of [
++    'screening.review',
+     'donation.start',
+-    'donation.complete',
+-    'donation.stop',
+-    'bloodbag.read',
+     'bloodbag.create',
+-    'bloodbag.update_status',
+-    'reaction.read',
+-    'reaction.create',
+-    'certificate.read',
+     'certificate.issue',
++    'user.manage',
++    'role.manage',
++  ] as const) {
++    assert.equal(
++      has('COORDINATOR', removed),
++      false,
++      `COORDINATOR must not own ${removed}`,
++    );
++  }
++
++  // SYSTEM_ADMIN: system administration only — never merges COORDINATOR's job.
++  for (const owned of [
++    'user.manage',
++    'role.manage',
++    'permission.manage',
++    'audit.read',
++    'setting.manage',
++    'certificate.revoke',
++    'report.read',
++    'report.export',
+   ] as const) {
+     assert.equal(
+-      has('BLOOD_COLLECTION_STAFF', owned),
++      has('SYSTEM_ADMIN', owned),
+       true,
+-      `BLOOD_COLLECTION_STAFF must own ${owned}`,
++      `SYSTEM_ADMIN must own ${owned}`,
++    );
++  }
++  for (const removed of [
++    'campaign.create',
++    'campaign.update',
++    'campaign_staff.assign',
++    'timeslot.create',
++    'screening.review',
++    'donation.start',
++    'bloodbag.create',
++    'certificate.issue',
++    'registration.checkin',
++  ] as const) {
++    assert.equal(
++      has('SYSTEM_ADMIN', removed),
++      false,
++      `SYSTEM_ADMIN must not own ${removed} — that belongs to COORDINATOR/DONATION_STAFF`,
+     );
+   }
+-  assert.equal(has('BLOOD_COLLECTION_STAFF', 'screening.review'), false);
+-  assert.equal(has('BLOOD_COLLECTION_STAFF', 'screening.create'), false);
+-  assert.equal(has('BLOOD_COLLECTION_STAFF', 'screening.update'), false);
+-  assert.equal(has('BLOOD_COLLECTION_STAFF', 'certificate.revoke'), false);
+-  assert.equal(has('BLOOD_COLLECTION_STAFF', 'registration.checkin'), false);
+-
+-  // RECEPTION_STAFF: arrival only.
+-  assert.equal(has('RECEPTION_STAFF', 'registration.read'), true);
+-  assert.equal(has('RECEPTION_STAFF', 'registration.checkin'), true);
+-  assert.equal(has('RECEPTION_STAFF', 'registration.mark_no_show'), true);
+-  assert.equal(has('RECEPTION_STAFF', 'health_declaration.read'), true);
+-  assert.equal(has('RECEPTION_STAFF', 'registration.create'), false);
+-  assert.equal(has('RECEPTION_STAFF', 'screening.review'), false);
+-  assert.equal(has('RECEPTION_STAFF', 'screening.create'), false);
+-  assert.equal(has('RECEPTION_STAFF', 'donation.start'), false);
+-  assert.equal(has('RECEPTION_STAFF', 'bloodbag.create'), false);
+-  assert.equal(has('RECEPTION_STAFF', 'bloodbag.update_status'), false);
+-  assert.equal(has('RECEPTION_STAFF', 'reaction.create'), false);
+-  assert.equal(has('RECEPTION_STAFF', 'certificate.issue'), false);
+-  assert.equal(has('RECEPTION_STAFF', 'certificate.revoke'), false);
+ });
+ 
+ test('sensitive permissions are owned by exactly the right operational role', () => {
+-  assert.deepEqual(rolesWith('certificate.revoke'), ['ADMIN']);
+-  assert.deepEqual(rolesWith('certificate.issue'), [
+-    'BLOOD_COLLECTION_STAFF',
+-    'ADMIN',
+-  ]);
+-  assert.deepEqual(rolesWith('certificate.read'), [
+-    'DONOR',
+-    'MEDICAL_STAFF',
+-    'BLOOD_COLLECTION_STAFF',
+-    'ADMIN',
+-  ]);
+-  assert.deepEqual(rolesWith('reaction.create'), [
+-    'BLOOD_COLLECTION_STAFF',
+-    'ADMIN',
+-  ]);
+-  assert.deepEqual(rolesWith('reaction.read'), [
+-    'DONOR',
+-    'MEDICAL_STAFF',
+-    'BLOOD_COLLECTION_STAFF',
+-    'ADMIN',
+-  ]);
+-  assert.deepEqual(rolesWith('screening.review'), ['MEDICAL_STAFF', 'ADMIN']);
+-  assert.deepEqual(rolesWith('donation.start'), [
+-    'BLOOD_COLLECTION_STAFF',
+-    'ADMIN',
+-  ]);
+-  assert.deepEqual(rolesWith('bloodbag.create'), [
+-    'BLOOD_COLLECTION_STAFF',
+-    'ADMIN',
+-  ]);
+-  assert.deepEqual(rolesWith('registration.checkin'), [
+-    'RECEPTION_STAFF',
+-    'ADMIN',
+-  ]);
+-  assert.deepEqual(rolesWith('health_declaration.create'), ['DONOR', 'ADMIN']);
+-  assert.deepEqual(rolesWith('registration.create'), ['DONOR', 'ADMIN']);
+-
+-  // No mutating duty is shared by two non-admin roles.
++  assert.deepEqual(rolesWith('certificate.revoke'), ['SYSTEM_ADMIN']);
++  assert.deepEqual(rolesWith('certificate.issue'), ['DONATION_STAFF']);
++  assert.deepEqual(rolesWith('certificate.read'), ['DONOR', 'DONATION_STAFF']);
++  assert.deepEqual(rolesWith('reaction.create'), ['DONATION_STAFF']);
++  assert.deepEqual(rolesWith('reaction.read'), ['DONOR', 'DONATION_STAFF']);
++  assert.deepEqual(rolesWith('screening.review'), ['DONATION_STAFF']);
++  assert.deepEqual(rolesWith('donation.start'), ['DONATION_STAFF']);
++  assert.deepEqual(rolesWith('bloodbag.create'), ['DONATION_STAFF']);
++  assert.deepEqual(rolesWith('registration.checkin'), ['DONATION_STAFF']);
++  assert.deepEqual(rolesWith('health_declaration.create'), ['DONOR']);
++  assert.deepEqual(rolesWith('registration.create'), ['DONOR']);
++  assert.deepEqual(rolesWith('campaign.create'), ['COORDINATOR']);
++  assert.deepEqual(rolesWith('campaign_staff.assign'), ['COORDINATOR']);
++  assert.deepEqual(rolesWith('user.manage'), ['SYSTEM_ADMIN']);
++  assert.deepEqual(rolesWith('role.manage'), ['SYSTEM_ADMIN']);
++
++  // Every mutating duty is owned by exactly one role — COORDINATOR and
++  // SYSTEM_ADMIN are never merged, and no two roles share a write action.
+   const duties: PermissionCode[] = [
+     'registration.create',
+     'registration.reschedule',
+@@ -300,36 +300,45 @@ test('sensitive permissions are owned by exactly the right operational role', ()
+     'reaction.create',
+     'certificate.issue',
+     'certificate.revoke',
++    'campaign.create',
++    'campaign.update',
++    'campaign.open',
++    'campaign.close',
++    'campaign.cancel',
++    'timeslot.create',
++    'timeslot.update',
++    'timeslot.deactivate',
++    'campaign_staff.assign',
++    'campaign_staff.remove',
++    'user.manage',
++    'role.manage',
++    'permission.manage',
++    'setting.manage',
+   ];
+   for (const permission of duties) {
+-    const owners = rolesWith(permission).filter((role) => role !== 'ADMIN');
+-    assert.ok(
+-      owners.length <= 1,
+-      `${permission} is owned by multiple non-admin roles: ${owners.join(', ')}`,
++    const owners = rolesWith(permission);
++    assert.equal(
++      owners.length,
++      1,
++      `${permission} must be owned by exactly one role, got: ${owners.join(', ')}`,
+     );
+   }
+   // Shared *read* access stays available to every party that needs it.
+-  for (const permission of [
+-    'campaign.read',
+-    'timeslot.read',
+-    'registration.read',
+-    'screening.read',
+-    'donation.read',
+-  ] as const) {
++  for (const permission of ['campaign.read', 'timeslot.read'] as const) {
+     assert.ok(
+-      rolesWith(permission).filter((role) => role !== 'ADMIN').length >= 2,
+-      `${permission} should stay readable across staff roles`,
++      rolesWith(permission).length >= 2,
++      `${permission} should stay readable across multiple roles`,
+     );
+   }
+ });
+ 
+-test('collection staff own the donation chain, gated by an ELIGIBLE screening', () => {
+-  const collectionOwnsDonation = rolesWith('donation.start');
+-  assert.deepEqual(collectionOwnsDonation, ['BLOOD_COLLECTION_STAFF', 'ADMIN']);
++test('donation staff own the donation chain, gated by an ELIGIBLE screening', () => {
++  const donationStaffOwnsDonation = rolesWith('donation.start');
++  assert.deepEqual(donationStaffOwnsDonation, ['DONATION_STAFF']);
+   assert.equal(
+-    rolesWith('screening.review').includes('BLOOD_COLLECTION_STAFF'),
++    rolesWith('screening.review').includes('COORDINATOR'),
+     false,
+-    'collection staff must not conclude screening',
++    'coordinator must not conclude screening',
+   );
+ 
+   // An ELIGIBLE conclusion is the mandatory gate before starting a donation.
+diff --git a/apps/web/src/features/auth/context/AuthProvider.test.tsx b/apps/web/src/features/auth/context/AuthProvider.test.tsx
+index 8ea72ca..0a5104f 100644
+--- a/apps/web/src/features/auth/context/AuthProvider.test.tsx
++++ b/apps/web/src/features/auth/context/AuthProvider.test.tsx
+@@ -100,8 +100,9 @@ describe('AuthProvider', () => {
+     expect(screen.getByTestId('has-staff-role')).toHaveTextContent('false');
+     expect(screen.getByTestId('has-donation-start')).toHaveTextContent('true');
+     expect(screen.getByTestId('any-of')).toHaveTextContent('true');
+-    // BLOOD_COLLECTION_STAFF may start a donation but must not review screening.
+-    expect(screen.getByTestId('all-of')).toHaveTextContent('false');
++    // BLOOD_COLLECTION_STAFF now maps to the merged DONATION_STAFF actor,
++    // which holds both donation.start and screening.review.
++    expect(screen.getByTestId('all-of')).toHaveTextContent('true');
+   });
+ 
+   it('clears the session on logout', async () => {
+diff --git a/apps/web/src/features/auth/guards/guards.test.tsx b/apps/web/src/features/auth/guards/guards.test.tsx
+index 09075c4..d5103a1 100644
+--- a/apps/web/src/features/auth/guards/guards.test.tsx
++++ b/apps/web/src/features/auth/guards/guards.test.tsx
+@@ -109,7 +109,7 @@ describe('PermissionGuard', () => {
+     expect(await screen.findByText('nội-dung-có-quyền')).toBeInTheDocument();
+   });
+ 
+-  it('never lets MEDICAL_STAFF start a donation', async () => {
++  it('lets DONATION_STAFF (merged from MEDICAL_STAFF) start a donation', async () => {
+     const service = createMockAuthService();
+     await signInAs(service, 'medical@example.local');
+ 
+@@ -118,10 +118,10 @@ describe('PermissionGuard', () => {
+       route: '/guarded',
+     });
+ 
+-    expect(await screen.findByText('trang-403')).toBeInTheDocument();
++    expect(await screen.findByText('nội-dung-có-quyền')).toBeInTheDocument();
+   });
+ 
+-  it('never lets BLOOD_COLLECTION_STAFF review a screening', async () => {
++  it('lets DONATION_STAFF (merged from BLOOD_COLLECTION_STAFF) review a screening', async () => {
+     const service = createMockAuthService();
+     await signInAs(service, 'collection@example.local');
+ 
+@@ -130,10 +130,10 @@ describe('PermissionGuard', () => {
+       route: '/guarded',
+     });
+ 
+-    expect(await screen.findByText('trang-403')).toBeInTheDocument();
++    expect(await screen.findByText('nội-dung-có-quyền')).toBeInTheDocument();
+   });
+ 
+-  it('treats ADMIN as authorised for any permission', async () => {
++  it('never lets SYSTEM_ADMIN (mapped from ADMIN) start a donation — not its duty', async () => {
+     const service = createMockAuthService();
+     await signInAs(service, 'admin@example.local');
+ 
+@@ -142,6 +142,18 @@ describe('PermissionGuard', () => {
+       route: '/guarded',
+     });
+ 
++    expect(await screen.findByText('trang-403')).toBeInTheDocument();
++  });
++
++  it('treats SYSTEM_ADMIN as authorised for its own system-admin permissions', async () => {
++    const service = createMockAuthService();
++    await signInAs(service, 'admin@example.local');
++
++    renderWithAuth(<GuardedRoutes requiredPermission="user.manage" />, {
++      service,
++      route: '/guarded',
++    });
++
+     expect(await screen.findByText('nội-dung-có-quyền')).toBeInTheDocument();
+   });
+ 
+@@ -159,10 +171,10 @@ describe('PermissionGuard', () => {
+ 
+   it('supports allOf and fails when only one is held', async () => {
+     const service = createMockAuthService();
+-    await signInAs(service, 'collection@example.local');
++    await signInAs(service, 'donor@example.local'); // DONOR: registration.create only
+ 
+     renderWithAuth(
+-      <GuardedRoutes allOf={['donation.start', 'screening.review']} />,
++      <GuardedRoutes allOf={['registration.create', 'donation.start']} />,
+       { service, route: '/guarded' },
+     );
+ 
+diff --git a/apps/web/src/features/auth/services/mock-auth.service.test.ts b/apps/web/src/features/auth/services/mock-auth.service.test.ts
+index b3ac053..ef6c05f 100644
+--- a/apps/web/src/features/auth/services/mock-auth.service.test.ts
++++ b/apps/web/src/features/auth/services/mock-auth.service.test.ts
+@@ -1,5 +1,5 @@
+ import { beforeEach, describe, expect, it } from 'vitest';
+-import { LEGACY_ROLE_CODES, ROLE_PERMISSIONS } from '@blood/shared-types';
++import { LEGACY_ROLE_CODES, LEGACY_TO_ACTOR, ROLE_PERMISSIONS } from '@blood/shared-types';
+ import type { LegacyRoleCode } from '@blood/shared-types';
+ import { AUTH_ERROR_CODES } from '../auth-errors';
+ import {
+@@ -46,7 +46,9 @@ describe('MockAuthService', () => {
+         password: DEMO_PASSWORD,
+       });
+ 
+-      expect(user.permissions).toEqual([...ROLE_PERMISSIONS[role]]);
++      expect(user.permissions).toEqual([
++        ...ROLE_PERMISSIONS[LEGACY_TO_ACTOR[role]],
++      ]);
+       await service.logout();
+     }
+   });
+diff --git a/apps/web/src/features/auth/services/mock-auth.service.ts b/apps/web/src/features/auth/services/mock-auth.service.ts
+index 2ddd0bf..1948a91 100644
+--- a/apps/web/src/features/auth/services/mock-auth.service.ts
++++ b/apps/web/src/features/auth/services/mock-auth.service.ts
+@@ -1,4 +1,4 @@
+-import { ROLE_PERMISSIONS } from '@blood/shared-types';
++import { LEGACY_TO_ACTOR, ROLE_PERMISSIONS } from '@blood/shared-types';
+ import type { CurrentUser, LegacyRoleCode } from '@blood/shared-types';
+ import { ApiRequestError } from '@/services/api';
+ import { AUTH_ERROR_CODES } from '../auth-errors';
+@@ -153,7 +153,7 @@ const normalizeEmail = (value: string): string => value.trim().toLowerCase();
+ 
+ /** Permissions always come from the shared matrix — never re-declared here. */
+ const permissionsFor = (role: LegacyRoleCode): CurrentUser['permissions'] => [
+-  ...ROLE_PERMISSIONS[role],
++  ...ROLE_PERMISSIONS[LEGACY_TO_ACTOR[role]],
+ ];
+ 
+ const delay = (ms: number): Promise<void> =>
+diff --git a/docs/api/README.md b/docs/api/README.md
+index 20b07df..02b288c 100644
+--- a/docs/api/README.md
++++ b/docs/api/README.md
+@@ -84,38 +84,47 @@ Exposed as `MEASUREMENT_UNITS`. Screening test codes must come from
+ 
+ ## Roles, permissions and authorization
+ 
+-Exactly five roles (`ROLE_CODES`): `DONOR`, `RECEPTION_STAFF`, `MEDICAL_STAFF`,
+-`BLOOD_COLLECTION_STAFF`, `ADMIN`. The legacy codes `SCREENING_STAFF`,
+-`DOCTOR` (→ `MEDICAL_STAFF`) and `COORDINATOR` (→ `ADMIN`) are gone.
++Exactly four actor roles (`ROLE_CODES`): `DONOR`, `DONATION_STAFF`,
++`COORDINATOR`, `SYSTEM_ADMIN`. The legacy five-role codes `RECEPTION_STAFF`,
++`MEDICAL_STAFF`, `BLOOD_COLLECTION_STAFF` (→ merged into `DONATION_STAFF`) and
++`ADMIN` (→ renamed `SYSTEM_ADMIN`) are gone from the seed/guard/test surface;
++`COORDINATOR` is a new, standalone actor and is never merged into
++`SYSTEM_ADMIN`.
+ 
+ ### Permission ownership
+ 
+-Ownership follows the end-user workflow and keeps duties separate:
+-DONOR registers, RECEPTION_STAFF receives/checks in, MEDICAL_STAFF performs
+-pre-donation medicine, BLOOD_COLLECTION_STAFF collects blood and manages bags,
+-ADMIN administers everything. `ROLE_PERMISSIONS` in `@blood/shared-types` is the
+-single source of truth; `pnpm db:seed` converges the database on it.
+-
+-| Role                     | Responsibility                                                                                                 | Permissions |
+-| ------------------------ | -------------------------------------------------------------------------------------------------------------- | ----------- |
+-| `DONOR`                  | Register/reschedule/cancel own registration, health declaration, read own donation, certificate, reactions     | 15          |
+-| `RECEPTION_STAFF`        | Arrival: donor lookup, check-in, no-show, read health declaration                                              | 10          |
+-| `MEDICAL_STAFF`          | Screening measurements, tests, review and ELIGIBLE/INELIGIBLE/DEFERRED conclusion, read-only donation tracking | 14          |
+-| `BLOOD_COLLECTION_STAFF` | Donation start/complete/stop, blood bags, post-donation reactions, certificate issue, read screening result    | 18          |
+-| `ADMIN`                  | Everything (superset)                                                                                          | 53          |
++Ownership follows the task-assignment plan and keeps duties separate: DONOR
++registers/self-serves, DONATION_STAFF receives/screens/collects (the merge of
++the former reception, medical and blood-collection staff), COORDINATOR runs
++campaigns end-to-end (create/manage campaigns, schedules/quotas, staff
++assignment, progress/reporting), SYSTEM_ADMIN administers the system itself
++(accounts, roles/permissions, catalogues/configuration, audit log, system
++reporting). `ROLE_PERMISSIONS` in `@blood/shared-types` is the single source
++of truth; `pnpm db:seed` converges the database on it.
++
++| Role             | Responsibility                                                                                              | Permissions |
++| ---------------- | -------------------------------------------------------------------------------------------------------------| ----------- |
++| `DONOR`          | Register/reschedule/cancel own registration, health declaration, read own donation, certificate, reactions  | 15          |
++| `DONATION_STAFF` | Arrival check-in/no-show, screening measurements/tests/review, donation start/complete/stop, blood bags, post-donation reactions, certificate issue | 25 |
++| `COORDINATOR`    | Create/manage campaigns, set up time slots/quotas, assign/remove campaign staff, track progress and report  | 19          |
++| `SYSTEM_ADMIN`   | User accounts, roles/permissions, settings/catalogues, audit log, system reporting, certificate revoke       | 16          |
+ 
+ Separation rules that the backend enforces:
+ 
+-- MEDICAL_STAFF never starts, completes or stops a donation, never touches blood
+-  bags or reactions, and never issues/revokes certificates (it only reads them).
+-- BLOOD_COLLECTION_STAFF may read the screening result but has no
+-  `screening.review` / `screening.create` / `screening.update`, and may start a
+-  donation only when `Screening.status = ELIGIBLE`.
+-- `certificate.issue` belongs to BLOOD_COLLECTION_STAFF + ADMIN only;
+-  `certificate.revoke` is ADMIN-only.
+-- `reaction.create` belongs to BLOOD_COLLECTION_STAFF + ADMIN only.
+-- Every mutating permission has at most one non-admin owner; only shared reads
+-  (`*.read`) and `notification.read` are granted to several roles.
++- DONATION_STAFF owns the whole donor-facing operational flow, but has no
++  campaign/staff-assignment or system-administration permissions.
++- COORDINATOR may read campaign/registration data for reporting but has no
++  clinical permissions (`screening.*`, `donation.*`, `bloodbag.*`,
++  `reaction.*`, `certificate.*`).
++- `certificate.issue` belongs to DONATION_STAFF only; `certificate.revoke` is
++  SYSTEM_ADMIN-only (an administrative oversight action, deliberately kept
++  out of DONATION_STAFF and out of COORDINATOR).
++- `campaign.create`/`campaign_staff.assign` etc. belong to COORDINATOR only —
++  SYSTEM_ADMIN does **not** hold them, so COORDINATOR's job is never folded
++  into SYSTEM_ADMIN.
++- Every mutating permission has exactly one owner; only shared reads
++  (`campaign.read`, `timeslot.read`) and `notification.read` are granted to
++  several roles.
+ 
+ Authorization is **permission-based** at the action level:
+ 
+@@ -186,13 +195,12 @@ One account per role for FE integration, seeded automatically unless
+ `NODE_ENV=production`. Password is the same for all of them:
+ `Demo@Password1`.
+ 
+-| Role                   | Email                                                               |
+-| ---------------------- | ------------------------------------------------------------------- |
+-| DONOR                  | donor.demo@example.local                                            |
+-| RECEPTION_STAFF        | reception.demo@example.local                                        |
+-| MEDICAL_STAFF          | medical.demo@example.local                                          |
+-| BLOOD_COLLECTION_STAFF | collection.demo@example.local                                       |
+-| ADMIN                  | set via `ADMIN_EMAIL`/`ADMIN_PASSWORD` in `.env` — no fixed default |
++| Role             | Email                                                                |
++| ---------------- | --------------------------------------------------------------------- |
++| DONOR            | donor.demo@example.local                                            |
++| DONATION_STAFF   | donation-staff.demo@example.local                                   |
++| COORDINATOR      | coordinator.demo@example.local                                      |
++| SYSTEM_ADMIN     | set via `ADMIN_EMAIL`/`ADMIN_PASSWORD` in `.env` — no fixed default |
+ 
+ Auth endpoints (`login`, `refresh`, `logout`, `me`) are implemented — see
+ [Frontend contract](frontend-contract.md) for the full Auth surface. Other
+diff --git a/docs/api/frontend-contract.md b/docs/api/frontend-contract.md
+index 15ba39f..ee41f55 100644
+--- a/docs/api/frontend-contract.md
++++ b/docs/api/frontend-contract.md
+@@ -11,20 +11,20 @@ UTC.
+ 
+ ## Which role owns which endpoint group
+ 
+-| Role                     | Endpoint groups it can call                                                                                                                                                                     |
+-| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+-| `DONOR`                  | `GET /auth/me`, `GET/PATCH /auth/me`, own campaign/timeslot read, own registration create/reschedule/cancel, own declaration, own history/certificate/reactions read                            |
+-| `RECEPTION_STAFF`        | donor lookup (`GET /users`), `GET /registrations`, `POST /registrations/:id/check-in`, `POST /registrations/:id/no-show`, declaration read                                                      |
+-| `MEDICAL_STAFF`          | `GET /screenings/:id`, `POST /registrations/:id/screening`, `PATCH /screenings/:id`, `POST /screenings/:id/review`, read-only donation/reaction/certificate                                     |
+-| `BLOOD_COLLECTION_STAFF` | `POST /screenings/:id/donation`, `POST /donations/:id/complete`, `POST /donations/:id/stop`, blood-bag CRUD, `POST /donations/:id/reactions`, `POST /donations/:id/certificate`, screening read |
+-| `ADMIN`                  | everything above plus campaign/timeslot/campaign-staff/user/role/permission/notification/audit/setting/report and certificate revoke                                                            |
++| Role             | Endpoint groups it can call                                                                                                                                                                                               |
++| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
++| `DONOR`          | `GET /auth/me`, `GET/PATCH /auth/me`, own campaign/timeslot read, own registration create/reschedule/cancel, own declaration, own history/certificate/reactions read                                                    |
++| `DONATION_STAFF` | donor lookup (`GET /users`), `GET /registrations`, `POST /registrations/:id/check-in`, `POST /registrations/:id/no-show`, declaration read, `GET/POST/PATCH /screenings/:id`, `POST /screenings/:id/review`, `POST /screenings/:id/donation`, `POST /donations/:id/complete`, `POST /donations/:id/stop`, blood-bag CRUD, `POST /donations/:id/reactions`, `POST /donations/:id/certificate` |
++| `COORDINATOR`    | campaign CRUD + open/close/cancel, timeslot CRUD, campaign-staff assign/remove, registration read, report read/export                                                                                                   |
++| `SYSTEM_ADMIN`   | user/role/permission/setting/notification/audit/report, and certificate revoke                                                                                                                                          |
+ 
+ Hidden actions for the FE (do not render the button when the permission is
+ absent from `CurrentUser.permissions`):
+ 
+-- MEDICAL_STAFF: no "Bắt đầu hiến máu", "Hoàn tất", "Dừng", "Tạo túi máu", "Cấp chứng nhận", "Thu hồi chứng nhận".
+-- BLOOD_COLLECTION_STAFF: no "Kết luận sàng lọc".
+-- RECEPTION_STAFF: no screening, donation, blood-bag, reaction or certificate actions.
++- DONOR: no staff/coordinator/admin actions at all.
++- DONATION_STAFF: no campaign/timeslot/campaign-staff management, no user/role/permission/setting management, no "Thu hồi chứng nhận".
++- COORDINATOR: no screening, donation, blood-bag, reaction or certificate actions.
++- SYSTEM_ADMIN: no campaign/timeslot/campaign-staff or clinical donation actions — those stay with COORDINATOR and DONATION_STAFF.
+ 
+ ## Auth
+ 
+diff --git a/docs/database/README.md b/docs/database/README.md
+index 2d2c115..f943c2c 100644
+--- a/docs/database/README.md
++++ b/docs/database/README.md
+@@ -2,7 +2,7 @@
+ 
+ 23 model trong `apps/api/prisma/schema.prisma`; UUID và timestamp UTC cho từng model.
+ 
+-- User ↔ Role ↔ Permission qua UserRole và RolePermission; các cặp là duy nhất. Hệ thống chỉ dùng 5 role: DONOR, RECEPTION_STAFF, MEDICAL_STAFF, BLOOD_COLLECTION_STAFF, ADMIN.
++- User ↔ Role ↔ Permission qua UserRole và RolePermission; các cặp là duy nhất. Hệ thống chỉ dùng 4 role (actor): DONOR, DONATION_STAFF, COORDINATOR, SYSTEM_ADMIN.
+ - AuthSession là phiên refresh token (chỉ lưu `tokenHash`); PasswordResetToken lưu hash token đặt lại mật khẩu. Không có cột lưu token/mật khẩu dạng plain text.
+ - User 1–0..1 DonorProfile; DonorProfile 1–n Registration.
+ - Một Registration duy nhất cho mỗi người hiến/đợt. Đăng ký lại sau hủy sẽ tái sử dụng bản ghi; nếu yêu cầu nghiệp vụ thay đổi phải điều chỉnh constraint.
+diff --git a/docs/database/refinement.md b/docs/database/refinement.md
+index a171220..0a2fd24 100644
+--- a/docs/database/refinement.md
++++ b/docs/database/refinement.md
+@@ -160,7 +160,17 @@ Migration `20260919000000_phase1_rbac_and_auth_sessions`:
+ - Gộp role cũ sang mô hình 5 role: `SCREENING_STAFF` + `DOCTOR` → `MEDICAL_STAFF`; `COORDINATOR` → `ADMIN`. Bản ghi `UserRole` được trỏ lại role mới (bỏ trùng), sau đó role cũ bị xoá; `RolePermission` của role cũ bị xoá theo cascade.
+ - Tạo `AuthSession` (phiên refresh token) và `PasswordResetToken`. Cả hai chỉ lưu hash token (`tokenHash` unique), có `expiresAt`; `AuthSession` thêm `revokedAt`/`replacedById` cho rotation và thu hồi khi logout.
+ 
+-Mã role trong DB là chuỗi (không phải enum), vì vậy migration chỉ cần chuyển dữ liệu và xoá role cũ; `Role.code` tiếp tục unique. Không còn enum/role trùng lặp trong source: 5 role được định nghĩa duy nhất tại `ROLE_CODES` trong `@blood/shared-types`.
++Mã role trong DB là chuỗi (không phải enum), vì vậy migration chỉ cần chuyển dữ liệu và xoá role cũ; `Role.code` tiếp tục unique.
++
++## Phase 1 (tiếp) — mô hình 4 actor theo kế hoạch phân công nhiệm vụ
++
++Migration `20260924000000_phase1_actor_role_model` thay tiếp mô hình 5 role ở trên bằng 4 actor:
++`RECEPTION_STAFF` + `MEDICAL_STAFF` + `BLOOD_COLLECTION_STAFF` → `DONATION_STAFF`; `ADMIN` đổi tên
++thành `SYSTEM_ADMIN`; `COORDINATOR` được tạo mới như một actor độc lập (không gộp vào
++`SYSTEM_ADMIN`). Cùng cơ chế: `UserRole` được trỏ lại role mới, role cũ bị xoá, `RolePermission`
++xoá theo cascade rồi để `pnpm db:seed` đồng bộ lại theo `ROLE_PERMISSIONS`. Không còn enum/role
++trùng lặp trong source: 4 role được định nghĩa duy nhất tại `ROLE_CODES` (= `ACTOR_CODES`) trong
++`@blood/shared-types`.
+ 
+ ## Chưa triển khai
+ 
+diff --git a/packages/shared-types/src/index.ts b/packages/shared-types/src/index.ts
+index 227e19a..0c5d52b 100644
+--- a/packages/shared-types/src/index.ts
++++ b/packages/shared-types/src/index.ts
+@@ -48,8 +48,14 @@ export type AllRoleCode = (typeof ALL_ROLE_CODES)[number];
+ /** Compatibility type for consumers that accept both role generations. */
+ export type RoleCode = ActorCode | LegacyRoleCode;
+ 
+-/** Existing backend seed catalogue; new actors do not imply new grants. */
+-export const ROLE_CODES = LEGACY_ROLE_CODES;
++/**
++ * Backend seed catalogue. Phase 1 has completed the migration to the
++ * four-actor model: `ACTOR_CODES` is now the single source of truth for
++ * which roles actually exist (`Role` table, `ROLE_PERMISSIONS`, seed data).
++ * `LEGACY_ROLE_CODES` / `LEGACY_TO_ACTOR` remain only so older clients that
++ * still reference the five-role codes keep type-checking during rollout.
++ */
++export const ROLE_CODES = ACTOR_CODES;
+ 
+ /** Human-readable labels for new actor codes. */
+ export const ACTOR_NAMES: Readonly<Record<ActorCode, string>> = {
+@@ -150,10 +156,15 @@ export const PERMISSION_CODES = [
+ export type PermissionCode = (typeof PERMISSION_CODES)[number];
+ 
+ /**
+- * Role ownership follows the end-user workflow and keeps duties separate:
+- * DONOR registers, RECEPTION_STAFF receives/checks in, MEDICAL_STAFF performs
+- * pre-donation medicine, BLOOD_COLLECTION_STAFF collects blood and manages bags,
+- * ADMIN administers everything.
++ * Role ownership follows the four-actor task-assignment plan and keeps duties
++ * separate: DONOR registers and self-serves; DONATION_STAFF (reception +
++ * screening + collection, merged into one operational role) receives, screens
++ * and collects; COORDINATOR runs campaigns end-to-end (create/manage
++ * campaigns, set up schedules/quotas, assign staff, track progress and
++ * report); SYSTEM_ADMIN administers the system itself (accounts, roles &
++ * permissions, catalogues/configuration, audit log and system reporting).
++ * COORDINATOR is a real, standalone role — its duties are never folded into
++ * SYSTEM_ADMIN.
+  *
+  * `notification.read` is the only cross-cutting permission granted to every role.
+  */
+@@ -175,8 +186,16 @@ const DONOR_PERMISSIONS = [
+   'notification.read',
+ ] as const satisfies readonly PermissionCode[];
+ 
+-/** Reception owns arrival: lookup, check-in and no-show. No clinical actions. */
+-const RECEPTION_STAFF_PERMISSIONS = [
++/**
++ * Donation staff own the whole donor-facing operational flow: arrival
++ * (lookup, check-in, no-show), screening (measurements, tests, review and
++ * conclusion) and collection (starting/completing/stopping a donation,
++ * blood bags, post-donation reactions and certificate issuance). This is the
++ * merge of the former RECEPTION_STAFF, MEDICAL_STAFF and
++ * BLOOD_COLLECTION_STAFF legacy roles into one "Nhân viên tiếp nhận/Sàng lọc"
++ * actor, per the task-assignment plan.
++ */
++const DONATION_STAFF_PERMISSIONS = [
+   'auth.profile.read',
+   'auth.profile.update',
+   'campaign.read',
+@@ -186,66 +205,89 @@ const RECEPTION_STAFF_PERMISSIONS = [
+   'registration.mark_no_show',
+   'health_declaration.read',
+   'user.read',
+-  'notification.read',
+-] as const satisfies readonly PermissionCode[];
+-
+-/**
+- * Medical staff own pre-donation medicine only: screening and the clinical
+- * conclusion. They never start, complete or stop a donation, never handle blood
+- * bags, never record post-donation reactions and never issue/revoke certificates.
+- */
+-const MEDICAL_STAFF_PERMISSIONS = [
+-  'auth.profile.read',
+-  'auth.profile.update',
+-  'campaign.read',
+-  'timeslot.read',
+-  'registration.read',
+-  'health_declaration.read',
+   'screening.read',
+   'screening.create',
+   'screening.update',
+   'screening.review',
+   'donation.read',
++  'donation.start',
++  'donation.complete',
++  'donation.stop',
++  'bloodbag.read',
++  'bloodbag.create',
++  'bloodbag.update_status',
+   'reaction.read',
++  'reaction.create',
+   'certificate.read',
++  'certificate.issue',
+   'notification.read',
+ ] as const satisfies readonly PermissionCode[];
+ 
+ /**
+- * Collection staff own everything after an ELIGIBLE conclusion: the donation
+- * itself, blood bags, post-donation reactions and issuing the certificate.
+- * They can read the screening result but never review or conclude it.
++ * The coordinator runs campaigns end-to-end: create/update/open/close/cancel
++ * a campaign, set up its time slots and quotas, assign or remove staff on a
++ * campaign, and track progress via read access plus reporting. Never touches
++ * donor clinical data (screening, donation, blood bags) and never manages
++ * system accounts/roles — those stay with DONATION_STAFF and SYSTEM_ADMIN
++ * respectively.
+  */
+-const BLOOD_COLLECTION_STAFF_PERMISSIONS = [
++const COORDINATOR_PERMISSIONS = [
+   'auth.profile.read',
+   'auth.profile.update',
+   'campaign.read',
++  'campaign.create',
++  'campaign.update',
++  'campaign.open',
++  'campaign.close',
++  'campaign.cancel',
+   'timeslot.read',
++  'timeslot.create',
++  'timeslot.update',
++  'timeslot.deactivate',
++  'campaign_staff.read',
++  'campaign_staff.assign',
++  'campaign_staff.remove',
+   'registration.read',
+-  'screening.read',
+-  'donation.read',
+-  'donation.start',
+-  'donation.complete',
+-  'donation.stop',
+-  'bloodbag.read',
+-  'bloodbag.create',
+-  'bloodbag.update_status',
+-  'reaction.read',
+-  'reaction.create',
+-  'certificate.read',
+-  'certificate.issue',
++  'report.read',
++  'report.export',
++  'notification.read',
++] as const satisfies readonly PermissionCode[];
++
++/**
++ * The system admin administers the system itself, not donation operations:
++ * user accounts, roles/permissions, catalogues/configuration, audit log and
++ * system-wide reporting, plus the sensitive `certificate.revoke` oversight
++ * action. Deliberately does not own campaign, registration, screening or
++ * donation permissions — those belong to COORDINATOR and DONATION_STAFF, so
++ * the two roles are never merged.
++ */
++const SYSTEM_ADMIN_PERMISSIONS = [
++  'auth.profile.read',
++  'auth.profile.update',
++  'user.read',
++  'user.manage',
++  'role.read',
++  'role.manage',
++  'permission.read',
++  'permission.manage',
++  'audit.read',
++  'setting.read',
++  'setting.manage',
++  'report.read',
++  'report.export',
++  'certificate.revoke',
+   'notification.read',
++  'notification.manage',
+ ] as const satisfies readonly PermissionCode[];
+ 
+-/** ADMIN owns every permission; explicit so the matrix stays auditable. */
++/** The four-actor permission matrix; explicit so it stays auditable. */
+ export const ROLE_PERMISSIONS: Readonly<
+-  Record<LegacyRoleCode, readonly PermissionCode[]>
++  Record<ActorCode, readonly PermissionCode[]>
+ > = {
+   DONOR: DONOR_PERMISSIONS,
+-  RECEPTION_STAFF: RECEPTION_STAFF_PERMISSIONS,
+-  MEDICAL_STAFF: MEDICAL_STAFF_PERMISSIONS,
+-  BLOOD_COLLECTION_STAFF: BLOOD_COLLECTION_STAFF_PERMISSIONS,
+-  ADMIN: PERMISSION_CODES,
++  DONATION_STAFF: DONATION_STAFF_PERMISSIONS,
++  COORDINATOR: COORDINATOR_PERMISSIONS,
++  SYSTEM_ADMIN: SYSTEM_ADMIN_PERMISSIONS,
+ };
+ 
+ export const isRoleCode = (value: string): value is AllRoleCode =>

@@ -17,4 +17,4 @@ Unique `(screeningId, code)` giữ một kết quả hiện hành cho mỗi mã.
 
 ## Quyền sở hữu
 
-`screening.read`, `screening.create`, `screening.update`, `screening.review` thuộc **MEDICAL_STAFF** (và ADMIN). BLOOD_COLLECTION_STAFF chỉ có `screening.read` để biết donor đã ELIGIBLE; RECEPTION_STAFF không có quyền sàng lọc. MEDICAL_STAFF kết luận ELIGIBLE/INELIGIBLE/DEFERRED nhưng không thực hiện lấy máu.
+`screening.read`, `screening.create`, `screening.update`, `screening.review` thuộc **chỉ DONATION_STAFF**. DONOR không có quyền sàng lọc; COORDINATOR và SYSTEM_ADMIN cũng không. DONATION_STAFF kết luận ELIGIBLE/INELIGIBLE/DEFERRED và thực hiện lấy máu — hai bước này gộp vào cùng một role kể từ mô hình 4-actor.

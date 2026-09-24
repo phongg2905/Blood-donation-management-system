@@ -1,4 +1,4 @@
-import { ROLE_PERMISSIONS } from '@blood/shared-types';
+import { LEGACY_TO_ACTOR, ROLE_PERMISSIONS } from '@blood/shared-types';
 import type { CurrentUser, LegacyRoleCode } from '@blood/shared-types';
 import { ApiRequestError } from '@/services/api';
 import { AUTH_ERROR_CODES } from '../auth-errors';
@@ -153,7 +153,7 @@ const normalizeEmail = (value: string): string => value.trim().toLowerCase();
 
 /** Permissions always come from the shared matrix — never re-declared here. */
 const permissionsFor = (role: LegacyRoleCode): CurrentUser['permissions'] => [
-  ...ROLE_PERMISSIONS[role],
+  ...ROLE_PERMISSIONS[LEGACY_TO_ACTOR[role]],
 ];
 
 const delay = (ms: number): Promise<void> =>

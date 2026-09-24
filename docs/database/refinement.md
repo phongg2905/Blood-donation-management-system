@@ -160,7 +160,17 @@ Migration `20260919000000_phase1_rbac_and_auth_sessions`:
 - Gộp role cũ sang mô hình 5 role: `SCREENING_STAFF` + `DOCTOR` → `MEDICAL_STAFF`; `COORDINATOR` → `ADMIN`. Bản ghi `UserRole` được trỏ lại role mới (bỏ trùng), sau đó role cũ bị xoá; `RolePermission` của role cũ bị xoá theo cascade.
 - Tạo `AuthSession` (phiên refresh token) và `PasswordResetToken`. Cả hai chỉ lưu hash token (`tokenHash` unique), có `expiresAt`; `AuthSession` thêm `revokedAt`/`replacedById` cho rotation và thu hồi khi logout.
 
-Mã role trong DB là chuỗi (không phải enum), vì vậy migration chỉ cần chuyển dữ liệu và xoá role cũ; `Role.code` tiếp tục unique. Không còn enum/role trùng lặp trong source: 5 role được định nghĩa duy nhất tại `ROLE_CODES` trong `@blood/shared-types`.
+Mã role trong DB là chuỗi (không phải enum), vì vậy migration chỉ cần chuyển dữ liệu và xoá role cũ; `Role.code` tiếp tục unique.
+
+## Phase 1 (tiếp) — mô hình 4 actor theo kế hoạch phân công nhiệm vụ
+
+Migration `20260924000000_phase1_actor_role_model` thay tiếp mô hình 5 role ở trên bằng 4 actor:
+`RECEPTION_STAFF` + `MEDICAL_STAFF` + `BLOOD_COLLECTION_STAFF` → `DONATION_STAFF`; `ADMIN` đổi tên
+thành `SYSTEM_ADMIN`; `COORDINATOR` được tạo mới như một actor độc lập (không gộp vào
+`SYSTEM_ADMIN`). Cùng cơ chế: `UserRole` được trỏ lại role mới, role cũ bị xoá, `RolePermission`
+xoá theo cascade rồi để `pnpm db:seed` đồng bộ lại theo `ROLE_PERMISSIONS`. Không còn enum/role
+trùng lặp trong source: 4 role được định nghĩa duy nhất tại `ROLE_CODES` (= `ACTOR_CODES`) trong
+`@blood/shared-types`.
 
 ## Chưa triển khai
 

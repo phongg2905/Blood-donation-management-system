@@ -84,38 +84,47 @@ Exposed as `MEASUREMENT_UNITS`. Screening test codes must come from
 
 ## Roles, permissions and authorization
 
-Exactly five roles (`ROLE_CODES`): `DONOR`, `RECEPTION_STAFF`, `MEDICAL_STAFF`,
-`BLOOD_COLLECTION_STAFF`, `ADMIN`. The legacy codes `SCREENING_STAFF`,
-`DOCTOR` (→ `MEDICAL_STAFF`) and `COORDINATOR` (→ `ADMIN`) are gone.
+Exactly four actor roles (`ROLE_CODES`): `DONOR`, `DONATION_STAFF`,
+`COORDINATOR`, `SYSTEM_ADMIN`. The legacy five-role codes `RECEPTION_STAFF`,
+`MEDICAL_STAFF`, `BLOOD_COLLECTION_STAFF` (→ merged into `DONATION_STAFF`) and
+`ADMIN` (→ renamed `SYSTEM_ADMIN`) are gone from the seed/guard/test surface;
+`COORDINATOR` is a new, standalone actor and is never merged into
+`SYSTEM_ADMIN`.
 
 ### Permission ownership
 
-Ownership follows the end-user workflow and keeps duties separate:
-DONOR registers, RECEPTION_STAFF receives/checks in, MEDICAL_STAFF performs
-pre-donation medicine, BLOOD_COLLECTION_STAFF collects blood and manages bags,
-ADMIN administers everything. `ROLE_PERMISSIONS` in `@blood/shared-types` is the
-single source of truth; `pnpm db:seed` converges the database on it.
+Ownership follows the task-assignment plan and keeps duties separate: DONOR
+registers/self-serves, DONATION_STAFF receives/screens/collects (the merge of
+the former reception, medical and blood-collection staff), COORDINATOR runs
+campaigns end-to-end (create/manage campaigns, schedules/quotas, staff
+assignment, progress/reporting), SYSTEM_ADMIN administers the system itself
+(accounts, roles/permissions, catalogues/configuration, audit log, system
+reporting). `ROLE_PERMISSIONS` in `@blood/shared-types` is the single source
+of truth; `pnpm db:seed` converges the database on it.
 
-| Role                     | Responsibility                                                                                                 | Permissions |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------- | ----------- |
-| `DONOR`                  | Register/reschedule/cancel own registration, health declaration, read own donation, certificate, reactions     | 15          |
-| `RECEPTION_STAFF`        | Arrival: donor lookup, check-in, no-show, read health declaration                                              | 10          |
-| `MEDICAL_STAFF`          | Screening measurements, tests, review and ELIGIBLE/INELIGIBLE/DEFERRED conclusion, read-only donation tracking | 14          |
-| `BLOOD_COLLECTION_STAFF` | Donation start/complete/stop, blood bags, post-donation reactions, certificate issue, read screening result    | 18          |
-| `ADMIN`                  | Everything (superset)                                                                                          | 53          |
+| Role             | Responsibility                                                                                              | Permissions |
+| ---------------- | -------------------------------------------------------------------------------------------------------------| ----------- |
+| `DONOR`          | Register/reschedule/cancel own registration, health declaration, read own donation, certificate, reactions  | 15          |
+| `DONATION_STAFF` | Arrival check-in/no-show, screening measurements/tests/review, donation start/complete/stop, blood bags, post-donation reactions, certificate issue | 25 |
+| `COORDINATOR`    | Create/manage campaigns, set up time slots/quotas, assign/remove campaign staff, track progress and report  | 19          |
+| `SYSTEM_ADMIN`   | User accounts, roles/permissions, settings/catalogues, audit log, system reporting, certificate revoke       | 16          |
 
 Separation rules that the backend enforces:
 
-- MEDICAL_STAFF never starts, completes or stops a donation, never touches blood
-  bags or reactions, and never issues/revokes certificates (it only reads them).
-- BLOOD_COLLECTION_STAFF may read the screening result but has no
-  `screening.review` / `screening.create` / `screening.update`, and may start a
-  donation only when `Screening.status = ELIGIBLE`.
-- `certificate.issue` belongs to BLOOD_COLLECTION_STAFF + ADMIN only;
-  `certificate.revoke` is ADMIN-only.
-- `reaction.create` belongs to BLOOD_COLLECTION_STAFF + ADMIN only.
-- Every mutating permission has at most one non-admin owner; only shared reads
-  (`*.read`) and `notification.read` are granted to several roles.
+- DONATION_STAFF owns the whole donor-facing operational flow, but has no
+  campaign/staff-assignment or system-administration permissions.
+- COORDINATOR may read campaign/registration data for reporting but has no
+  clinical permissions (`screening.*`, `donation.*`, `bloodbag.*`,
+  `reaction.*`, `certificate.*`).
+- `certificate.issue` belongs to DONATION_STAFF only; `certificate.revoke` is
+  SYSTEM_ADMIN-only (an administrative oversight action, deliberately kept
+  out of DONATION_STAFF and out of COORDINATOR).
+- `campaign.create`/`campaign_staff.assign` etc. belong to COORDINATOR only —
+  SYSTEM_ADMIN does **not** hold them, so COORDINATOR's job is never folded
+  into SYSTEM_ADMIN.
+- Every mutating permission has exactly one owner; only shared reads
+  (`campaign.read`, `timeslot.read`) and `notification.read` are granted to
+  several roles.
 
 Authorization is **permission-based** at the action level:
 
@@ -186,13 +195,12 @@ One account per role for FE integration, seeded automatically unless
 `NODE_ENV=production`. Password is the same for all of them:
 `Demo@Password1`.
 
-| Role                   | Email                                                               |
-| ---------------------- | ------------------------------------------------------------------- |
-| DONOR                  | donor.demo@example.local                                            |
-| RECEPTION_STAFF        | reception.demo@example.local                                        |
-| MEDICAL_STAFF          | medical.demo@example.local                                          |
-| BLOOD_COLLECTION_STAFF | collection.demo@example.local                                       |
-| ADMIN                  | set via `ADMIN_EMAIL`/`ADMIN_PASSWORD` in `.env` — no fixed default |
+| Role             | Email                                                                |
+| ---------------- | --------------------------------------------------------------------- |
+| DONOR            | donor.demo@example.local                                            |
+| DONATION_STAFF   | donation-staff.demo@example.local                                   |
+| COORDINATOR      | coordinator.demo@example.local                                      |
+| SYSTEM_ADMIN     | set via `ADMIN_EMAIL`/`ADMIN_PASSWORD` in `.env` — no fixed default |
 
 Auth endpoints (`login`, `refresh`, `logout`, `me`) are implemented — see
 [Frontend contract](frontend-contract.md) for the full Auth surface. Other

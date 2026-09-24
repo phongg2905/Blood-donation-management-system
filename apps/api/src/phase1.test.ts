@@ -11,8 +11,8 @@ import {
   canTransition,
   isPermissionCode,
   isRoleCode,
+  type ActorCode,
   type PermissionCode,
-  type RoleCode,
 } from '@blood/shared-types';
 import { AppError } from './common/errors/app.error';
 import {
@@ -89,11 +89,11 @@ function throwsCode(run: () => unknown, code: string): void {
   assert.throws(run, (error: unknown) => codeOf(error) === code);
 }
 
-const has = (role: RoleCode, permission: PermissionCode): boolean =>
+const has = (role: ActorCode, permission: PermissionCode): boolean =>
   (ROLE_PERMISSIONS[role] as readonly string[]).includes(permission);
 
 /** Roles holding a permission, in ROLE_CODES order. */
-const rolesWith = (permission: PermissionCode): RoleCode[] =>
+const rolesWith = (permission: PermissionCode): ActorCode[] =>
   ROLE_CODES.filter((role) => has(role, permission));
 
 const start = new Date('2030-01-01T08:00:00Z');
@@ -103,19 +103,13 @@ const end = new Date('2030-01-01T12:00:00Z');
 /* 1. Roles and permissions                                                   */
 /* -------------------------------------------------------------------------- */
 
-test('the system exposes exactly five roles and no legacy role codes', () => {
+test('the system exposes exactly the four actor roles', () => {
   assert.deepEqual(
     [...ROLE_CODES],
-    [
-      'DONOR',
-      'RECEPTION_STAFF',
-      'MEDICAL_STAFF',
-      'BLOOD_COLLECTION_STAFF',
-      'ADMIN',
-    ],
+    ['DONOR', 'DONATION_STAFF', 'COORDINATOR', 'SYSTEM_ADMIN'],
   );
-  for (const legacy of ['SCREENING_STAFF', 'DOCTOR', 'COORDINATOR']) {
-    assert.equal(isRoleCode(legacy), false, `${legacy} must not be a role`);
+  for (const unknown of ['SCREENING_STAFF', 'DOCTOR']) {
+    assert.equal(isRoleCode(unknown), false, `${unknown} must not be a role`);
   }
 });
 
@@ -141,16 +135,6 @@ test('role-permission mapping is complete, valid and distinct', () => {
     assert.equal(assigned.has(permission), true, `${permission} is unassigned`);
   }
 
-  // ADMIN is the superset and keeps every permission.
-  assert.equal(ROLE_PERMISSIONS.ADMIN.length, PERMISSION_CODES.length);
-  for (const permission of PERMISSION_CODES) {
-    assert.equal(
-      ROLE_PERMISSIONS.ADMIN.includes(permission),
-      true,
-      `ADMIN must own ${permission}`,
-    );
-  }
-
   // No duplicate entries inside a role.
   for (const role of ROLE_CODES) {
     assert.equal(
@@ -167,120 +151,136 @@ test('role-permission mapping is complete, valid and distinct', () => {
   assert.equal(has('DONOR', 'health_declaration.update'), true);
   assert.equal(has('DONOR', 'user.manage'), false);
   assert.equal(has('DONOR', 'registration.checkin'), false);
-  assert.equal(has('DONOR', 'screening.read'), false);
-  assert.equal(has('DONOR', 'donation.start'), false);
+  assert.equal(has('DONOR', 'campaign.create'), false);
 
-  // MEDICAL_STAFF: pre-donation medicine only.
-  assert.equal(has('MEDICAL_STAFF', 'screening.read'), true);
-  assert.equal(has('MEDICAL_STAFF', 'screening.create'), true);
-  assert.equal(has('MEDICAL_STAFF', 'screening.update'), true);
-  assert.equal(has('MEDICAL_STAFF', 'screening.review'), true);
-  assert.equal(has('MEDICAL_STAFF', 'health_declaration.read'), true);
-  assert.equal(has('MEDICAL_STAFF', 'donation.read'), true);
-  assert.equal(has('MEDICAL_STAFF', 'reaction.read'), true);
-  assert.equal(has('MEDICAL_STAFF', 'certificate.read'), true);
-  for (const removed of [
-    'donation.start',
-    'donation.complete',
-    'donation.stop',
-    'bloodbag.create',
-    'bloodbag.update_status',
-    'reaction.create',
-    'certificate.issue',
-    'certificate.revoke',
+  // DONATION_STAFF: reception + screening + collection, merged.
+  for (const owned of [
     'registration.checkin',
     'registration.mark_no_show',
-    'health_declaration.update',
-  ] as const) {
-    assert.equal(
-      has('MEDICAL_STAFF', removed),
-      false,
-      `MEDICAL_STAFF must not own ${removed}`,
-    );
-  }
-
-  // BLOOD_COLLECTION_STAFF: everything after an ELIGIBLE conclusion.
-  for (const owned of [
     'screening.read',
-    'donation.read',
+    'screening.create',
+    'screening.update',
+    'screening.review',
     'donation.start',
     'donation.complete',
     'donation.stop',
     'bloodbag.read',
     'bloodbag.create',
     'bloodbag.update_status',
-    'reaction.read',
     'reaction.create',
-    'certificate.read',
     'certificate.issue',
   ] as const) {
     assert.equal(
-      has('BLOOD_COLLECTION_STAFF', owned),
+      has('DONATION_STAFF', owned),
       true,
-      `BLOOD_COLLECTION_STAFF must own ${owned}`,
+      `DONATION_STAFF must own ${owned}`,
     );
   }
-  assert.equal(has('BLOOD_COLLECTION_STAFF', 'screening.review'), false);
-  assert.equal(has('BLOOD_COLLECTION_STAFF', 'screening.create'), false);
-  assert.equal(has('BLOOD_COLLECTION_STAFF', 'screening.update'), false);
-  assert.equal(has('BLOOD_COLLECTION_STAFF', 'certificate.revoke'), false);
-  assert.equal(has('BLOOD_COLLECTION_STAFF', 'registration.checkin'), false);
+  for (const removed of [
+    'certificate.revoke',
+    'campaign.create',
+    'campaign_staff.assign',
+    'user.manage',
+  ] as const) {
+    assert.equal(
+      has('DONATION_STAFF', removed),
+      false,
+      `DONATION_STAFF must not own ${removed}`,
+    );
+  }
 
-  // RECEPTION_STAFF: arrival only.
-  assert.equal(has('RECEPTION_STAFF', 'registration.read'), true);
-  assert.equal(has('RECEPTION_STAFF', 'registration.checkin'), true);
-  assert.equal(has('RECEPTION_STAFF', 'registration.mark_no_show'), true);
-  assert.equal(has('RECEPTION_STAFF', 'health_declaration.read'), true);
-  assert.equal(has('RECEPTION_STAFF', 'registration.create'), false);
-  assert.equal(has('RECEPTION_STAFF', 'screening.review'), false);
-  assert.equal(has('RECEPTION_STAFF', 'screening.create'), false);
-  assert.equal(has('RECEPTION_STAFF', 'donation.start'), false);
-  assert.equal(has('RECEPTION_STAFF', 'bloodbag.create'), false);
-  assert.equal(has('RECEPTION_STAFF', 'bloodbag.update_status'), false);
-  assert.equal(has('RECEPTION_STAFF', 'reaction.create'), false);
-  assert.equal(has('RECEPTION_STAFF', 'certificate.issue'), false);
-  assert.equal(has('RECEPTION_STAFF', 'certificate.revoke'), false);
+  // COORDINATOR: runs campaigns end-to-end, no clinical/system duties.
+  for (const owned of [
+    'campaign.create',
+    'campaign.update',
+    'campaign.open',
+    'campaign.close',
+    'campaign.cancel',
+    'timeslot.create',
+    'timeslot.update',
+    'timeslot.deactivate',
+    'campaign_staff.read',
+    'campaign_staff.assign',
+    'campaign_staff.remove',
+    'report.read',
+    'report.export',
+  ] as const) {
+    assert.equal(
+      has('COORDINATOR', owned),
+      true,
+      `COORDINATOR must own ${owned}`,
+    );
+  }
+  for (const removed of [
+    'screening.review',
+    'donation.start',
+    'bloodbag.create',
+    'certificate.issue',
+    'user.manage',
+    'role.manage',
+  ] as const) {
+    assert.equal(
+      has('COORDINATOR', removed),
+      false,
+      `COORDINATOR must not own ${removed}`,
+    );
+  }
+
+  // SYSTEM_ADMIN: system administration only — never merges COORDINATOR's job.
+  for (const owned of [
+    'user.manage',
+    'role.manage',
+    'permission.manage',
+    'audit.read',
+    'setting.manage',
+    'certificate.revoke',
+    'report.read',
+    'report.export',
+  ] as const) {
+    assert.equal(
+      has('SYSTEM_ADMIN', owned),
+      true,
+      `SYSTEM_ADMIN must own ${owned}`,
+    );
+  }
+  for (const removed of [
+    'campaign.create',
+    'campaign.update',
+    'campaign_staff.assign',
+    'timeslot.create',
+    'screening.review',
+    'donation.start',
+    'bloodbag.create',
+    'certificate.issue',
+    'registration.checkin',
+  ] as const) {
+    assert.equal(
+      has('SYSTEM_ADMIN', removed),
+      false,
+      `SYSTEM_ADMIN must not own ${removed} — that belongs to COORDINATOR/DONATION_STAFF`,
+    );
+  }
 });
 
 test('sensitive permissions are owned by exactly the right operational role', () => {
-  assert.deepEqual(rolesWith('certificate.revoke'), ['ADMIN']);
-  assert.deepEqual(rolesWith('certificate.issue'), [
-    'BLOOD_COLLECTION_STAFF',
-    'ADMIN',
-  ]);
-  assert.deepEqual(rolesWith('certificate.read'), [
-    'DONOR',
-    'MEDICAL_STAFF',
-    'BLOOD_COLLECTION_STAFF',
-    'ADMIN',
-  ]);
-  assert.deepEqual(rolesWith('reaction.create'), [
-    'BLOOD_COLLECTION_STAFF',
-    'ADMIN',
-  ]);
-  assert.deepEqual(rolesWith('reaction.read'), [
-    'DONOR',
-    'MEDICAL_STAFF',
-    'BLOOD_COLLECTION_STAFF',
-    'ADMIN',
-  ]);
-  assert.deepEqual(rolesWith('screening.review'), ['MEDICAL_STAFF', 'ADMIN']);
-  assert.deepEqual(rolesWith('donation.start'), [
-    'BLOOD_COLLECTION_STAFF',
-    'ADMIN',
-  ]);
-  assert.deepEqual(rolesWith('bloodbag.create'), [
-    'BLOOD_COLLECTION_STAFF',
-    'ADMIN',
-  ]);
-  assert.deepEqual(rolesWith('registration.checkin'), [
-    'RECEPTION_STAFF',
-    'ADMIN',
-  ]);
-  assert.deepEqual(rolesWith('health_declaration.create'), ['DONOR', 'ADMIN']);
-  assert.deepEqual(rolesWith('registration.create'), ['DONOR', 'ADMIN']);
+  assert.deepEqual(rolesWith('certificate.revoke'), ['SYSTEM_ADMIN']);
+  assert.deepEqual(rolesWith('certificate.issue'), ['DONATION_STAFF']);
+  assert.deepEqual(rolesWith('certificate.read'), ['DONOR', 'DONATION_STAFF']);
+  assert.deepEqual(rolesWith('reaction.create'), ['DONATION_STAFF']);
+  assert.deepEqual(rolesWith('reaction.read'), ['DONOR', 'DONATION_STAFF']);
+  assert.deepEqual(rolesWith('screening.review'), ['DONATION_STAFF']);
+  assert.deepEqual(rolesWith('donation.start'), ['DONATION_STAFF']);
+  assert.deepEqual(rolesWith('bloodbag.create'), ['DONATION_STAFF']);
+  assert.deepEqual(rolesWith('registration.checkin'), ['DONATION_STAFF']);
+  assert.deepEqual(rolesWith('health_declaration.create'), ['DONOR']);
+  assert.deepEqual(rolesWith('registration.create'), ['DONOR']);
+  assert.deepEqual(rolesWith('campaign.create'), ['COORDINATOR']);
+  assert.deepEqual(rolesWith('campaign_staff.assign'), ['COORDINATOR']);
+  assert.deepEqual(rolesWith('user.manage'), ['SYSTEM_ADMIN']);
+  assert.deepEqual(rolesWith('role.manage'), ['SYSTEM_ADMIN']);
 
-  // No mutating duty is shared by two non-admin roles.
+  // Every mutating duty is owned by exactly one role — COORDINATOR and
+  // SYSTEM_ADMIN are never merged, and no two roles share a write action.
   const duties: PermissionCode[] = [
     'registration.create',
     'registration.reschedule',
@@ -300,36 +300,45 @@ test('sensitive permissions are owned by exactly the right operational role', ()
     'reaction.create',
     'certificate.issue',
     'certificate.revoke',
+    'campaign.create',
+    'campaign.update',
+    'campaign.open',
+    'campaign.close',
+    'campaign.cancel',
+    'timeslot.create',
+    'timeslot.update',
+    'timeslot.deactivate',
+    'campaign_staff.assign',
+    'campaign_staff.remove',
+    'user.manage',
+    'role.manage',
+    'permission.manage',
+    'setting.manage',
   ];
   for (const permission of duties) {
-    const owners = rolesWith(permission).filter((role) => role !== 'ADMIN');
-    assert.ok(
-      owners.length <= 1,
-      `${permission} is owned by multiple non-admin roles: ${owners.join(', ')}`,
+    const owners = rolesWith(permission);
+    assert.equal(
+      owners.length,
+      1,
+      `${permission} must be owned by exactly one role, got: ${owners.join(', ')}`,
     );
   }
   // Shared *read* access stays available to every party that needs it.
-  for (const permission of [
-    'campaign.read',
-    'timeslot.read',
-    'registration.read',
-    'screening.read',
-    'donation.read',
-  ] as const) {
+  for (const permission of ['campaign.read', 'timeslot.read'] as const) {
     assert.ok(
-      rolesWith(permission).filter((role) => role !== 'ADMIN').length >= 2,
-      `${permission} should stay readable across staff roles`,
+      rolesWith(permission).length >= 2,
+      `${permission} should stay readable across multiple roles`,
     );
   }
 });
 
-test('collection staff own the donation chain, gated by an ELIGIBLE screening', () => {
-  const collectionOwnsDonation = rolesWith('donation.start');
-  assert.deepEqual(collectionOwnsDonation, ['BLOOD_COLLECTION_STAFF', 'ADMIN']);
+test('donation staff own the donation chain, gated by an ELIGIBLE screening', () => {
+  const donationStaffOwnsDonation = rolesWith('donation.start');
+  assert.deepEqual(donationStaffOwnsDonation, ['DONATION_STAFF']);
   assert.equal(
-    rolesWith('screening.review').includes('BLOOD_COLLECTION_STAFF'),
+    rolesWith('screening.review').includes('COORDINATOR'),
     false,
-    'collection staff must not conclude screening',
+    'coordinator must not conclude screening',
   );
 
   // An ELIGIBLE conclusion is the mandatory gate before starting a donation.

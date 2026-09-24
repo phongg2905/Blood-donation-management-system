@@ -15,5 +15,5 @@ Phase 2 ghi audit `DONATION_STARTED`, `DONATION_COMPLETED`, `DONATION_STOPPED`.
 
 ## Quyền sở hữu
 
-`donation.start`, `donation.complete`, `donation.stop` thuộc **BLOOD_COLLECTION_STAFF** (và ADMIN). MEDICAL_STAFF chỉ có `donation.read` để theo dõi; RECEPTION_STAFF chỉ có `registration.read` và không thao tác donation.
-BLOOD_COLLECTION_STAFF chỉ bắt đầu được khi `Screening.status = ELIGIBLE` (`assertCanStartDonation`) và không có `screening.review`.
+`donation.start`, `donation.complete`, `donation.stop` thuộc **chỉ DONATION_STAFF**. COORDINATOR chỉ có `donation.read`-cấp báo cáo gián tiếp qua `report.read`, không thao tác donation trực tiếp.
+DONATION_STAFF chỉ bắt đầu được khi `Screening.status = ELIGIBLE` (`assertCanStartDonation`).

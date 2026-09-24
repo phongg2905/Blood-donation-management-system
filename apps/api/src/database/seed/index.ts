@@ -9,8 +9,9 @@ import { database } from '../../config/database';
 import { env } from '../../config/env';
 
 /**
- * Idempotent Phase 1 seed: five roles, the permission catalogue, the
- * role-permission matrix and an optional initial admin account.
+ * Idempotent Phase 1 seed: the four actor roles (DONOR, DONATION_STAFF,
+ * COORDINATOR, SYSTEM_ADMIN), the permission catalogue, the role-permission
+ * matrix and an optional initial system-admin account.
  *
  * Safe to run repeatedly. No credential is hard-coded: the admin password comes
  * from ADMIN_PASSWORD and is stored only as a scrypt hash.
@@ -116,9 +117,9 @@ async function seedAdmin(): Promise<void> {
   });
 
   const adminRole = await database.role.findUnique({
-    where: { code: 'ADMIN' },
+    where: { code: 'SYSTEM_ADMIN' },
   });
-  if (!adminRole) throw new Error('Seed failed: ADMIN role is missing');
+  if (!adminRole) throw new Error('Seed failed: SYSTEM_ADMIN role is missing');
 
   await database.userRole.upsert({
     where: { userId_roleId: { userId: user.id, roleId: adminRole.id } },
@@ -129,8 +130,8 @@ async function seedAdmin(): Promise<void> {
 }
 
 /**
- * One demo account per non-ADMIN role, fixed email/password, so FE can test
- * every permission set without waiting on `register` (DONOR only) or a
+ * One demo account per non-SYSTEM_ADMIN role, fixed email/password, so FE can
+ * test every permission set without waiting on `register` (DONOR only) or a
  * staff-provisioning API (doesn't exist until Phase 8). Idempotent, and
  * skipped entirely in production — these credentials are public in this
  * source file and in `docs/api/README.md`.
@@ -139,19 +140,14 @@ const DEMO_PASSWORD = 'Demo@Password1';
 const DEMO_ACCOUNTS = [
   { role: 'DONOR', email: 'donor.demo@example.local', fullName: 'Donor Demo' },
   {
-    role: 'RECEPTION_STAFF',
-    email: 'reception.demo@example.local',
-    fullName: 'Reception Staff Demo',
+    role: 'DONATION_STAFF',
+    email: 'donation-staff.demo@example.local',
+    fullName: 'Donation Staff Demo',
   },
   {
-    role: 'MEDICAL_STAFF',
-    email: 'medical.demo@example.local',
-    fullName: 'Medical Staff Demo',
-  },
-  {
-    role: 'BLOOD_COLLECTION_STAFF',
-    email: 'collection.demo@example.local',
-    fullName: 'Blood Collection Staff Demo',
+    role: 'COORDINATOR',
+    email: 'coordinator.demo@example.local',
+    fullName: 'Coordinator Demo',
   },
 ] as const;
 

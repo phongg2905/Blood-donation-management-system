@@ -2,7 +2,7 @@
 
 23 model trong `apps/api/prisma/schema.prisma`; UUID và timestamp UTC cho từng model.
 
-- User ↔ Role ↔ Permission qua UserRole và RolePermission; các cặp là duy nhất. Hệ thống chỉ dùng 5 role: DONOR, RECEPTION_STAFF, MEDICAL_STAFF, BLOOD_COLLECTION_STAFF, ADMIN.
+- User ↔ Role ↔ Permission qua UserRole và RolePermission; các cặp là duy nhất. Hệ thống chỉ dùng 4 role (actor): DONOR, DONATION_STAFF, COORDINATOR, SYSTEM_ADMIN.
 - AuthSession là phiên refresh token (chỉ lưu `tokenHash`); PasswordResetToken lưu hash token đặt lại mật khẩu. Không có cột lưu token/mật khẩu dạng plain text.
 - User 1–0..1 DonorProfile; DonorProfile 1–n Registration.
 - Một Registration duy nhất cho mỗi người hiến/đợt. Đăng ký lại sau hủy sẽ tái sử dụng bản ghi; nếu yêu cầu nghiệp vụ thay đổi phải điều chỉnh constraint.

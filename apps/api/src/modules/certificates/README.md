@@ -12,8 +12,8 @@ Thu hồi ghi `status = REVOKED`, `revokedAt`, `revokeReason` trong cùng transa
 
 ## Quyền sở hữu
 
-- `certificate.read`: DONOR, MEDICAL_STAFF, BLOOD_COLLECTION_STAFF, ADMIN.
-- `certificate.issue`: BLOOD_COLLECTION_STAFF, ADMIN — nhân viên lấy máu là role hoàn tất nghiệp vụ donation nên cấp chứng nhận.
-- `certificate.revoke`: **chỉ ADMIN** vì đây là hành động quản trị nhạy cảm.
+- `certificate.read`: DONOR, DONATION_STAFF.
+- `certificate.issue`: **chỉ DONATION_STAFF** — role hoàn tất nghiệp vụ donation nên cấp chứng nhận.
+- `certificate.revoke`: **chỉ SYSTEM_ADMIN** vì đây là hành động quản trị nhạy cảm, tách khỏi nghiệp vụ hiến máu.
 
-MEDICAL_STAFF không cấp/thu hồi chứng nhận; RECEPTION_STAFF không có quyền chứng nhận nào.
+COORDINATOR không có quyền chứng nhận nào (không quản lý nghiệp vụ hiến máu trực tiếp).

@@ -11,5 +11,5 @@ Túi máu luôn gắn với một Donation; cấp chứng nhận thuộc Donatio
 
 ## Quyền sở hữu
 
-`bloodbag.read`, `bloodbag.create`, `bloodbag.update_status` thuộc **BLOOD_COLLECTION_STAFF** (và ADMIN). MEDICAL_STAFF và RECEPTION_STAFF không có quyền túi máu.
+`bloodbag.read`, `bloodbag.create`, `bloodbag.update_status` thuộc **chỉ DONATION_STAFF**. DONOR, COORDINATOR và SYSTEM_ADMIN không có quyền túi máu.
 Phase 2 sẽ gọi `assertBagVolumesReconcile` trong transaction khi ghi nhận túi và ghi audit `BLOOD_BAG_CREATED` / `BLOOD_BAG_STATUS_CHANGED`.

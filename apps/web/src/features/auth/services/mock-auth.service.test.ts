@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { LEGACY_ROLE_CODES, ROLE_PERMISSIONS } from '@blood/shared-types';
+import { LEGACY_ROLE_CODES, LEGACY_TO_ACTOR, ROLE_PERMISSIONS } from '@blood/shared-types';
 import type { LegacyRoleCode } from '@blood/shared-types';
 import { AUTH_ERROR_CODES } from '../auth-errors';
 import {
@@ -46,7 +46,9 @@ describe('MockAuthService', () => {
         password: DEMO_PASSWORD,
       });
 
-      expect(user.permissions).toEqual([...ROLE_PERMISSIONS[role]]);
+      expect(user.permissions).toEqual([
+        ...ROLE_PERMISSIONS[LEGACY_TO_ACTOR[role]],
+      ]);
       await service.logout();
     }
   });

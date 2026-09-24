@@ -9,4 +9,4 @@ Phase 1 đã có rule (chưa có HTTP CRUD).
 
 Phase 2 ghi audit `REGISTRATION_CHECKED_IN`.
 
-`registration.checkin` và `registration.mark_no_show` chỉ thuộc **RECEPTION_STAFF** (và ADMIN). MEDICAL_STAFF và BLOOD_COLLECTION_STAFF không check-in.
+`registration.checkin` và `registration.mark_no_show` chỉ thuộc **DONATION_STAFF**. DONOR, COORDINATOR và SYSTEM_ADMIN không check-in.
