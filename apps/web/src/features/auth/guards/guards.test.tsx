@@ -109,7 +109,7 @@ describe('PermissionGuard', () => {
     expect(await screen.findByText('nội-dung-có-quyền')).toBeInTheDocument();
   });
 
-  it('never lets MEDICAL_STAFF start a donation', async () => {
+  it('lets DONATION_STAFF (merged from MEDICAL_STAFF) start a donation', async () => {
     const service = createMockAuthService();
     await signInAs(service, 'medical@example.local');
 
@@ -118,10 +118,10 @@ describe('PermissionGuard', () => {
       route: '/guarded',
     });
 
-    expect(await screen.findByText('trang-403')).toBeInTheDocument();
+    expect(await screen.findByText('nội-dung-có-quyền')).toBeInTheDocument();
   });
 
-  it('never lets BLOOD_COLLECTION_STAFF review a screening', async () => {
+  it('lets DONATION_STAFF (merged from BLOOD_COLLECTION_STAFF) review a screening', async () => {
     const service = createMockAuthService();
     await signInAs(service, 'collection@example.local');
 
@@ -130,14 +130,26 @@ describe('PermissionGuard', () => {
       route: '/guarded',
     });
 
-    expect(await screen.findByText('trang-403')).toBeInTheDocument();
+    expect(await screen.findByText('nội-dung-có-quyền')).toBeInTheDocument();
   });
 
-  it('treats ADMIN as authorised for any permission', async () => {
+  it('never lets SYSTEM_ADMIN (mapped from ADMIN) start a donation — not its duty', async () => {
     const service = createMockAuthService();
     await signInAs(service, 'admin@example.local');
 
     renderWithAuth(<GuardedRoutes requiredPermission="donation.start" />, {
+      service,
+      route: '/guarded',
+    });
+
+    expect(await screen.findByText('trang-403')).toBeInTheDocument();
+  });
+
+  it('treats SYSTEM_ADMIN as authorised for its own system-admin permissions', async () => {
+    const service = createMockAuthService();
+    await signInAs(service, 'admin@example.local');
+
+    renderWithAuth(<GuardedRoutes requiredPermission="user.manage" />, {
       service,
       route: '/guarded',
     });
@@ -159,10 +171,10 @@ describe('PermissionGuard', () => {
 
   it('supports allOf and fails when only one is held', async () => {
     const service = createMockAuthService();
-    await signInAs(service, 'collection@example.local');
+    await signInAs(service, 'donor@example.local'); // DONOR: registration.create only
 
     renderWithAuth(
-      <GuardedRoutes allOf={['donation.start', 'screening.review']} />,
+      <GuardedRoutes allOf={['registration.create', 'donation.start']} />,
       { service, route: '/guarded' },
     );
 

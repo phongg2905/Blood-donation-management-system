@@ -86,12 +86,12 @@ test('middleware fails closed, validates input and handles async rejection', asy
     (req, _res, next) => {
       req.auth = {
         userId: 'fixture',
-        roles: ['MEDICAL_STAFF'],
+        roles: ['DONATION_STAFF'],
         permissions: ['screening.review'],
       };
       next();
     },
-    requireRole('ADMIN'),
+    requireRole('SYSTEM_ADMIN'),
     (_req, res) => res.sendStatus(204),
   );
   fixture.get(
@@ -99,7 +99,7 @@ test('middleware fails closed, validates input and handles async rejection', asy
     (req, _res, next) => {
       req.auth = {
         userId: 'fixture',
-        roles: ['MEDICAL_STAFF'],
+        roles: ['DONATION_STAFF'],
         permissions: ['screening.review'],
       };
       next();

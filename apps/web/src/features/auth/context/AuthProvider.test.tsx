@@ -100,8 +100,9 @@ describe('AuthProvider', () => {
     expect(screen.getByTestId('has-staff-role')).toHaveTextContent('false');
     expect(screen.getByTestId('has-donation-start')).toHaveTextContent('true');
     expect(screen.getByTestId('any-of')).toHaveTextContent('true');
-    // BLOOD_COLLECTION_STAFF may start a donation but must not review screening.
-    expect(screen.getByTestId('all-of')).toHaveTextContent('false');
+    // BLOOD_COLLECTION_STAFF now maps to the merged DONATION_STAFF actor,
+    // which holds both donation.start and screening.review.
+    expect(screen.getByTestId('all-of')).toHaveTextContent('true');
   });
 
   it('clears the session on logout', async () => {

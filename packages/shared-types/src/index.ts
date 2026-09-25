@@ -48,8 +48,14 @@ export type AllRoleCode = (typeof ALL_ROLE_CODES)[number];
 /** Compatibility type for consumers that accept both role generations. */
 export type RoleCode = ActorCode | LegacyRoleCode;
 
-/** Existing backend seed catalogue; new actors do not imply new grants. */
-export const ROLE_CODES = LEGACY_ROLE_CODES;
+/**
+ * Backend seed catalogue. Phase 1 has completed the migration to the
+ * four-actor model: `ACTOR_CODES` is now the single source of truth for
+ * which roles actually exist (`Role` table, `ROLE_PERMISSIONS`, seed data).
+ * `LEGACY_ROLE_CODES` / `LEGACY_TO_ACTOR` remain only so older clients that
+ * still reference the five-role codes keep type-checking during rollout.
+ */
+export const ROLE_CODES = ACTOR_CODES;
 
 /** Human-readable labels for new actor codes. */
 export const ACTOR_NAMES: Readonly<Record<ActorCode, string>> = {
@@ -150,10 +156,15 @@ export const PERMISSION_CODES = [
 export type PermissionCode = (typeof PERMISSION_CODES)[number];
 
 /**
- * Role ownership follows the end-user workflow and keeps duties separate:
- * DONOR registers, RECEPTION_STAFF receives/checks in, MEDICAL_STAFF performs
- * pre-donation medicine, BLOOD_COLLECTION_STAFF collects blood and manages bags,
- * ADMIN administers everything.
+ * Role ownership follows the four-actor task-assignment plan and keeps duties
+ * separate: DONOR registers and self-serves; DONATION_STAFF (reception +
+ * screening + collection, merged into one operational role) receives, screens
+ * and collects; COORDINATOR runs campaigns end-to-end (create/manage
+ * campaigns, set up schedules/quotas, assign staff, track progress and
+ * report); SYSTEM_ADMIN administers the system itself (accounts, roles &
+ * permissions, catalogues/configuration, audit log and system reporting).
+ * COORDINATOR is a real, standalone role — its duties are never folded into
+ * SYSTEM_ADMIN.
  *
  * `notification.read` is the only cross-cutting permission granted to every role.
  */
@@ -175,8 +186,16 @@ const DONOR_PERMISSIONS = [
   'notification.read',
 ] as const satisfies readonly PermissionCode[];
 
-/** Reception owns arrival: lookup, check-in and no-show. No clinical actions. */
-const RECEPTION_STAFF_PERMISSIONS = [
+/**
+ * Donation staff own the whole donor-facing operational flow: arrival
+ * (lookup, check-in, no-show), screening (measurements, tests, review and
+ * conclusion) and collection (starting/completing/stopping a donation,
+ * blood bags, post-donation reactions and certificate issuance). This is the
+ * merge of the former RECEPTION_STAFF, MEDICAL_STAFF and
+ * BLOOD_COLLECTION_STAFF legacy roles into one "Nhân viên tiếp nhận/Sàng lọc"
+ * actor, per the task-assignment plan.
+ */
+const DONATION_STAFF_PERMISSIONS = [
   'auth.profile.read',
   'auth.profile.update',
   'campaign.read',
@@ -186,43 +205,10 @@ const RECEPTION_STAFF_PERMISSIONS = [
   'registration.mark_no_show',
   'health_declaration.read',
   'user.read',
-  'notification.read',
-] as const satisfies readonly PermissionCode[];
-
-/**
- * Medical staff own pre-donation medicine only: screening and the clinical
- * conclusion. They never start, complete or stop a donation, never handle blood
- * bags, never record post-donation reactions and never issue/revoke certificates.
- */
-const MEDICAL_STAFF_PERMISSIONS = [
-  'auth.profile.read',
-  'auth.profile.update',
-  'campaign.read',
-  'timeslot.read',
-  'registration.read',
-  'health_declaration.read',
   'screening.read',
   'screening.create',
   'screening.update',
   'screening.review',
-  'donation.read',
-  'reaction.read',
-  'certificate.read',
-  'notification.read',
-] as const satisfies readonly PermissionCode[];
-
-/**
- * Collection staff own everything after an ELIGIBLE conclusion: the donation
- * itself, blood bags, post-donation reactions and issuing the certificate.
- * They can read the screening result but never review or conclude it.
- */
-const BLOOD_COLLECTION_STAFF_PERMISSIONS = [
-  'auth.profile.read',
-  'auth.profile.update',
-  'campaign.read',
-  'timeslot.read',
-  'registration.read',
-  'screening.read',
   'donation.read',
   'donation.start',
   'donation.complete',
@@ -237,15 +223,71 @@ const BLOOD_COLLECTION_STAFF_PERMISSIONS = [
   'notification.read',
 ] as const satisfies readonly PermissionCode[];
 
-/** ADMIN owns every permission; explicit so the matrix stays auditable. */
+/**
+ * The coordinator runs campaigns end-to-end: create/update/open/close/cancel
+ * a campaign, set up its time slots and quotas, assign or remove staff on a
+ * campaign, and track progress via read access plus reporting. Never touches
+ * donor clinical data (screening, donation, blood bags) and never manages
+ * system accounts/roles — those stay with DONATION_STAFF and SYSTEM_ADMIN
+ * respectively.
+ */
+const COORDINATOR_PERMISSIONS = [
+  'auth.profile.read',
+  'auth.profile.update',
+  'campaign.read',
+  'campaign.create',
+  'campaign.update',
+  'campaign.open',
+  'campaign.close',
+  'campaign.cancel',
+  'timeslot.read',
+  'timeslot.create',
+  'timeslot.update',
+  'timeslot.deactivate',
+  'campaign_staff.read',
+  'campaign_staff.assign',
+  'campaign_staff.remove',
+  'registration.read',
+  'report.read',
+  'report.export',
+  'notification.read',
+] as const satisfies readonly PermissionCode[];
+
+/**
+ * The system admin administers the system itself, not donation operations:
+ * user accounts, roles/permissions, catalogues/configuration, audit log and
+ * system-wide reporting, plus the sensitive `certificate.revoke` oversight
+ * action. Deliberately does not own campaign, registration, screening or
+ * donation permissions — those belong to COORDINATOR and DONATION_STAFF, so
+ * the two roles are never merged.
+ */
+const SYSTEM_ADMIN_PERMISSIONS = [
+  'auth.profile.read',
+  'auth.profile.update',
+  'user.read',
+  'user.manage',
+  'role.read',
+  'role.manage',
+  'permission.read',
+  'permission.manage',
+  'audit.read',
+  'setting.read',
+  'setting.manage',
+  'report.read',
+  'report.export',
+  'certificate.revoke',
+  'notification.read',
+  'notification.manage',
+] as const satisfies readonly PermissionCode[];
+
+/** The four-actor permission matrix; explicit so it stays auditable. */
 export const ROLE_PERMISSIONS: Readonly<
-  Record<LegacyRoleCode, readonly PermissionCode[]>
+  Record<ActorCode, readonly PermissionCode[]>
 > = {
   DONOR: DONOR_PERMISSIONS,
-  RECEPTION_STAFF: RECEPTION_STAFF_PERMISSIONS,
-  MEDICAL_STAFF: MEDICAL_STAFF_PERMISSIONS,
-  BLOOD_COLLECTION_STAFF: BLOOD_COLLECTION_STAFF_PERMISSIONS,
-  ADMIN: PERMISSION_CODES,
+  DONATION_STAFF: DONATION_STAFF_PERMISSIONS,
+  COORDINATOR: COORDINATOR_PERMISSIONS,
+  SYSTEM_ADMIN: SYSTEM_ADMIN_PERMISSIONS,
 };
 
 export const isRoleCode = (value: string): value is AllRoleCode =>

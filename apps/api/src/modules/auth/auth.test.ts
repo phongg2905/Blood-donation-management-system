@@ -455,13 +455,13 @@ describe('PATCH /auth/me', () => {
     // No public endpoint provisions STAFF/ADMIN yet (Phase 8), so the fixture
     // is created directly against the database, mirroring seedAdmin().
     const role = await database.role.findUniqueOrThrow({
-      where: { code: 'RECEPTION_STAFF' },
+      where: { code: 'DONATION_STAFF' },
     });
     const email = `${randomUUID()}@example.test`;
     const user = await database.user.create({
       data: {
         email,
-        fullName: 'Reception Staff Fixture',
+        fullName: 'Donation Staff Fixture',
         passwordHash: await hashPassword(STRONG_PASSWORD),
         isActive: true,
         roles: { create: { roleId: role.id } },

@@ -20,7 +20,7 @@ Các rule này đã được enforce trong `timeSlotService.schedule` và sẽ �
 ## Quyền sở hữu
 
 - `registration.create`, `registration.reschedule`, `registration.cancel`: **DONOR** (tự phục vụ).
-- `registration.read`: DONOR, RECEPTION_STAFF, MEDICAL_STAFF, BLOOD_COLLECTION_STAFF, ADMIN.
-- `registration.checkin`, `registration.mark_no_show`: **RECEPTION_STAFF** (nghiệp vụ tiếp nhận).
+- `registration.read`: DONOR, DONATION_STAFF, COORDINATOR.
+- `registration.checkin`, `registration.mark_no_show`: **chỉ DONATION_STAFF** (nghiệp vụ tiếp nhận).
 
-MEDICAL_STAFF, BLOOD_COLLECTION_STAFF và RECEPTION_STAFF đều không có quyền tạo/huỷ đăng ký của donor.
+DONATION_STAFF và COORDINATOR đều không có quyền tạo/huỷ đăng ký của donor — chỉ chính DONOR mới làm được.

@@ -11,20 +11,20 @@ UTC.
 
 ## Which role owns which endpoint group
 
-| Role                     | Endpoint groups it can call                                                                                                                                                                     |
-| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `DONOR`                  | `GET /auth/me`, `GET/PATCH /auth/me`, own campaign/timeslot read, own registration create/reschedule/cancel, own declaration, own history/certificate/reactions read                            |
-| `RECEPTION_STAFF`        | donor lookup (`GET /users`), `GET /registrations`, `POST /registrations/:id/check-in`, `POST /registrations/:id/no-show`, declaration read                                                      |
-| `MEDICAL_STAFF`          | `GET /screenings/:id`, `POST /registrations/:id/screening`, `PATCH /screenings/:id`, `POST /screenings/:id/review`, read-only donation/reaction/certificate                                     |
-| `BLOOD_COLLECTION_STAFF` | `POST /screenings/:id/donation`, `POST /donations/:id/complete`, `POST /donations/:id/stop`, blood-bag CRUD, `POST /donations/:id/reactions`, `POST /donations/:id/certificate`, screening read |
-| `ADMIN`                  | everything above plus campaign/timeslot/campaign-staff/user/role/permission/notification/audit/setting/report and certificate revoke                                                            |
+| Role             | Endpoint groups it can call                                                                                                                                                                                               |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DONOR`          | `GET /auth/me`, `GET/PATCH /auth/me`, own campaign/timeslot read, own registration create/reschedule/cancel, own declaration, own history/certificate/reactions read                                                    |
+| `DONATION_STAFF` | donor lookup (`GET /users`), `GET /registrations`, `POST /registrations/:id/check-in`, `POST /registrations/:id/no-show`, declaration read, `GET/POST/PATCH /screenings/:id`, `POST /screenings/:id/review`, `POST /screenings/:id/donation`, `POST /donations/:id/complete`, `POST /donations/:id/stop`, blood-bag CRUD, `POST /donations/:id/reactions`, `POST /donations/:id/certificate` |
+| `COORDINATOR`    | campaign CRUD + open/close/cancel, timeslot CRUD, campaign-staff assign/remove, registration read, report read/export                                                                                                   |
+| `SYSTEM_ADMIN`   | user/role/permission/setting/notification/audit/report, and certificate revoke                                                                                                                                          |
 
 Hidden actions for the FE (do not render the button when the permission is
 absent from `CurrentUser.permissions`):
 
-- MEDICAL_STAFF: no "Bắt đầu hiến máu", "Hoàn tất", "Dừng", "Tạo túi máu", "Cấp chứng nhận", "Thu hồi chứng nhận".
-- BLOOD_COLLECTION_STAFF: no "Kết luận sàng lọc".
-- RECEPTION_STAFF: no screening, donation, blood-bag, reaction or certificate actions.
+- DONOR: no staff/coordinator/admin actions at all.
+- DONATION_STAFF: no campaign/timeslot/campaign-staff management, no user/role/permission/setting management, no "Thu hồi chứng nhận".
+- COORDINATOR: no screening, donation, blood-bag, reaction or certificate actions.
+- SYSTEM_ADMIN: no campaign/timeslot/campaign-staff or clinical donation actions — those stay with COORDINATOR and DONATION_STAFF.
 
 ## Auth
 
