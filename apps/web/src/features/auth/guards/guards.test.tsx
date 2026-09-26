@@ -97,9 +97,9 @@ describe('PermissionGuard', () => {
     expect(screen.queryByText('nội-dung-có-quyền')).not.toBeInTheDocument();
   });
 
-  it('renders the content when the user holds the permission', async () => {
+  it('lets DONATION_STAFF start a donation', async () => {
     const service = createMockAuthService();
-    await signInAs(service, 'collection@example.local'); // BLOOD_COLLECTION_STAFF
+    await signInAs(service, 'donation-staff@example.local'); // DONATION_STAFF
 
     renderWithAuth(<GuardedRoutes requiredPermission="donation.start" />, {
       service,
@@ -109,21 +109,9 @@ describe('PermissionGuard', () => {
     expect(await screen.findByText('nội-dung-có-quyền')).toBeInTheDocument();
   });
 
-  it('lets DONATION_STAFF (merged from MEDICAL_STAFF) start a donation', async () => {
+  it('lets DONATION_STAFF review a screening', async () => {
     const service = createMockAuthService();
-    await signInAs(service, 'medical@example.local');
-
-    renderWithAuth(<GuardedRoutes requiredPermission="donation.start" />, {
-      service,
-      route: '/guarded',
-    });
-
-    expect(await screen.findByText('nội-dung-có-quyền')).toBeInTheDocument();
-  });
-
-  it('lets DONATION_STAFF (merged from BLOOD_COLLECTION_STAFF) review a screening', async () => {
-    const service = createMockAuthService();
-    await signInAs(service, 'collection@example.local');
+    await signInAs(service, 'donation-staff@example.local');
 
     renderWithAuth(<GuardedRoutes requiredPermission="screening.review" />, {
       service,
@@ -159,7 +147,7 @@ describe('PermissionGuard', () => {
 
   it('supports anyOf', async () => {
     const service = createMockAuthService();
-    await signInAs(service, 'medical@example.local');
+    await signInAs(service, 'donation-staff@example.local');
 
     renderWithAuth(
       <GuardedRoutes anyOf={['donation.start', 'screening.review']} />,

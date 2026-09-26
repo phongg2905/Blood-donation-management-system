@@ -109,7 +109,7 @@ try {
   await send('Page.navigate', { url: 'http://127.0.0.1:5198/login' });
   await wait("document.querySelector('input[type=email]')");
   await evaluate(
-    `const set=(selector,value)=>{const input=document.querySelector(selector);Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,value);input.dispatchEvent(new Event('input',{bubbles:true}));};set('input[type=email]','admin@example.local');set('input[type=password]','Blood@123');document.querySelector('form').requestSubmit();`,
+    `const set=(selector,value)=>{const input=document.querySelector(selector);Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,value);input.dispatchEvent(new Event('input',{bubbles:true}));};set('input[type=email]','coordinator@example.local');set('input[type=password]','Blood@123');document.querySelector('form').requestSubmit();`,
   );
   await wait("document.querySelector('.landing')");
   const report = [];

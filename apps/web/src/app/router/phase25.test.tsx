@@ -200,6 +200,32 @@ describe('Phase 2.5 home and session', () => {
     );
   });
 
+  it('does not send the next user to the page the previous one signed out from', async () => {
+    const user = userEvent.setup();
+    const service = createMockAuthService();
+    await signInAs(service, 'donation-staff@example.local');
+    renderWithAuth(<AppRoutes />, { service, route: '/clinic/blood-bags' });
+    await screen.findByRole('heading', { name: 'Túi máu đã tiếp nhận' });
+    await user.click(screen.getByLabelText('Tài khoản của bạn'));
+    await user.click(screen.getByRole('button', { name: 'Đăng xuất' }));
+    await screen.findByRole('heading', { name: 'Đăng nhập hệ thống' });
+
+    // COORDINATOR has no `bloodbag.read`, so honouring the stale `from` would
+    // bounce this sign-in to /403 instead of its own landing page.
+    await user.type(
+      screen.getByLabelText(/^Email/),
+      'coordinator@example.local',
+    );
+    await user.type(screen.getByLabelText(/^Mật khẩu/), DEMO_PASSWORD);
+    await user.click(screen.getByRole('button', { name: 'Đăng nhập' }));
+    expect(
+      await screen.findByRole('heading', { name: /Trao một phần máu/ }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: 'Túi máu đã tiếp nhận' }),
+    ).not.toBeInTheDocument();
+  });
+
   it('does not render a development reset token returned by the API', async () => {
     const user = userEvent.setup();
     const service = createMockAuthService();

@@ -33,13 +33,14 @@ describe('primaryRole', () => {
     }
     expect(isRoleCode('ADMIN')).toBe(true);
     expect(isRoleCode('UNKNOWN_ROLE')).toBe(false);
-    expect(primaryRole(['DONOR', 'RECEPTION_STAFF'])).toBe('RECEPTION_STAFF');
+    // Legacy codes are folded into their actor before ranking.
+    expect(primaryRole(['DONOR', 'RECEPTION_STAFF'])).toBe('DONATION_STAFF');
   });
 
   it('picks the most privileged role', () => {
-    expect(primaryRole(['DONOR', 'ADMIN'])).toBe('ADMIN');
+    expect(primaryRole(['DONOR', 'ADMIN'])).toBe('SYSTEM_ADMIN');
     expect(primaryRole(['RECEPTION_STAFF', 'MEDICAL_STAFF'])).toBe(
-      'MEDICAL_STAFF',
+      'DONATION_STAFF',
     );
   });
 

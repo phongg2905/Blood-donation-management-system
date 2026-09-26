@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { LEGACY_ROLE_CODES, LEGACY_TO_ACTOR, ROLE_PERMISSIONS } from '@blood/shared-types';
-import type { LegacyRoleCode } from '@blood/shared-types';
+import { ACTOR_CODES, ROLE_PERMISSIONS } from '@blood/shared-types';
+import type { ActorCode } from '@blood/shared-types';
 import { AUTH_ERROR_CODES } from '../auth-errors';
 import {
   DEMO_ACCOUNTS,
@@ -8,7 +8,7 @@ import {
   createMockAuthService,
 } from './mock-auth.service';
 
-const accountFor = (role: LegacyRoleCode) => {
+const accountFor = (role: ActorCode) => {
   const account = DEMO_ACCOUNTS.find((item) => item.role === role);
   if (!account) throw new Error(`Thiếu tài khoản demo cho role ${role}`);
   return account;
@@ -24,7 +24,7 @@ describe('MockAuthService', () => {
   it('signs in one demo account per role', async () => {
     const service = createMockAuthService();
 
-    for (const role of LEGACY_ROLE_CODES) {
+    for (const role of ACTOR_CODES) {
       const account = accountFor(role);
       const user = await service.login({
         email: account.email,
@@ -40,15 +40,13 @@ describe('MockAuthService', () => {
   it('grants each role exactly the permissions from the shared matrix', async () => {
     const service = createMockAuthService();
 
-    for (const role of LEGACY_ROLE_CODES) {
+    for (const role of ACTOR_CODES) {
       const user = await service.login({
         email: accountFor(role).email,
         password: DEMO_PASSWORD,
       });
 
-      expect(user.permissions).toEqual([
-        ...ROLE_PERMISSIONS[LEGACY_TO_ACTOR[role]],
-      ]);
+      expect(user.permissions).toEqual([...ROLE_PERMISSIONS[role]]);
       await service.logout();
     }
   });
