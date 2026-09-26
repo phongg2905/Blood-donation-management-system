@@ -26,19 +26,19 @@ export class MockCampaignRepository implements CampaignRepository {
       id: 'staff-1',
       fullName: 'Nguyễn Minh Anh',
       email: 'minhanh@example.test',
-      roles: ['RECEPTION_STAFF'],
+      roles: ['DONATION_STAFF'],
     },
     {
       id: 'staff-2',
       fullName: 'Trần Thanh Hà',
       email: 'thanhha@example.test',
-      roles: ['MEDICAL_STAFF'],
+      roles: ['DONATION_STAFF'],
     },
     {
       id: 'staff-3',
       fullName: 'Lê Hoàng Nam',
       email: 'hoangnam@example.test',
-      roles: ['BLOOD_COLLECTION_STAFF'],
+      roles: ['DONATION_STAFF'],
     },
   ];
   constructor(private options: MockOptions = {}) {

@@ -19,6 +19,26 @@ import {
 } from '@/features/campaigns/CampaignPages';
 import { TimeSlotPage } from '@/features/campaigns/TimeSlotPage';
 import { CampaignStaffPage } from '@/features/campaigns/CampaignStaffPage';
+import { DonorRegistrationPage } from '@/features/workflow/DonorRegistrationPage';
+import { CheckInPage } from '@/features/workflow/CheckInPage';
+import {
+  ScreeningPage,
+  ScreeningQueuePage,
+} from '@/features/workflow/ScreeningPage';
+import {
+  BloodBagsPage,
+  NewBloodBagPage,
+} from '@/features/workflow/BloodBagPages';
+import {
+  CertificateDetailPage,
+  CertificatesPage,
+  DonorHistoryPage,
+} from '@/features/workflow/DonorPages';
+import { UsersPage } from '@/features/admin/UsersPage';
+import { RolesPage } from '@/features/admin/RolesPage';
+import { AuditLogsPage } from '@/features/admin/AuditLogsPage';
+import { SettingsPage } from '@/features/admin/SettingsPage';
+import { ReportsPage } from '@/features/admin/ReportsPage';
 
 /**
  * Route table.
@@ -93,6 +113,124 @@ export function AppRoutes() {
             element={
               <PermissionGuard requiredPermission="auth.profile.read">
                 <ProfilePage />
+              </PermissionGuard>
+            }
+          />
+
+          {/* Donor workflow: registration → history → certificates. */}
+          <Route
+            path="/donor/register"
+            element={
+              <PermissionGuard requiredPermission="registration.create">
+                <DonorRegistrationPage />
+              </PermissionGuard>
+            }
+          />
+          <Route
+            path="/donor/history"
+            element={
+              <PermissionGuard requiredPermission="donation.read">
+                <DonorHistoryPage />
+              </PermissionGuard>
+            }
+          />
+          <Route
+            path="/donor/certificates"
+            element={
+              <PermissionGuard requiredPermission="certificate.read">
+                <CertificatesPage />
+              </PermissionGuard>
+            }
+          />
+          <Route
+            path="/donor/certificates/:certificateId"
+            element={
+              <PermissionGuard requiredPermission="certificate.read">
+                <CertificateDetailPage />
+              </PermissionGuard>
+            }
+          />
+
+          {/* Clinic workflow: check-in → screening → blood bags. */}
+          <Route
+            path="/clinic/check-in"
+            element={
+              <PermissionGuard requiredPermission="registration.checkin">
+                <CheckInPage />
+              </PermissionGuard>
+            }
+          />
+          <Route
+            path="/clinic/screening"
+            element={
+              <PermissionGuard requiredPermission="screening.review">
+                <ScreeningQueuePage />
+              </PermissionGuard>
+            }
+          />
+          <Route
+            path="/clinic/screening/:registrationId"
+            element={
+              <PermissionGuard requiredPermission="screening.review">
+                <ScreeningPage />
+              </PermissionGuard>
+            }
+          />
+          <Route
+            path="/clinic/blood-bags"
+            element={
+              <PermissionGuard requiredPermission="bloodbag.read">
+                <BloodBagsPage />
+              </PermissionGuard>
+            }
+          />
+          <Route
+            path="/clinic/blood-bags/new"
+            element={
+              <PermissionGuard requiredPermission="bloodbag.create">
+                <NewBloodBagPage />
+              </PermissionGuard>
+            }
+          />
+
+          {/* Administration: accounts, roles & permissions, audit, settings, reports. */}
+          <Route
+            path="/admin/users"
+            element={
+              <PermissionGuard requiredPermission="user.read">
+                <UsersPage />
+              </PermissionGuard>
+            }
+          />
+          <Route
+            path="/admin/roles"
+            element={
+              <PermissionGuard requiredPermission="role.read">
+                <RolesPage />
+              </PermissionGuard>
+            }
+          />
+          <Route
+            path="/admin/audit-logs"
+            element={
+              <PermissionGuard requiredPermission="audit.read">
+                <AuditLogsPage />
+              </PermissionGuard>
+            }
+          />
+          <Route
+            path="/admin/settings"
+            element={
+              <PermissionGuard requiredPermission="setting.read">
+                <SettingsPage />
+              </PermissionGuard>
+            }
+          />
+          <Route
+            path="/admin/reports"
+            element={
+              <PermissionGuard requiredPermission="report.read">
+                <ReportsPage />
               </PermissionGuard>
             }
           />

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { useRef } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { PageLoader } from '@/components/common/PageLoader';
 import { useAuth } from '../hooks/useAuth';
@@ -20,17 +21,28 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { status } = useAuth();
   const location = useLocation();
 
+  // `from` only makes sense for a cold deep link (arriving at a protected URL
+  // while already signed out). Once a session existed in this app instance, a
+  // later anonymous state is a sign-out, so the page the user left must not be
+  // handed to whoever signs in next — that user may lack the permission and
+  // land on /403 instead of their own landing page.
+  const hadSession = useRef(false);
+  if (status === 'authenticated') hadSession.current = true;
+
   if (status === 'loading') {
     return <PageLoader message="Đang tải…" />;
   }
 
   if (status === 'anonymous') {
-    // `from` lets the login screen return the user to the page they wanted.
     return (
       <Navigate
         to={AUTH_ROUTES.login}
         replace
-        state={{ from: `${location.pathname}${location.search}` }}
+        state={
+          hadSession.current
+            ? undefined
+            : { from: `${location.pathname}${location.search}` }
+        }
       />
     );
   }

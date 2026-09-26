@@ -101,7 +101,7 @@ describe('LoginPage', () => {
       await screen.findByRole('heading', { name: /Trao một phần máu/ }),
     ).toBeInTheDocument();
     expect(container.querySelector('.session__role')?.textContent).toBe(
-      'Quản trị viên',
+      'Quản trị hệ thống',
     );
   });
 });
@@ -283,7 +283,7 @@ describe('ProfilePage with the delivered backend contract', () => {
     const user = userEvent.setup();
     const service = createMockAuthService();
     await service.login({
-      email: 'reception@example.local',
+      email: 'donation-staff@example.local',
       password: DEMO_PASSWORD,
     });
     const save = vi.spyOn(service, 'updateProfile');

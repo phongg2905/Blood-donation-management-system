@@ -9,6 +9,78 @@ import {
   DEMO_LOGIN_ACCOUNTS,
   DEMO_LOGIN_PASSWORD,
 } from '../apps/web/src/features/auth/demo/demo-accounts';
+// Read straight from the shared matrix so the check follows the four-actor
+// model instead of hard-coding one permission. Imported from source because
+// this root-level script runs outside any workspace package's node_modules.
+import { ROLE_PERMISSIONS } from '../packages/shared-types/src/index';
+
+/**
+ * Removes the four demo users so they can be recreated from the current
+ * catalogue. Refuses to touch an account that has real business data
+ * (registrations, campaign assignments, notifications or performed
+ * check-ins/screenings/donations) so other members' local work is never
+ * destroyed. Auth sessions/roles cascade; audit logs keep a null actor.
+ */
+async function resetDemoAccounts(): Promise<void> {
+  const emails = DEMO_LOGIN_ACCOUNTS.map((account) => account.email);
+  const users = await database.user.findMany({
+    where: { email: { in: emails } },
+    select: { id: true, email: true },
+  });
+  if (users.length === 0) {
+    console.info('No demo accounts to remove.');
+    return;
+  }
+  const ids = users.map((user) => user.id);
+  const [
+    profileIds,
+    assignments,
+    notifications,
+    checkIns,
+    screenings,
+    donations,
+  ] = await Promise.all([
+    database.donorProfile
+      .findMany({ where: { userId: { in: ids } }, select: { id: true } })
+      .then((rows) => rows.map((row) => row.id)),
+    database.campaignStaff.count({ where: { userId: { in: ids } } }),
+    database.notification.count({ where: { userId: { in: ids } } }),
+    database.checkIn.count({ where: { checkedInById: { in: ids } } }),
+    database.screening.count({ where: { screenedById: { in: ids } } }),
+    database.donation.count({ where: { performedById: { in: ids } } }),
+  ]);
+  const registrations = profileIds.length
+    ? await database.registration.count({
+        where: { donorId: { in: profileIds } },
+      })
+    : 0;
+  const blockers = {
+    registrations,
+    assignments,
+    notifications,
+    checkIns,
+    screenings,
+    donations,
+  };
+  const blocking = Object.entries(blockers).filter(([, count]) => count > 0);
+  if (blocking.length > 0) {
+    throw new Error(
+      `Refusing to delete demo accounts with business data (${blocking
+        .map(([name, count]) => `${name}=${count}`)
+        .join(', ')}). Resolve those records manually first.`,
+    );
+  }
+  await database.$transaction(async (tx) => {
+    // DonorProfile.user is onDelete: Restrict, so it must go first. Roles and
+    // auth sessions cascade; audit logs keep a null actor (SetNull).
+    await tx.donorProfile.deleteMany({ where: { userId: { in: ids } } });
+    await tx.userRole.deleteMany({ where: { userId: { in: ids } } });
+    await tx.user.deleteMany({ where: { id: { in: ids } } });
+  });
+  console.info(
+    `Removed ${users.length} demo account(s): ${users.map((user) => user.email).join(', ')}`,
+  );
+}
 
 async function main() {
   const target = new URL(env.DATABASE_URL);
@@ -21,6 +93,10 @@ async function main() {
     );
   }
   const verifyOnly = process.argv.includes('--verify');
+  const reset = process.argv.includes('--reset');
+  if (verifyOnly && reset)
+    throw new Error('--verify and --reset cannot be combined.');
+  if (reset) await resetDemoAccounts();
   if (!verifyOnly) {
     const passwordHash = await hashPassword(DEMO_LOGIN_PASSWORD);
     const results = await database.$transaction(
@@ -94,16 +170,25 @@ async function main() {
           user: { roles: string[]; permissions: string[] };
         };
       };
+      const expected = ROLE_PERMISSIONS[account.role];
+      if (!expected)
+        throw new Error(`No permission matrix for role ${account.role}`);
+      const actualPermissions = new Set(body.data?.user.permissions ?? []);
+      const permissionsMatch =
+        expected.length === actualPermissions.size &&
+        expected.every((permission) => actualPermissions.has(permission));
       if (
         !response.ok ||
         !body.success ||
         !body.data ||
         body.data.user.roles.length !== 1 ||
         body.data.user.roles[0] !== account.role ||
-        !body.data.user.permissions.includes('campaign.read')
+        !permissionsMatch
       )
         throw new Error(
-          `Login verification failed for ${account.email}: HTTP ${response.status}`,
+          `Login verification failed for ${account.email}: HTTP ${response.status} (${
+            body.data?.user.permissions.length ?? 0
+          } permissions, role ${body.data?.user.roles[0] ?? 'none'})`,
         );
       const cookies = response.headers
         .getSetCookie()

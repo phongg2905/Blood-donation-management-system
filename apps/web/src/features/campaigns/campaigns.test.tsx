@@ -25,11 +25,15 @@ beforeAll(() => {
 });
 async function mount(
   route = '/campaigns',
-  admin = false,
+  manager = false,
   repository = new MockCampaignRepository({ latency: 0 }),
 ) {
   const auth = createMockAuthService();
-  await signInAs(auth, admin ? 'admin@example.local' : 'donor@example.local');
+  // Campaign management belongs to COORDINATOR in the four-actor model.
+  await signInAs(
+    auth,
+    manager ? 'coordinator@example.local' : 'donor@example.local',
+  );
   const rendered = renderWithAuth(
     <CampaignRepositoryContext.Provider value={repository}>
       <AppRoutes />
@@ -111,9 +115,38 @@ describe('Campaign browsing and permissions', () => {
     expect(
       screen.queryByRole('link', { name: 'Chỉnh sửa' }),
     ).not.toBeInTheDocument();
+    // Registration is reached from the campaign itself, not a duplicate menu.
     expect(
-      screen.getByText(/Đăng ký hiến máu trực tuyến sắp ra mắt/),
-    ).toBeInTheDocument();
+      screen.getByRole('link', { name: 'Đăng ký hiến máu' }),
+    ).toHaveAttribute('href', '/donor/register?campaign=demo-1');
+  });
+
+  it('offers the register action only on open campaigns', async () => {
+    await mount('/campaigns');
+    const openRow = (
+      await screen.findByRole('heading', { name: 'Ngày hội giọt hồng' })
+    ).closest('article');
+    expect(
+      within(openRow as HTMLElement).getByRole('link', {
+        name: 'Đăng ký hiến máu',
+      }),
+    ).toHaveAttribute('href', '/donor/register?campaign=demo-1');
+    const closedRow = (
+      await screen.findByRole('heading', { name: 'Sẻ chia sự sống' })
+    ).closest('article');
+    expect(
+      within(closedRow as HTMLElement).queryByRole('link', {
+        name: 'Đăng ký hiến máu',
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('does not offer the register action to campaign managers', async () => {
+    await mount('/campaigns/demo-1', true);
+    await screen.findByRole('heading', { name: 'Thông tin đợt hiến' });
+    expect(
+      screen.queryByRole('link', { name: 'Đăng ký hiến máu' }),
+    ).not.toBeInTheDocument();
   });
 });
 describe('Campaign forms and actions', () => {

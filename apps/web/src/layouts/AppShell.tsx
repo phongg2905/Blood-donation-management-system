@@ -29,8 +29,8 @@ export function AppShell({ children, variant }: AppShellProps) {
   const [loggingOut, setLoggingOut] = useState(false);
   const menuRef = useRef<HTMLDetailsElement>(null);
 
-  const items = visibleNavItems(hasPermission);
   const role = primaryRole(currentUser?.roles ?? []);
+  const items = visibleNavItems(hasPermission, role);
 
   // The masthead slides out on the way down and back on the way up.
   useHeaderAutoHide(pathname);

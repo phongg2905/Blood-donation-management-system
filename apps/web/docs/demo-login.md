@@ -1,21 +1,21 @@
 # Tài khoản demo local
 
-Đã tạo 4 tài khoản trong database local; đăng nhập qua API auth hiện có, không bypass RBAC. Không tạo/sửa tài khoản donor và không thay schema, seed hay ma trận quyền.
+Bộ chọn tài khoản demo dùng mô hình 4-actor (`DONOR`, `DONATION_STAFF`, `COORDINATOR`, `SYSTEM_ADMIN`). Đăng nhập qua API auth hiện có, không bypass RBAC. Không sửa schema, seed hay ma trận quyền.
 
 | Vai trò | Email |
 | --- | --- |
-| Quản trị viên | `admin.demo@example.local` |
-| Nhân viên tiếp nhận | `reception.demo@example.local` |
-| Nhân viên y tế | `medical.demo@example.local` |
-| Nhân viên lấy máu | `collection.demo@example.local` |
+| Người hiến máu | `donor.demo@example.local` |
+| Nhân viên tiếp nhận / sàng lọc | `donation-staff.demo@example.local` |
+| Điều phối viên | `coordinator.demo@example.local` |
+| Quản trị hệ thống | `admin@example.local` |
 
-Mật khẩu demo chung: `Demo@Password1`. Đây là tài khoản thử nghiệm local với credential công khai, không dùng cho dữ liệu production.
+Mật khẩu demo chung: `Demo@Password1`. Đây là tài khoản thử nghiệm local với credential công khai, không dùng cho dữ liệu production. `SYSTEM_ADMIN` không có email cố định trong seed BE: tài khoản `admin@example.local` ở trên chỉ được tạo khi chạy script cấp tài khoản demo bên dưới.
 
 ## Chọn trên login
 
 Mở **Tài khoản demo**, chọn vai trò, rồi nhấn **Đăng nhập**. Mục phụ trợ chỉ điền form, không tự đăng nhập, không đổi auth adapter và không sửa quyền. Các nút bị khóa trong lúc đang đăng nhập.
 
-Chỉ hiển thị trong Vite development, mặc định bật. Đặt `VITE_SHOW_DEMO_LOGIN=false` trong `.env`, khởi động lại Vite để ẩn. Production không import component/credential demo này. Nếu chủ động bật mock auth (`VITE_USE_MOCK_API=true`), picker dùng 4 tài khoản mock có sẵn và mật khẩu mock tương ứng; tài khoản API thật không bị đổi.
+Chỉ hiển thị trong Vite development, mặc định bật. Đặt `VITE_SHOW_DEMO_LOGIN=false` trong `.env`, khởi động lại Vite để ẩn. Production không import component/credential demo này. Nếu chủ động bật mock auth (`VITE_USE_MOCK_API=true`), picker dùng `mockEmail`/mật khẩu mock trong `mock-auth.service.ts` (`donor@/donation-staff@/coordinator@/admin@example.local`, mật khẩu `Blood@123`); tài khoản API thật không bị đổi.
 
 ## Gỡ phần phụ trợ
 
@@ -36,6 +36,14 @@ pnpm --filter @blood/api exec tsx ../../scripts/provision-demo-accounts.ts --ver
 
 Lệnh đầu chỉ tạo tài khoản còn thiếu và gán role có sẵn trong một transaction. Nếu email đã tồn tại nhưng credential/role khác, script dừng, không ghi đè. Không chạy lại seed toàn bộ, không sửa quyền hoặc donor. Chỉ cho chạy với database localhost và môi trường không phải production.
 
+Muốn xóa hẳn 4 tài khoản demo rồi tạo lại theo catalogue hiện tại (ví dụ sau khi đổi mô hình 4 actor), thêm cờ `--reset`:
+
+```sh
+pnpm --filter @blood/api exec tsx ../../scripts/provision-demo-accounts.ts --reset
+```
+
+`--reset` xóa đúng 4 email trong `DEMO_LOGIN_ACCOUNTS` (không đụng tài khoản khác), rồi tạo lại trong cùng lần chạy. Role/user-role và auth session xóa theo (cascade); audit log giữ lại với actor rỗng (`SetNull`). Nếu một tài khoản demo đã có dữ liệu nghiệp vụ (đăng ký, phân công campaign, thông báo, check-in/sàng lọc/hiến máu) script sẽ **dừng và báo rõ**, không tự xóa. Không kết hợp `--reset` với `--verify` trong một lần chạy.
+
 Lệnh `--verify` kiểm tra login, role, quyền đọc campaign rồi logout để đóng phiên test qua API đang chạy. Không in token, cookie hoặc hash mật khẩu.
 
-Đã xác minh API thật cho cả bốn: ADMIN 53 quyền, RECEPTION_STAFF 10, MEDICAL_STAFF 14, BLOOD_COLLECTION_STAFF 18 tại thời điểm tạo.
+`--verify` đã chạy trên API local (26/09/2026) và đối chiếu tập quyền trả về với `ROLE_PERMISSIONS` (`@blood/shared-types`): DONOR 15 quyền, DONATION_STAFF 25, COORDINATOR 19, SYSTEM_ADMIN 16 — login/role/quyền đều khớp. Script so khớp cả ma trận quyền của role (không hard-code một permission), vì `SYSTEM_ADMIN` không có `campaign.read` — quyền campaign thuộc DONOR/DONATION_STAFF/COORDINATOR.

@@ -16,9 +16,9 @@ function Probe() {
       <p data-testid="is-authenticated">{String(auth.isAuthenticated)}</p>
       <p data-testid="email">{auth.currentUser?.email ?? 'none'}</p>
       <p data-testid="fullname">{auth.currentUser?.fullName ?? 'none'}</p>
-      <p data-testid="has-admin">{String(auth.hasRole('ADMIN'))}</p>
+      <p data-testid="has-admin">{String(auth.hasRole('SYSTEM_ADMIN'))}</p>
       <p data-testid="has-staff-role">
-        {String(auth.hasRole('RECEPTION_STAFF', 'MEDICAL_STAFF'))}
+        {String(auth.hasRole('DONATION_STAFF'))}
       </p>
       <p data-testid="has-donation-start">
         {String(auth.hasPermission('donation.start'))}
@@ -33,7 +33,7 @@ function Probe() {
         type="button"
         onClick={() =>
           void auth.login({
-            email: 'collection@example.local',
+            email: 'donation-staff@example.local',
             password: DEMO_PASSWORD,
           })
         }
@@ -91,17 +91,15 @@ describe('AuthProvider', () => {
     );
     expect(screen.getByTestId('is-authenticated')).toHaveTextContent('true');
     expect(screen.getByTestId('email')).toHaveTextContent(
-      'collection@example.local',
+      'donation-staff@example.local',
     );
 
     // Roles and permissions come straight from the shared matrix.
     expect(screen.getByTestId('has-admin')).toHaveTextContent('false');
-    // BLOOD_COLLECTION_STAFF is not one of the reception/medical roles.
-    expect(screen.getByTestId('has-staff-role')).toHaveTextContent('false');
+    expect(screen.getByTestId('has-staff-role')).toHaveTextContent('true');
     expect(screen.getByTestId('has-donation-start')).toHaveTextContent('true');
     expect(screen.getByTestId('any-of')).toHaveTextContent('true');
-    // BLOOD_COLLECTION_STAFF now maps to the merged DONATION_STAFF actor,
-    // which holds both donation.start and screening.review.
+    // DONATION_STAFF holds both donation.start and screening.review.
     expect(screen.getByTestId('all-of')).toHaveTextContent('true');
   });
 

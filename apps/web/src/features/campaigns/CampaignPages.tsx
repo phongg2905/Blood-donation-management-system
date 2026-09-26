@@ -156,6 +156,15 @@ export function CampaignListPage() {
                     <time dateTime={campaign.startsAt}>
                       {formatDate(campaign.startsAt)}
                     </time>
+                    {hasPermission('registration.create') &&
+                      campaign.status === 'OPEN' && (
+                        <Link
+                          className="btn btn--primary"
+                          to={`/donor/register?campaign=${campaign.id}`}
+                        >
+                          Đăng ký hiến máu
+                        </Link>
+                      )}
                     <Link
                       className="btn btn--secondary"
                       to={`/campaigns/${campaign.id}`}
@@ -242,6 +251,15 @@ function CampaignDetail({
       <div className="campaign-toolbar">
         <StatusBadge status={campaign.status} />
         <div className="campaign-actions">
+          {hasPermission('registration.create') &&
+            campaign.status === 'OPEN' && (
+              <Link
+                className="btn btn--primary"
+                to={`/donor/register?campaign=${campaign.id}`}
+              >
+                Đăng ký hiến máu
+              </Link>
+            )}
           {hasPermission('campaign.update') &&
             !CAMPAIGN_STATUSES_FROZEN.includes(campaign.status) && (
               <Link
@@ -309,10 +327,9 @@ function CampaignDetail({
         {campaign.description && (
           <p className="campaign-description">{campaign.description}</p>
         )}
-        {hasPermission('registration.create') && (
+        {hasPermission('registration.create') && campaign.status !== 'OPEN' && (
           <p className="campaign-note">
-            Đăng ký hiến máu trực tuyến sắp ra mắt. Bạn có thể xem lịch và khung
-            giờ tại đây.
+            Đợt hiến này hiện không mở đăng ký trực tuyến.
           </p>
         )}
       </section>

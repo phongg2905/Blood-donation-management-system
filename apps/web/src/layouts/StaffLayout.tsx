@@ -7,9 +7,9 @@ export interface StaffLayoutProps {
 }
 
 /**
- * Shell for the three staff roles (`RECEPTION_STAFF`, `MEDICAL_STAFF`,
- * `BLOOD_COLLECTION_STAFF`): operational area. Their navigation differs by
- * permission, not by a separate layout.
+ * Shell for the staff actor (`DONATION_STAFF`, merged from the former
+ * `RECEPTION_STAFF`, `MEDICAL_STAFF` and `BLOOD_COLLECTION_STAFF` roles):
+ * operational area. Navigation differs by permission, not by a separate layout.
  */
 export function StaffLayout({ children }: StaffLayoutProps) {
   return <AppShell variant="staff">{children ?? <Outlet />}</AppShell>;

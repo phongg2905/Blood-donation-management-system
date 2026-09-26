@@ -1,5 +1,5 @@
-import { LEGACY_TO_ACTOR, ROLE_PERMISSIONS } from '@blood/shared-types';
-import type { CurrentUser, LegacyRoleCode } from '@blood/shared-types';
+import { ROLE_PERMISSIONS } from '@blood/shared-types';
+import type { ActorCode, CurrentUser } from '@blood/shared-types';
 import { ApiRequestError } from '@/services/api';
 import { AUTH_ERROR_CODES } from '../auth-errors';
 import type {
@@ -24,14 +24,18 @@ interface DemoAccount {
   email: string;
   password: string;
   fullName: string;
-  role: LegacyRoleCode;
+  role: ActorCode;
   isActive: boolean;
 }
 
 /** Shared password for every demo account. Dev fixture only. */
 export const DEMO_PASSWORD = 'Blood@123';
 
-/** One account per role, plus an inactive account to exercise that error path. */
+/**
+ * One account per four-actor role, plus an inactive account to exercise that
+ * error path. Emails match the mock `mockEmail` values in
+ * `features/auth/demo/demo-accounts.ts` so the demo picker works in mock mode.
+ */
 export const DEMO_ACCOUNTS: readonly DemoAccount[] = [
   {
     email: 'donor@example.local',
@@ -41,31 +45,24 @@ export const DEMO_ACCOUNTS: readonly DemoAccount[] = [
     isActive: true,
   },
   {
-    email: 'reception@example.local',
+    email: 'donation-staff@example.local',
     password: DEMO_PASSWORD,
     fullName: 'Trần Thị B',
-    role: 'RECEPTION_STAFF',
+    role: 'DONATION_STAFF',
     isActive: true,
   },
   {
-    email: 'medical@example.local',
+    email: 'coordinator@example.local',
     password: DEMO_PASSWORD,
     fullName: 'Lê Văn C',
-    role: 'MEDICAL_STAFF',
-    isActive: true,
-  },
-  {
-    email: 'collection@example.local',
-    password: DEMO_PASSWORD,
-    fullName: 'Phạm Thị D',
-    role: 'BLOOD_COLLECTION_STAFF',
+    role: 'COORDINATOR',
     isActive: true,
   },
   {
     email: 'admin@example.local',
     password: DEMO_PASSWORD,
     fullName: 'Quản trị viên',
-    role: 'ADMIN',
+    role: 'SYSTEM_ADMIN',
     isActive: true,
   },
   {
@@ -100,7 +97,7 @@ interface StoredUser {
   fullName: string;
   /** Mock only — a real backend stores a hash and never returns it. */
   password: string;
-  role: LegacyRoleCode;
+  role: ActorCode;
   isActive: boolean;
 }
 
@@ -152,8 +149,8 @@ function clearValue(key: string): void {
 const normalizeEmail = (value: string): string => value.trim().toLowerCase();
 
 /** Permissions always come from the shared matrix — never re-declared here. */
-const permissionsFor = (role: LegacyRoleCode): CurrentUser['permissions'] => [
-  ...ROLE_PERMISSIONS[LEGACY_TO_ACTOR[role]],
+const permissionsFor = (role: ActorCode): CurrentUser['permissions'] => [
+  ...ROLE_PERMISSIONS[role],
 ];
 
 const delay = (ms: number): Promise<void> =>

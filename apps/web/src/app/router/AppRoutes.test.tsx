@@ -118,9 +118,9 @@ describe('protected route', () => {
 });
 
 describe('role-based shell', () => {
-  it('uses the staff shell for the three staff roles', async () => {
+  it('uses the staff shell for DONATION_STAFF', async () => {
     const service = createMockAuthService();
-    await signInAs(service, 'medical@example.local');
+    await signInAs(service, 'donation-staff@example.local');
 
     const { container } = renderWithAuth(<AppRoutes />, {
       service,
@@ -133,11 +133,11 @@ describe('role-based shell', () => {
     expect(container.querySelector('.app-shell--staff')).not.toBeNull();
     // The session block shows the role name, proving the right user is rendered.
     expect(container.querySelector('.session__role')?.textContent).toBe(
-      'Nhân viên y tế',
+      'Nhân viên tiếp nhận / sàng lọc',
     );
   });
 
-  it('uses the admin shell for ADMIN', async () => {
+  it('uses the admin shell for SYSTEM_ADMIN', async () => {
     const service = createMockAuthService();
     await signInAs(service, 'admin@example.local');
 
@@ -149,7 +149,7 @@ describe('role-based shell', () => {
     await screen.findByRole('heading', { name: 'Thông tin cá nhân' });
     expect(container.querySelector('.app-shell--admin')).not.toBeNull();
     expect(container.querySelector('.session__role')?.textContent).toBe(
-      'Quản trị viên',
+      'Quản trị hệ thống',
     );
   });
 });
