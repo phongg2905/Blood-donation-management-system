@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import {
   AUDIT_ACTIONS,
@@ -55,7 +56,7 @@ export const registrationService = {
 
       await repo.createHealthDeclaration(tx, {
         registrationId: row.id,
-        answers: data.healthDeclaration.answers,
+        answers: data.healthDeclaration.answers as Prisma.InputJsonValue,
         questionnaireVersion: data.healthDeclaration.questionnaireVersion,
         submittedAt: new Date(),
       });
