@@ -8,6 +8,7 @@ import {
   QUICK_TEST_OPTIONS,
   RH_OPTIONS,
   SCREENING_STATUS_LABELS,
+  formatDate,
   formatSlotRange,
   parseMeasurements,
   validateScreening,
@@ -110,6 +111,7 @@ export function ScreeningPage() {
   const [errors, setErrors] = useState<FieldErrors>({});
   const [outcome, setOutcome] = useState<ScreeningOutcome | null>(null);
   const [reason, setReason] = useState('');
+  const [deferredUntil, setDeferredUntil] = useState('');
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   if (queue.loading)
@@ -144,7 +146,13 @@ export function ScreeningPage() {
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
     void mutation.run(
-      () => workflow.saveMeasurements(registration.id, parseMeasurements(values), notes),
+      () =>
+        workflow.saveMeasurements(
+          registration.id,
+          parseMeasurements(values),
+          notes,
+          registration.checkIn?.id ?? screening.checkInId,
+        ),
       () => queue.retry(),
       'Đã lưu chỉ số sàng lọc. Chọn kết luận để hoàn tất.',
     );
@@ -152,13 +160,23 @@ export function ScreeningPage() {
 
   function submitReview() {
     if (!outcome) return;
-    if (outcome !== 'ELIGIBLE' && !reason.trim()) {
+    if (outcome === 'DEFERRED' && !reason.trim()) {
+      setErrors({ reason: 'Bắt buộc ghi rõ lý do khi tạm hoãn.' });
+      return;
+    }
+    if (outcome === 'INELIGIBLE' && !reason.trim()) {
       setErrors({ reason: 'Vui lòng ghi rõ lý do khi không đủ điều kiện.' });
       return;
     }
     setErrors({});
     void mutation.run(
-      () => workflow.reviewScreening(registration.id, outcome, reason.trim() || null),
+      () =>
+        workflow.reviewScreening(
+          screening.id || registration.id,
+          outcome,
+          reason.trim() || null,
+          deferredUntil ? new Date(deferredUntil).toISOString() : null,
+        ),
       () => {
         setConfirmOpen(false);
         queue.retry();
@@ -328,7 +346,10 @@ export function ScreeningPage() {
                 label: 'Kết luận',
                 value: SCREENING_STATUS_LABELS[screening.status],
               },
-              { label: 'Lý do', value: screening.reason ?? '—' },
+              { label: 'Lý do', value: screening.reason ?? screening.decisionReason ?? '—' },
+              ...(screening.deferredUntil
+                ? [{ label: 'Tạm hoãn đến', value: formatDate(screening.deferredUntil) }]
+                : []),
               {
                 label: 'Thời điểm',
                 value: screening.reviewedAt
@@ -371,7 +392,7 @@ export function ScreeningPage() {
             {outcome && outcome !== 'ELIGIBLE' && (
               <FormField
                 id="screening-reason"
-                label="Lý do"
+                label={outcome === 'DEFERRED' ? 'Lý do tạm hoãn' : 'Lý do không đủ điều kiện'}
                 error={errors.reason}
                 required
               >
@@ -380,7 +401,20 @@ export function ScreeningPage() {
                   id="screening-reason"
                   rows={3}
                   value={reason}
+                  placeholder={outcome === 'DEFERRED' ? 'Bắt buộc ghi rõ lý do tạm hoãn' : 'Ghi rõ lý do'}
                   onChange={(event) => setReason(event.target.value)}
+                />
+              </FormField>
+            )}
+            {outcome === 'DEFERRED' && (
+              <FormField
+                id="screening-deferred-until"
+                label="Tạm hoãn đến ngày (không bắt buộc)"
+              >
+                <Input
+                  type="date"
+                  value={deferredUntil}
+                  onChange={(event) => setDeferredUntil(event.target.value)}
                 />
               </FormField>
             )}
@@ -412,6 +446,9 @@ export function ScreeningPage() {
           </p>
           {outcome !== 'ELIGIBLE' && (
             <p>Lý do: {reason.trim() || '(chưa nhập)'}</p>
+          )}
+          {outcome === 'DEFERRED' && deferredUntil && (
+            <p>Tạm hoãn đến: {formatDate(deferredUntil)}</p>
           )}
           {outcome === 'ELIGIBLE' && (
             <p>Sau khi xác nhận, người hiến chuyển sang bước gắn mã túi máu.</p>

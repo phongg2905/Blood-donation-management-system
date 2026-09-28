@@ -12,7 +12,7 @@ import type { CheckInQuery, DonorRegistration } from './types';
 
 const statusTone = (registration: DonorRegistration) => {
   if (registration.checkedInAt) return 'success' as const;
-  if (registration.status === 'CANCELLED') return 'danger' as const;
+  if (registration.status === 'CANCELLED' || registration.status === 'NO_SHOW') return 'danger' as const;
   return 'info' as const;
 };
 
@@ -52,6 +52,18 @@ export function CheckInPage() {
         results.retry();
       },
       'Check-in thành công. Người hiến đã được đưa vào hàng chờ sàng lọc.',
+    );
+  }
+
+  function confirmNoShow() {
+    if (!selected || !workflow.markNoShow) return;
+    void mutation.run(
+      () => workflow.markNoShow!(selected.id),
+      (registration) => {
+        setSelected(registration);
+        results.retry();
+      },
+      'Đã ghi nhận người hiến vắng mặt (No-show).',
     );
   }
 
@@ -182,10 +194,20 @@ export function CheckInPage() {
             >
               Xác nhận Check-in
             </Button>
+            {workflow.markNoShow && (
+              <Button
+                variant="secondary"
+                isLoading={mutation.pending}
+                disabled={!canCheckIn}
+                onClick={confirmNoShow}
+              >
+                Đánh dấu vắng mặt (No-show)
+              </Button>
+            )}
           </div>
-          {!canCheckIn && !selected.checkedInAt && (
+          {!canCheckIn && !selected.checkedInAt && selected.status !== 'NO_SHOW' && (
             <p className="workflow-muted">
-              Chỉ đăng ký đã xếp lịch hoặc đã xác nhận mới được check-in.
+              Chỉ đăng ký đã xếp lịch hoặc đã xác nhận mới được check-in / đánh dấu vắng mặt.
             </p>
           )}
         </section>

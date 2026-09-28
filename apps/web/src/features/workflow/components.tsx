@@ -1,8 +1,10 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
+import { mockWorkflowEnabled } from './repository';
 
-/** Reminds the user that workflow data is illustrative until the API lands. */
+/** Reminds the user that workflow data is illustrative when running mock mode. */
 export function MockNote({ children }: { children?: ReactNode }) {
+  if (!mockWorkflowEnabled) return null;
   return (
     <p className="workflow-demo" role="note">
       {children ??

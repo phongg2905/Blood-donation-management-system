@@ -6,6 +6,7 @@ import { Feedback, QueryState } from '@/features/campaigns/components';
 import {
   BLOOD_BAG_STATUS_LABELS,
   formatDateTime,
+  toBackendBloodType,
   validateBloodBag,
   type FieldErrors,
 } from './domain';
@@ -152,9 +153,14 @@ export function NewBloodBagPage() {
     if (!selected) return;
     const input = {
       registrationId: selected.registration.id,
+      screeningId: selected.screening.id,
       code,
       volumeMl: Number(volume),
       bloodGroup: selected.screening.bloodGroup,
+      bloodType: toBackendBloodType(
+        selected.screening.bloodGroup,
+        selected.screening.rh,
+      ),
     };
     const nextErrors = validateBloodBag(input);
     setErrors(nextErrors);
@@ -178,10 +184,19 @@ export function NewBloodBagPage() {
           <DetailList
             items={[
               { label: 'Mã túi máu', value: created.code },
-              { label: 'Người hiến', value: created.donorName },
-              { label: 'Đợt hiến', value: created.campaignName },
+              ...(created.certificateCode
+                ? [{ label: 'Mã chứng nhận hiến máu', value: created.certificateCode }]
+                : []),
+              {
+                label: 'Người hiến',
+                value: created.donorName || selected?.registration.donorName || '—',
+              },
+              {
+                label: 'Đợt hiến',
+                value: created.campaignName || selected?.registration.campaignName || '—',
+              },
               { label: 'Thể tích', value: `${created.volumeMl} ml` },
-              { label: 'Nhóm máu', value: created.bloodGroup ?? '—' },
+              { label: 'Nhóm máu', value: created.bloodGroup ?? selected?.screening.bloodGroup ?? '—' },
               {
                 label: 'Trạng thái',
                 value: BLOOD_BAG_STATUS_LABELS[created.status],
