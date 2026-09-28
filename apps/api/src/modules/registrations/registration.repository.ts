@@ -20,7 +20,11 @@ export const registrationRepository = {
   findById: (id: string) =>
     database.registration.findUnique({
       where: { id },
-      include: { healthDeclaration: true, checkIn: true },
+      include: {
+        healthDeclaration: true,
+        checkIn: true,
+        donor: { select: { userId: true } },
+      },
     }),
 
   findByIdTx: (tx: Prisma.TransactionClient, id: string) =>

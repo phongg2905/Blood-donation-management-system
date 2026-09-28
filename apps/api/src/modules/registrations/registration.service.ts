@@ -9,6 +9,7 @@ import { AppError } from '../../common/errors/app.error';
 import { parseDomain } from '../../common/helpers/domain-validation';
 import type { AuditContext } from '../audit-logs/audit.service';
 import { auditLogService } from '../audit-logs/audit.service';
+import { notificationService } from '../notifications/notification.service';
 import { timeSlotService } from '../time-slots/time-slot.service';
 import { registrationRepository as repo } from './registration.repository';
 import {
@@ -70,24 +71,42 @@ export const registrationService = {
         },
         tx,
       );
-      return row;
+      const notification = await notificationService.create(tx, {
+        userId,
+        type: 'REGISTRATION',
+        title: 'Xác nhận đăng ký hiến máu',
+        message: `Đăng ký của bạn cho đợt hiến máu đã được ghi nhận (mã ${row.id}).`,
+        channel: 'EMAIL',
+      });
+      return { row, notification };
     });
+
+    void notificationService.dispatch(registration.notification);
 
     // Scheduling is a separate, already-atomic operation (capacity/overlap
     // enforced with Serializable+retry) — not folded into the tx above.
     if (data.timeSlotId) {
       return timeSlotService.schedule(
-        { registrationId: registration.id, timeSlotId: data.timeSlotId },
+        { registrationId: registration.row.id, timeSlotId: data.timeSlotId },
         ctx,
       );
     }
-    return registration;
+    return registration.row;
   },
 
-  async getById(id: string) {
+  async getById(
+    id: string,
+    auth: { userId: string; roles: readonly string[] },
+  ) {
     const registration = await repo.findById(id);
     if (!registration)
       throw AppError.notFound(ERROR_CODES.REGISTRATION_NOT_FOUND);
+    // DONOR may only read their own; DONATION_STAFF/COORDINATOR/SYSTEM_ADMIN
+    // hold `registration.read` for operational/oversight reasons and aren't scoped.
+    const staffLike = auth.roles.some((r) => r !== 'DONOR');
+    if (!staffLike && registration.donor.userId !== auth.userId) {
+      throw AppError.forbidden();
+    }
     return registration;
   },
 

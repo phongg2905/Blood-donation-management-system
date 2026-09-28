@@ -7,7 +7,7 @@
  */
 
 /* -------------------------------------------------------------------------- */
- /* Roles / Actors                                                             */
+/* Roles / Actors                                                             */
 /* -------------------------------------------------------------------------- */
 
 /** The system uses exactly four actor codes for the new frontend model. */
@@ -39,10 +39,7 @@ export const LEGACY_TO_ACTOR: Readonly<Record<LegacyRoleCode, ActorCode>> = {
 };
 
 /** All role/actor codes that the frontend may encounter. */
-export const ALL_ROLE_CODES = [
-  ...ACTOR_CODES,
-  ...LEGACY_ROLE_CODES,
-] as const;
+export const ALL_ROLE_CODES = [...ACTOR_CODES, ...LEGACY_ROLE_CODES] as const;
 export type AllRoleCode = (typeof ALL_ROLE_CODES)[number];
 
 /** Compatibility type for consumers that accept both role generations. */
@@ -532,6 +529,7 @@ export const ERROR_CODES = {
   HEALTH_DECLARATION_REQUIRED: 'HEALTH_DECLARATION_REQUIRED',
 
   SCREENING_NOT_FOUND: 'SCREENING_NOT_FOUND',
+  NOTIFICATION_NOT_FOUND: 'NOTIFICATION_NOT_FOUND',
   SCREENING_INVALID_TRANSITION: 'SCREENING_INVALID_TRANSITION',
   SCREENING_NOT_ELIGIBLE: 'SCREENING_NOT_ELIGIBLE',
   SCREENING_REVIEW_REASON_REQUIRED: 'SCREENING_REVIEW_REASON_REQUIRED',
@@ -601,6 +599,7 @@ export const ERROR_MESSAGES: Readonly<Record<ErrorCode, string>> = {
   HEALTH_DECLARATION_REQUIRED: 'Cần có phiếu khai báo sức khỏe',
 
   SCREENING_NOT_FOUND: 'Không tìm thấy phiếu sàng lọc',
+  NOTIFICATION_NOT_FOUND: 'Không tìm thấy thông báo',
   SCREENING_INVALID_TRANSITION:
     'Không thể chuyển phiếu sàng lọc sang trạng thái này',
   SCREENING_NOT_ELIGIBLE: 'Chỉ người hiến đủ điều kiện mới được hiến máu',

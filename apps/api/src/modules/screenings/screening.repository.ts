@@ -24,6 +24,14 @@ export const screeningRepository = {
   findByIdTx: (tx: Prisma.TransactionClient, id: string) =>
     tx.screening.findUnique({ where: { id } }),
 
+  findWithDonorTx: (tx: Prisma.TransactionClient, id: string) =>
+    tx.screening.findUnique({
+      where: { id },
+      include: {
+        checkIn: { include: { registration: { include: { donor: true } } } },
+      },
+    }),
+
   findById: (id: string) =>
     database.screening.findUnique({ where: { id }, include: { tests: true } }),
 

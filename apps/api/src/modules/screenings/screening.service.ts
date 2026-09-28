@@ -6,6 +6,7 @@ import {
 import { AppError } from '../../common/errors/app.error';
 import type { AuditContext } from '../audit-logs/audit.service';
 import { auditLogService } from '../audit-logs/audit.service';
+import { notificationService } from '../notifications/notification.service';
 import { screeningRepository as repo } from './screening.repository';
 import {
   assertScreeningTransition,
@@ -69,8 +70,8 @@ export const screeningService = {
 
   async review(id: string, input: unknown, ctx: AuditContext) {
     const review = validateScreeningReview(input);
-    return repo.transaction(async (tx) => {
-      const existing = await repo.findByIdTx(tx, id);
+    const { updated, notification } = await repo.transaction(async (tx) => {
+      const existing = await repo.findWithDonorTx(tx, id);
       if (!existing) throw AppError.notFound(ERROR_CODES.SCREENING_NOT_FOUND);
       assertScreeningTransition(existing.status, review.status);
 
@@ -90,7 +91,24 @@ export const screeningService = {
         },
         tx,
       );
-      return updated;
+      // Only a negative outcome needs the donor's attention; ELIGIBLE flows
+      // straight into the certificate notification at stage 5.
+      const notification =
+        review.status === 'INELIGIBLE' || review.status === 'DEFERRED'
+          ? await notificationService.create(tx, {
+              userId: existing.checkIn.registration.donor.userId,
+              type: 'DONATION',
+              title: 'Kết quả sàng lọc',
+              message:
+                review.status === 'DEFERRED'
+                  ? 'Bạn cần hoãn hiến máu lần này. Vui lòng liên hệ nhân viên để biết thêm chi tiết.'
+                  : 'Rất tiếc, bạn chưa đủ điều kiện hiến máu lần này.',
+              channel: 'EMAIL',
+            })
+          : null;
+      return { updated, notification };
     });
+    if (notification) void notificationService.dispatch(notification);
+    return updated;
   },
 };

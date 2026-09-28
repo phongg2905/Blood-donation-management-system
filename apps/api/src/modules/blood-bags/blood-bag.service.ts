@@ -9,6 +9,7 @@ import { AppError } from '../../common/errors/app.error';
 import { parseDomain } from '../../common/helpers/domain-validation';
 import type { AuditContext } from '../audit-logs/audit.service';
 import { auditLogService } from '../audit-logs/audit.service';
+import { notificationService } from '../notifications/notification.service';
 import { assertScreeningEligibleForDonation } from '../screenings/screening.validation';
 import { assertBagVolumesReconcile } from './blood-bag.validation';
 import { bloodBagRepository as repo } from './blood-bag.repository';
@@ -54,7 +55,7 @@ export const bloodBagService = {
       bags.map((b) => b.volumeMl),
     );
 
-    return repo.transaction(async (tx) => {
+    const result = await repo.transaction(async (tx) => {
       const screening = await repo.findScreeningTx(tx, screeningId);
       if (!screening) throw AppError.notFound(ERROR_CODES.SCREENING_NOT_FOUND);
       assertScreeningEligibleForDonation(screening.status);
@@ -106,8 +107,18 @@ export const bloodBagService = {
         tx,
       );
 
+      const notification = await notificationService.create(tx, {
+        userId: screening.checkIn.registration.donor.userId,
+        type: 'CERTIFICATE',
+        title: 'Chứng nhận hiến máu',
+        message: `Cảm ơn bạn đã hiến máu! Mã chứng nhận: ${certificate.code}.`,
+        channel: 'EMAIL',
+      });
+
       // Donation stays out of the response — hidden per choice B.
-      return { bloodBags, certificate };
+      return { bloodBags, certificate, notification };
     });
+    void notificationService.dispatch(result.notification);
+    return { bloodBags: result.bloodBags, certificate: result.certificate };
   },
 };
