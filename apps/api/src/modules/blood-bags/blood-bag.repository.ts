@@ -8,7 +8,10 @@ export const bloodBagRepository = {
   findScreeningTx: (tx: Prisma.TransactionClient, screeningId: string) =>
     tx.screening.findUnique({
       where: { id: screeningId },
-      include: { donation: true },
+      include: {
+        donation: true,
+        checkIn: { include: { registration: { include: { donor: true } } } },
+      },
     }),
 
   createDonation: (

@@ -18,7 +18,8 @@ export const create: RequestHandler = async (req, res) => {
 };
 
 export const getById: RequestHandler = async (req, res) => {
-  sendSuccess(res, await registrationService.getById(paramId(req)));
+  if (!req.auth) throw AppError.unauthorized();
+  sendSuccess(res, await registrationService.getById(paramId(req), req.auth));
 };
 
 export const reschedule: RequestHandler = async (req, res) => {

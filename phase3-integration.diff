@@ -1,0 +1,641 @@
+diff --git a/apps/api/package.json b/apps/api/package.json
+index 0a7d0aa..001ab07 100644
+--- a/apps/api/package.json
++++ b/apps/api/package.json
+@@ -11,6 +11,7 @@
+     "db:migrate": "prisma migrate dev",
+     "db:deploy": "prisma migrate deploy",
+     "db:studio": "prisma studio",
++    "jobs:no-show": "tsx src/jobs/no-show-sweep.ts",
+     "db:seed": "tsx src/database/seed/index.ts",
+     "test": "tsx --test src/app.test.ts src/domain.test.ts src/database.test.ts src/phase1.test.ts src/modules/auth/auth.test.ts"
+   },
+diff --git a/apps/api/src/jobs/no-show-sweep.ts b/apps/api/src/jobs/no-show-sweep.ts
+new file mode 100644
+index 0000000..f0088c4
+--- /dev/null
++++ b/apps/api/src/jobs/no-show-sweep.ts
+@@ -0,0 +1,29 @@
++import { database } from '../config/database';
++
++/**
++ * One-shot sweep, meant to be invoked by an external scheduler (crontab,
++ * systemd timer, k8s CronJob) — e.g. every 15 minutes:
++ *   0,15,30,45 * * * * cd /app/apps/api && pnpm jobs:no-show
++ *
++ * Marks SCHEDULED/CONFIRMED registrations as NO_SHOW once their time slot has
++ * ended without a check-in. Idempotent: rows already flipped are excluded by
++ * the status filter, so overlapping/repeated runs are harmless.
++ */
++async function main(): Promise<void> {
++  const result = await database.registration.updateMany({
++    where: {
++      status: { in: ['SCHEDULED', 'CONFIRMED'] },
++      checkIn: { is: null },
++      timeSlot: { endsAt: { lt: new Date() } },
++    },
++    data: { status: 'NO_SHOW' },
++  });
++  console.info(`no-show sweep: ${result.count} registration(s) marked NO_SHOW`);
++}
++
++main()
++  .catch((error) => {
++    console.error('no-show sweep failed', error);
++    process.exitCode = 1;
++  })
++  .finally(() => database.$disconnect());
+diff --git a/apps/api/src/modules/blood-bags/blood-bag.repository.ts b/apps/api/src/modules/blood-bags/blood-bag.repository.ts
+index bb982e3..2f35d24 100644
+--- a/apps/api/src/modules/blood-bags/blood-bag.repository.ts
++++ b/apps/api/src/modules/blood-bags/blood-bag.repository.ts
+@@ -8,7 +8,10 @@ export const bloodBagRepository = {
+   findScreeningTx: (tx: Prisma.TransactionClient, screeningId: string) =>
+     tx.screening.findUnique({
+       where: { id: screeningId },
+-      include: { donation: true },
++      include: {
++        donation: true,
++        checkIn: { include: { registration: { include: { donor: true } } } },
++      },
+     }),
+ 
+   createDonation: (
+diff --git a/apps/api/src/modules/blood-bags/blood-bag.service.ts b/apps/api/src/modules/blood-bags/blood-bag.service.ts
+index c826d37..f267e7d 100644
+--- a/apps/api/src/modules/blood-bags/blood-bag.service.ts
++++ b/apps/api/src/modules/blood-bags/blood-bag.service.ts
+@@ -9,6 +9,7 @@ import { AppError } from '../../common/errors/app.error';
+ import { parseDomain } from '../../common/helpers/domain-validation';
+ import type { AuditContext } from '../audit-logs/audit.service';
+ import { auditLogService } from '../audit-logs/audit.service';
++import { notificationService } from '../notifications/notification.service';
+ import { assertScreeningEligibleForDonation } from '../screenings/screening.validation';
+ import { assertBagVolumesReconcile } from './blood-bag.validation';
+ import { bloodBagRepository as repo } from './blood-bag.repository';
+@@ -54,7 +55,7 @@ export const bloodBagService = {
+       bags.map((b) => b.volumeMl),
+     );
+ 
+-    return repo.transaction(async (tx) => {
++    const result = await repo.transaction(async (tx) => {
+       const screening = await repo.findScreeningTx(tx, screeningId);
+       if (!screening) throw AppError.notFound(ERROR_CODES.SCREENING_NOT_FOUND);
+       assertScreeningEligibleForDonation(screening.status);
+@@ -106,8 +107,18 @@ export const bloodBagService = {
+         tx,
+       );
+ 
++      const notification = await notificationService.create(tx, {
++        userId: screening.checkIn.registration.donor.userId,
++        type: 'CERTIFICATE',
++        title: 'Chứng nhận hiến máu',
++        message: `Cảm ơn bạn đã hiến máu! Mã chứng nhận: ${certificate.code}.`,
++        channel: 'EMAIL',
++      });
++
+       // Donation stays out of the response — hidden per choice B.
+-      return { bloodBags, certificate };
++      return { bloodBags, certificate, notification };
+     });
++    void notificationService.dispatch(result.notification);
++    return { bloodBags: result.bloodBags, certificate: result.certificate };
+   },
+ };
+diff --git a/apps/api/src/modules/certificates/certificate.repository.ts b/apps/api/src/modules/certificates/certificate.repository.ts
+new file mode 100644
+index 0000000..ffc823f
+--- /dev/null
++++ b/apps/api/src/modules/certificates/certificate.repository.ts
+@@ -0,0 +1,7 @@
++import { database } from '../../config/database';
++
++export const certificateRepository = {
++  findById: (id: string) => database.certificate.findUnique({ where: { id } }),
++  setFileUrl: (id: string, fileUrl: string) =>
++    database.certificate.update({ where: { id }, data: { fileUrl } }),
++};
+diff --git a/apps/api/src/modules/certificates/certificate.routes.ts b/apps/api/src/modules/certificates/certificate.routes.ts
+new file mode 100644
+index 0000000..688de3c
+--- /dev/null
++++ b/apps/api/src/modules/certificates/certificate.routes.ts
+@@ -0,0 +1,27 @@
++import type { RequestHandler } from 'express';
++import { Router } from 'express';
++import { paramId } from '../../common/helpers/http';
++import { sendSuccess } from '../../common/helpers/response';
++import { requireAuth } from '../../middlewares/auth.middleware';
++import { requirePermission } from '../../middlewares/permission.middleware';
++import { auditContextFrom } from '../audit-logs/audit.service';
++import { certificateService } from './certificate.service';
++
++const attachFile: RequestHandler = async (req, res) => {
++  sendSuccess(
++    res,
++    await certificateService.attachFile(
++      paramId(req),
++      req.body,
++      auditContextFrom(req),
++    ),
++  );
++};
++
++export const certificateRoutes = Router();
++certificateRoutes.post(
++  '/:id/file',
++  requireAuth,
++  requirePermission('certificate.issue'),
++  attachFile,
++);
+diff --git a/apps/api/src/modules/certificates/certificate.service.ts b/apps/api/src/modules/certificates/certificate.service.ts
+new file mode 100644
+index 0000000..b8e458d
+--- /dev/null
++++ b/apps/api/src/modules/certificates/certificate.service.ts
+@@ -0,0 +1,52 @@
++import { z } from 'zod';
++import {
++  AUDIT_ACTIONS,
++  AUDIT_ENTITY_TYPES,
++  ERROR_CODES,
++} from '@blood/shared-types';
++import { AppError } from '../../common/errors/app.error';
++import { parseDomain } from '../../common/helpers/domain-validation';
++import type { AuditContext } from '../audit-logs/audit.service';
++import { auditLogService } from '../audit-logs/audit.service';
++import { database } from '../../config/database';
++import { certificateRepository as repo } from './certificate.repository';
++
++const fileSchema = z.object({
++  fileUrl: z
++    .string()
++    .trim()
++    .max(2048)
++    .url()
++    .refine((u) => u.startsWith('https://'), 'fileUrl phải dùng https'),
++});
++
++export const certificateService = {
++  /** Records where the (externally stored) certificate PDF lives; no file bytes go through this API. */
++  async attachFile(id: string, input: unknown, ctx: AuditContext) {
++    const { fileUrl } = parseDomain(fileSchema, input);
++    const certificate = await repo.findById(id);
++    if (!certificate)
++      throw AppError.notFound(
++        ERROR_CODES.DONATION_NOT_FOUND,
++        'Không tìm thấy chứng nhận',
++      );
++    if (certificate.status !== 'ACTIVE') {
++      throw AppError.conflict(
++        ERROR_CODES.CERTIFICATE_NOT_ALLOWED,
++        'Chứng nhận đã bị thu hồi',
++      );
++    }
++    const updated = await repo.setFileUrl(id, fileUrl);
++    await auditLogService.recordSafely(
++      {
++        ...ctx,
++        action: AUDIT_ACTIONS.CERTIFICATE_ISSUED,
++        entityType: AUDIT_ENTITY_TYPES.CERTIFICATE,
++        entityId: id,
++        metadata: { fileAttached: true },
++      },
++      database,
++    );
++    return updated;
++  },
++};
+diff --git a/apps/api/src/modules/notifications/notification.mailer.ts b/apps/api/src/modules/notifications/notification.mailer.ts
+new file mode 100644
+index 0000000..63c430b
+--- /dev/null
++++ b/apps/api/src/modules/notifications/notification.mailer.ts
+@@ -0,0 +1,35 @@
++import nodemailer from 'nodemailer';
++import { env } from '../../config/env';
++
++const transport = env.SMTP_HOST
++  ? nodemailer.createTransport({
++      host: env.SMTP_HOST,
++      port: env.SMTP_PORT,
++      secure: env.SMTP_SECURE,
++      ...(env.SMTP_USER && env.SMTP_PASSWORD
++        ? { auth: { user: env.SMTP_USER, pass: env.SMTP_PASSWORD } }
++        : {}),
++      connectionTimeout: 3000,
++      greetingTimeout: 3000,
++      socketTimeout: 5000,
++    })
++  : null;
++
++/** No-op (logs only) when SMTP isn't configured — matches the dev fallback used for password reset. */
++export async function sendNotificationEmail(
++  to: string,
++  subject: string,
++  text: string,
++): Promise<boolean> {
++  if (!transport) {
++    console.info(`[dev] Email to ${to}: ${subject}`);
++    return false;
++  }
++  try {
++    await transport.sendMail({ to, from: env.SMTP_FROM, subject, text });
++    return true;
++  } catch (error) {
++    console.error('Notification email failed', error);
++    return false;
++  }
++}
+diff --git a/apps/api/src/modules/notifications/notification.repository.ts b/apps/api/src/modules/notifications/notification.repository.ts
+new file mode 100644
+index 0000000..dd19ecb
+--- /dev/null
++++ b/apps/api/src/modules/notifications/notification.repository.ts
+@@ -0,0 +1,34 @@
++import type { Prisma } from '@prisma/client';
++import { database } from '../../config/database';
++
++export const notificationRepository = {
++  create: (
++    tx: Prisma.TransactionClient | typeof database,
++    data: Prisma.NotificationUncheckedCreateInput,
++  ) => tx.notification.create({ data }),
++
++  markSent: (id: string) =>
++    database.notification.update({
++      where: { id },
++      data: { status: 'SENT', sentAt: new Date() },
++    }),
++  markFailed: (id: string) =>
++    database.notification.update({ where: { id }, data: { status: 'FAILED' } }),
++
++  listByUser: (userId: string, skip: number, take: number) =>
++    Promise.all([
++      database.notification.findMany({
++        where: { userId },
++        orderBy: { createdAt: 'desc' },
++        skip,
++        take,
++      }),
++      database.notification.count({ where: { userId } }),
++    ]),
++
++  markRead: (id: string, userId: string) =>
++    database.notification.updateMany({
++      where: { id, userId },
++      data: { readAt: new Date() },
++    }),
++};
+diff --git a/apps/api/src/modules/notifications/notification.routes.ts b/apps/api/src/modules/notifications/notification.routes.ts
+new file mode 100644
+index 0000000..18a9fb1
+--- /dev/null
++++ b/apps/api/src/modules/notifications/notification.routes.ts
+@@ -0,0 +1,40 @@
++import type { RequestHandler } from 'express';
++import { Router } from 'express';
++import { AppError } from '../../common/errors/app.error';
++import { paramId } from '../../common/helpers/http';
++import { sendList, sendSuccess } from '../../common/helpers/response';
++import { requireAuth } from '../../middlewares/auth.middleware';
++import { requirePermission } from '../../middlewares/permission.middleware';
++import { notificationService } from './notification.service';
++
++const list: RequestHandler = async (req, res) => {
++  if (!req.auth) throw AppError.unauthorized();
++  const { items, meta } = await notificationService.list(
++    req.auth.userId,
++    req.query as {
++      page?: number;
++      limit?: number;
++    },
++  );
++  sendList(res, items, meta.page, meta.limit, meta.total);
++};
++
++const markRead: RequestHandler = async (req, res) => {
++  if (!req.auth) throw AppError.unauthorized();
++  await notificationService.markRead(paramId(req), req.auth.userId);
++  sendSuccess(res, {});
++};
++
++export const notificationRoutes = Router();
++notificationRoutes.get(
++  '/',
++  requireAuth,
++  requirePermission('notification.read'),
++  list,
++);
++notificationRoutes.patch(
++  '/:id/read',
++  requireAuth,
++  requirePermission('notification.read'),
++  markRead,
++);
+diff --git a/apps/api/src/modules/notifications/notification.service.ts b/apps/api/src/modules/notifications/notification.service.ts
+new file mode 100644
+index 0000000..7fc4507
+--- /dev/null
++++ b/apps/api/src/modules/notifications/notification.service.ts
+@@ -0,0 +1,82 @@
++import type { Prisma } from '@prisma/client';
++import type { NotificationChannel, NotificationType } from '@prisma/client';
++import { ERROR_CODES } from '@blood/shared-types';
++import { AppError } from '../../common/errors/app.error';
++import { paginationMeta } from '../../common/helpers/response';
++import { database } from '../../config/database';
++import { sendNotificationEmail } from './notification.mailer';
++import { notificationRepository as repo } from './notification.repository';
++
++export interface NotifyInput {
++  userId: string;
++  type: NotificationType;
++  title: string;
++  message: string;
++  channel?: NotificationChannel;
++}
++
++export const notificationService = {
++  /**
++   * Call inside the caller's own transaction to persist the row atomically
++   * with the business write. IN_APP needs no external delivery so it's
++   * marked SENT immediately; EMAIL stays PENDING until `dispatch` runs
++   * *after* the outer transaction has committed (an SMTP call must never be
++   * allowed to roll back a real donation/registration write).
++   */
++  create: (tx: Prisma.TransactionClient, input: NotifyInput) =>
++    repo.create(tx, {
++      userId: input.userId,
++      type: input.type,
++      title: input.title,
++      message: input.message,
++      channel: input.channel ?? 'IN_APP',
++      status: (input.channel ?? 'IN_APP') === 'IN_APP' ? 'SENT' : 'PENDING',
++      sentAt: (input.channel ?? 'IN_APP') === 'IN_APP' ? new Date() : null,
++    }),
++
++  /** Fire-and-forget: call after the outer transaction resolves. Never throws. */
++  async dispatch(notification: {
++    id: string;
++    userId: string;
++    channel: string;
++    title: string;
++    message: string;
++  }) {
++    if (notification.channel !== 'EMAIL') return;
++    try {
++      const user = await database.user.findUnique({
++        where: { id: notification.userId },
++        select: { email: true },
++      });
++      if (!user) return;
++      const ok = await sendNotificationEmail(
++        user.email,
++        notification.title,
++        notification.message,
++      );
++      await (ok
++        ? repo.markSent(notification.id)
++        : repo.markFailed(notification.id));
++    } catch (error) {
++      console.error('Notification dispatch failed', error);
++      await repo.markFailed(notification.id).catch(() => undefined);
++    }
++  },
++
++  async list(userId: string, query: { page?: number; limit?: number }) {
++    const page = query.page ?? 1;
++    const limit = Math.min(query.limit ?? 20, 100);
++    const [items, total] = await repo.listByUser(
++      userId,
++      (page - 1) * limit,
++      limit,
++    );
++    return { items, meta: paginationMeta(page, limit, total) };
++  },
++
++  async markRead(id: string, userId: string) {
++    const result = await repo.markRead(id, userId);
++    if (result.count === 0)
++      throw AppError.notFound(ERROR_CODES.NOTIFICATION_NOT_FOUND);
++  },
++};
+diff --git a/apps/api/src/modules/registrations/registration.controller.ts b/apps/api/src/modules/registrations/registration.controller.ts
+index c7bfaae..13d16a8 100644
+--- a/apps/api/src/modules/registrations/registration.controller.ts
++++ b/apps/api/src/modules/registrations/registration.controller.ts
+@@ -18,7 +18,8 @@ export const create: RequestHandler = async (req, res) => {
+ };
+ 
+ export const getById: RequestHandler = async (req, res) => {
+-  sendSuccess(res, await registrationService.getById(paramId(req)));
++  if (!req.auth) throw AppError.unauthorized();
++  sendSuccess(res, await registrationService.getById(paramId(req), req.auth));
+ };
+ 
+ export const reschedule: RequestHandler = async (req, res) => {
+diff --git a/apps/api/src/modules/registrations/registration.repository.ts b/apps/api/src/modules/registrations/registration.repository.ts
+index 1272da0..042fd05 100644
+--- a/apps/api/src/modules/registrations/registration.repository.ts
++++ b/apps/api/src/modules/registrations/registration.repository.ts
+@@ -20,7 +20,11 @@ export const registrationRepository = {
+   findById: (id: string) =>
+     database.registration.findUnique({
+       where: { id },
+-      include: { healthDeclaration: true, checkIn: true },
++      include: {
++        healthDeclaration: true,
++        checkIn: true,
++        donor: { select: { userId: true } },
++      },
+     }),
+ 
+   findByIdTx: (tx: Prisma.TransactionClient, id: string) =>
+diff --git a/apps/api/src/modules/registrations/registration.service.ts b/apps/api/src/modules/registrations/registration.service.ts
+index af0ebef..826b19d 100644
+--- a/apps/api/src/modules/registrations/registration.service.ts
++++ b/apps/api/src/modules/registrations/registration.service.ts
+@@ -9,6 +9,7 @@ import { AppError } from '../../common/errors/app.error';
+ import { parseDomain } from '../../common/helpers/domain-validation';
+ import type { AuditContext } from '../audit-logs/audit.service';
+ import { auditLogService } from '../audit-logs/audit.service';
++import { notificationService } from '../notifications/notification.service';
+ import { timeSlotService } from '../time-slots/time-slot.service';
+ import { registrationRepository as repo } from './registration.repository';
+ import {
+@@ -70,24 +71,42 @@ export const registrationService = {
+         },
+         tx,
+       );
+-      return row;
++      const notification = await notificationService.create(tx, {
++        userId,
++        type: 'REGISTRATION',
++        title: 'Xác nhận đăng ký hiến máu',
++        message: `Đăng ký của bạn cho đợt hiến máu đã được ghi nhận (mã ${row.id}).`,
++        channel: 'EMAIL',
++      });
++      return { row, notification };
+     });
+ 
++    void notificationService.dispatch(registration.notification);
++
+     // Scheduling is a separate, already-atomic operation (capacity/overlap
+     // enforced with Serializable+retry) — not folded into the tx above.
+     if (data.timeSlotId) {
+       return timeSlotService.schedule(
+-        { registrationId: registration.id, timeSlotId: data.timeSlotId },
++        { registrationId: registration.row.id, timeSlotId: data.timeSlotId },
+         ctx,
+       );
+     }
+-    return registration;
++    return registration.row;
+   },
+ 
+-  async getById(id: string) {
++  async getById(
++    id: string,
++    auth: { userId: string; roles: readonly string[] },
++  ) {
+     const registration = await repo.findById(id);
+     if (!registration)
+       throw AppError.notFound(ERROR_CODES.REGISTRATION_NOT_FOUND);
++    // DONOR may only read their own; DONATION_STAFF/COORDINATOR/SYSTEM_ADMIN
++    // hold `registration.read` for operational/oversight reasons and aren't scoped.
++    const staffLike = auth.roles.some((r) => r !== 'DONOR');
++    if (!staffLike && registration.donor.userId !== auth.userId) {
++      throw AppError.forbidden();
++    }
+     return registration;
+   },
+ 
+diff --git a/apps/api/src/modules/screenings/screening.repository.ts b/apps/api/src/modules/screenings/screening.repository.ts
+index cc9ddbd..40ae716 100644
+--- a/apps/api/src/modules/screenings/screening.repository.ts
++++ b/apps/api/src/modules/screenings/screening.repository.ts
+@@ -24,6 +24,14 @@ export const screeningRepository = {
+   findByIdTx: (tx: Prisma.TransactionClient, id: string) =>
+     tx.screening.findUnique({ where: { id } }),
+ 
++  findWithDonorTx: (tx: Prisma.TransactionClient, id: string) =>
++    tx.screening.findUnique({
++      where: { id },
++      include: {
++        checkIn: { include: { registration: { include: { donor: true } } } },
++      },
++    }),
++
+   findById: (id: string) =>
+     database.screening.findUnique({ where: { id }, include: { tests: true } }),
+ 
+diff --git a/apps/api/src/modules/screenings/screening.service.ts b/apps/api/src/modules/screenings/screening.service.ts
+index 67fa406..25cab00 100644
+--- a/apps/api/src/modules/screenings/screening.service.ts
++++ b/apps/api/src/modules/screenings/screening.service.ts
+@@ -6,6 +6,7 @@ import {
+ import { AppError } from '../../common/errors/app.error';
+ import type { AuditContext } from '../audit-logs/audit.service';
+ import { auditLogService } from '../audit-logs/audit.service';
++import { notificationService } from '../notifications/notification.service';
+ import { screeningRepository as repo } from './screening.repository';
+ import {
+   assertScreeningTransition,
+@@ -69,8 +70,8 @@ export const screeningService = {
+ 
+   async review(id: string, input: unknown, ctx: AuditContext) {
+     const review = validateScreeningReview(input);
+-    return repo.transaction(async (tx) => {
+-      const existing = await repo.findByIdTx(tx, id);
++    const { updated, notification } = await repo.transaction(async (tx) => {
++      const existing = await repo.findWithDonorTx(tx, id);
+       if (!existing) throw AppError.notFound(ERROR_CODES.SCREENING_NOT_FOUND);
+       assertScreeningTransition(existing.status, review.status);
+ 
+@@ -90,7 +91,24 @@ export const screeningService = {
+         },
+         tx,
+       );
+-      return updated;
++      // Only a negative outcome needs the donor's attention; ELIGIBLE flows
++      // straight into the certificate notification at stage 5.
++      const notification =
++        review.status === 'INELIGIBLE' || review.status === 'DEFERRED'
++          ? await notificationService.create(tx, {
++              userId: existing.checkIn.registration.donor.userId,
++              type: 'DONATION',
++              title: 'Kết quả sàng lọc',
++              message:
++                review.status === 'DEFERRED'
++                  ? 'Bạn cần hoãn hiến máu lần này. Vui lòng liên hệ nhân viên để biết thêm chi tiết.'
++                  : 'Rất tiếc, bạn chưa đủ điều kiện hiến máu lần này.',
++              channel: 'EMAIL',
++            })
++          : null;
++      return { updated, notification };
+     });
++    if (notification) void notificationService.dispatch(notification);
++    return updated;
+   },
+ };
+diff --git a/apps/api/src/routes/index.ts b/apps/api/src/routes/index.ts
+index 348249e..79d7102 100644
+--- a/apps/api/src/routes/index.ts
++++ b/apps/api/src/routes/index.ts
+@@ -4,6 +4,8 @@ import { registrationRoutes } from '../modules/registrations/registration.routes
+ import { checkInRoutes } from '../modules/check-ins/check-in.routes';
+ import { screeningRoutes } from '../modules/screenings/screening.routes';
+ import { bloodBagRoutes } from '../modules/blood-bags/blood-bag.routes';
++import { notificationRoutes } from '../modules/notifications/notification.routes';
++import { certificateRoutes } from '../modules/certificates/certificate.routes';
+ import { healthRoutes } from './health.routes';
+ export const apiRoutes = Router();
+ apiRoutes.use('/health', healthRoutes);
+@@ -12,3 +14,5 @@ apiRoutes.use('/registrations', registrationRoutes);
+ apiRoutes.use('/registrations', checkInRoutes);
+ apiRoutes.use('/screenings', screeningRoutes);
+ apiRoutes.use(bloodBagRoutes);
++apiRoutes.use('/notifications', notificationRoutes);
++apiRoutes.use('/certificates', certificateRoutes);
+diff --git a/packages/shared-types/src/index.ts b/packages/shared-types/src/index.ts
+index 0c5d52b..1dad868 100644
+--- a/packages/shared-types/src/index.ts
++++ b/packages/shared-types/src/index.ts
+@@ -7,7 +7,7 @@
+  */
+ 
+ /* -------------------------------------------------------------------------- */
+- /* Roles / Actors                                                             */
++/* Roles / Actors                                                             */
+ /* -------------------------------------------------------------------------- */
+ 
+ /** The system uses exactly four actor codes for the new frontend model. */
+@@ -39,10 +39,7 @@ export const LEGACY_TO_ACTOR: Readonly<Record<LegacyRoleCode, ActorCode>> = {
+ };
+ 
+ /** All role/actor codes that the frontend may encounter. */
+-export const ALL_ROLE_CODES = [
+-  ...ACTOR_CODES,
+-  ...LEGACY_ROLE_CODES,
+-] as const;
++export const ALL_ROLE_CODES = [...ACTOR_CODES, ...LEGACY_ROLE_CODES] as const;
+ export type AllRoleCode = (typeof ALL_ROLE_CODES)[number];
+ 
+ /** Compatibility type for consumers that accept both role generations. */
+@@ -532,6 +529,7 @@ export const ERROR_CODES = {
+   HEALTH_DECLARATION_REQUIRED: 'HEALTH_DECLARATION_REQUIRED',
+ 
+   SCREENING_NOT_FOUND: 'SCREENING_NOT_FOUND',
++  NOTIFICATION_NOT_FOUND: 'NOTIFICATION_NOT_FOUND',
+   SCREENING_INVALID_TRANSITION: 'SCREENING_INVALID_TRANSITION',
+   SCREENING_NOT_ELIGIBLE: 'SCREENING_NOT_ELIGIBLE',
+   SCREENING_REVIEW_REASON_REQUIRED: 'SCREENING_REVIEW_REASON_REQUIRED',
+@@ -601,6 +599,7 @@ export const ERROR_MESSAGES: Readonly<Record<ErrorCode, string>> = {
+   HEALTH_DECLARATION_REQUIRED: 'Cần có phiếu khai báo sức khỏe',
+ 
+   SCREENING_NOT_FOUND: 'Không tìm thấy phiếu sàng lọc',
++  NOTIFICATION_NOT_FOUND: 'Không tìm thấy thông báo',
+   SCREENING_INVALID_TRANSITION:
+     'Không thể chuyển phiếu sàng lọc sang trạng thái này',
+   SCREENING_NOT_ELIGIBLE: 'Chỉ người hiến đủ điều kiện mới được hiến máu',

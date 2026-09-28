@@ -65,7 +65,7 @@ describe('Campaign browsing and permissions', () => {
   it('shows loading then a friendly error and supports retry', async () => {
     const repository = new MockCampaignRepository({ latency: 0 });
     let reject!: (error: unknown) => void;
-    vi.spyOn(repository, 'list').mockImplementationOnce(
+    const listSpy = vi.spyOn(repository, 'list').mockImplementationOnce(
       () =>
         new Promise((_, fail) => {
           reject = fail;
@@ -75,6 +75,7 @@ describe('Campaign browsing and permissions', () => {
     expect(
       await screen.findByLabelText('Đang tải dữ liệu'),
     ).toBeInTheDocument();
+    await waitFor(() => expect(listSpy).toHaveBeenCalled());
     await act(async () =>
       reject(new ApiRequestError('INTERNAL_ERROR', 'database secret', 500)),
     );

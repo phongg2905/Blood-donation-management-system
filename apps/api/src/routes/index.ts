@@ -4,6 +4,8 @@ import { registrationRoutes } from '../modules/registrations/registration.routes
 import { checkInRoutes } from '../modules/check-ins/check-in.routes';
 import { screeningRoutes } from '../modules/screenings/screening.routes';
 import { bloodBagRoutes } from '../modules/blood-bags/blood-bag.routes';
+import { notificationRoutes } from '../modules/notifications/notification.routes';
+import { certificateRoutes } from '../modules/certificates/certificate.routes';
 import { healthRoutes } from './health.routes';
 export const apiRoutes = Router();
 apiRoutes.use('/health', healthRoutes);
@@ -12,3 +14,5 @@ apiRoutes.use('/registrations', registrationRoutes);
 apiRoutes.use('/registrations', checkInRoutes);
 apiRoutes.use('/screenings', screeningRoutes);
 apiRoutes.use(bloodBagRoutes);
+apiRoutes.use('/notifications', notificationRoutes);
+apiRoutes.use('/certificates', certificateRoutes);

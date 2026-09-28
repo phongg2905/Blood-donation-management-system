@@ -11,6 +11,7 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
+    "jobs:no-show": "tsx src/jobs/no-show-sweep.ts",
     "db:seed": "tsx src/database/seed/index.ts",
     "test": "tsx --test src/app.test.ts src/domain.test.ts src/database.test.ts src/phase1.test.ts src/modules/auth/auth.test.ts"
   },
