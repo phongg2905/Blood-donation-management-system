@@ -8,6 +8,7 @@ import {
 } from '@blood/shared-types';
 import { ApiRequestError } from '@/services/api';
 import type {
+  BackendBloodType,
   BloodBagInput,
   HealthAnswers,
   RhFactor,
@@ -56,6 +57,28 @@ export const QUICK_TEST_OPTIONS: readonly QuickTestResult[] = [
   'NEGATIVE',
   'POSITIVE',
 ];
+
+export function toBackendBloodType(
+  group: BloodGroup | string | null | undefined,
+  rh: RhFactor | string | null | undefined,
+): BackendBloodType | null {
+  if (!group) return null;
+  const cleanGroup = group.replace(/[^ABO]/g, '');
+  const isPositive = rh === 'POSITIVE' || group.includes('+');
+  const factor = isPositive ? 'POSITIVE' : 'NEGATIVE';
+  const combined = `${cleanGroup}_${factor}` as BackendBloodType;
+  const valid: readonly BackendBloodType[] = [
+    'A_POSITIVE',
+    'A_NEGATIVE',
+    'B_POSITIVE',
+    'B_NEGATIVE',
+    'AB_POSITIVE',
+    'AB_NEGATIVE',
+    'O_POSITIVE',
+    'O_NEGATIVE',
+  ];
+  return valid.includes(combined) ? combined : null;
+}
 
 /**
  * Health declaration questions shown during registration.

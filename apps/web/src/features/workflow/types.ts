@@ -18,6 +18,13 @@ import type {
 /** One answer per catalogue question: `true` means "yes / có". */
 export type HealthAnswers = Readonly<Record<string, boolean>>;
 
+export interface CheckInRecord {
+  id: string;
+  registrationId: string;
+  checkedInAt: string;
+  checkedInById?: string | null;
+}
+
 export interface HealthDeclaration {
   answers: HealthAnswers;
   confirmed: boolean;
@@ -44,6 +51,7 @@ export interface DonorRegistration {
   status: RegistrationStatus;
   healthDeclaration: HealthDeclaration | null;
   checkedInAt: string | null;
+  checkIn?: CheckInRecord | null;
   createdAt: string;
 }
 
@@ -77,6 +85,16 @@ export type BloodGroup = 'A' | 'B' | 'AB' | 'O';
 export type RhFactor = 'POSITIVE' | 'NEGATIVE';
 export type QuickTestResult = 'NEGATIVE' | 'POSITIVE';
 
+export type BackendBloodType =
+  | 'A_POSITIVE'
+  | 'A_NEGATIVE'
+  | 'B_POSITIVE'
+  | 'B_NEGATIVE'
+  | 'AB_POSITIVE'
+  | 'AB_NEGATIVE'
+  | 'O_POSITIVE'
+  | 'O_NEGATIVE';
+
 /** Non-numeric screening fields entered alongside the numeric measurements. */
 export interface ScreeningNotes {
   bloodGroup: BloodGroup | null;
@@ -87,10 +105,13 @@ export interface ScreeningNotes {
 export interface ScreeningRecord extends ScreeningNotes {
   id: string;
   registrationId: string;
+  checkInId?: string;
   status: ScreeningStatus;
   measurements: ScreeningMeasurements;
   /** Required for INELIGIBLE / DEFERRED. */
   reason: string | null;
+  decisionReason?: string | null;
+  deferredUntil?: string | null;
   createdAt: string;
   reviewedAt: string | null;
 }
@@ -105,9 +126,11 @@ export type ScreeningOutcome = 'ELIGIBLE' | 'INELIGIBLE' | 'DEFERRED';
 
 export interface BloodBagInput {
   registrationId: string;
+  screeningId?: string;
   code: string;
   volumeMl: number;
   bloodGroup: string | null;
+  bloodType?: string | null;
 }
 
 export interface BloodBag {
@@ -119,8 +142,10 @@ export interface BloodBag {
   campaignName: string;
   volumeMl: number;
   bloodGroup: string | null;
+  bloodType?: string | null;
   status: BloodBagStatus;
   receivedAt: string;
+  certificateCode?: string;
 }
 
 export interface DonationCertificate {
@@ -160,20 +185,28 @@ export interface WorkflowRepository {
   /** Registered seat count per slot id (campaign data comes from its own repo). */
   availability(slotIds: readonly string[]): Promise<Record<string, number>>;
   register(input: RegistrationInput): Promise<DonorRegistration>;
+  getRegistration?(id: string): Promise<DonorRegistration>;
+  reschedule?(id: string, timeSlotId: string): Promise<DonorRegistration>;
+  cancel?(id: string, reason?: string): Promise<DonorRegistration>;
   myRegistrations(donorId: string): Promise<DonorRegistration[]>;
   findRegistrations(query: CheckInQuery): Promise<DonorRegistration[]>;
   checkIn(registrationId: string): Promise<DonorRegistration>;
+  markNoShow?(registrationId: string): Promise<DonorRegistration>;
   screeningQueue(): Promise<ScreeningQueueItem[]>;
   screeningFor(registrationId: string): Promise<ScreeningRecord | null>;
+  getScreening?(id: string): Promise<ScreeningRecord>;
   saveMeasurements(
     registrationId: string,
     measurements: ScreeningMeasurements,
     notes: ScreeningNotes,
+    checkInId?: string,
   ): Promise<ScreeningRecord>;
   reviewScreening(
-    registrationId: string,
+    registrationIdOrScreeningId: string,
     outcome: ScreeningOutcome,
     reason: string | null,
+    deferredUntil?: string | null,
+    notes?: string | null,
   ): Promise<ScreeningRecord>;
   eligibleForBag(): Promise<ScreeningQueueItem[]>;
   bloodBags(): Promise<BloodBag[]>;

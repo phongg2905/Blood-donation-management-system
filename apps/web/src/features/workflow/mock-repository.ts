@@ -287,6 +287,34 @@ export class MockWorkflowRepository implements WorkflowRepository {
     return structuredClone(registration);
   }
 
+  async getRegistration(id: string): Promise<DonorRegistration> {
+    await this.wait();
+    return structuredClone(this.registration(id));
+  }
+
+  async reschedule(
+    id: string,
+    timeSlotId: string,
+  ): Promise<DonorRegistration> {
+    await this.wait();
+    const registration = this.registration(id);
+    if (registration.status !== 'SCHEDULED' && registration.status !== 'CONFIRMED' && registration.status !== 'PENDING') {
+      throw new ApiRequestError('REGISTRATION_INVALID_TRANSITION', '', 409);
+    }
+    registration.slotId = timeSlotId;
+    return structuredClone(registration);
+  }
+
+  async cancel(id: string): Promise<DonorRegistration> {
+    await this.wait();
+    const registration = this.registration(id);
+    if (registration.status === 'COMPLETED' || registration.status === 'CANCELLED') {
+      throw new ApiRequestError('REGISTRATION_INVALID_TRANSITION', '', 409);
+    }
+    registration.status = 'CANCELLED';
+    return structuredClone(registration);
+  }
+
   async myRegistrations(donorId: string): Promise<DonorRegistration[]> {
     await this.wait();
     return structuredClone(
@@ -322,12 +350,28 @@ export class MockWorkflowRepository implements WorkflowRepository {
       throw new ApiRequestError('CHECK_IN_NOT_ALLOWED', '', 409);
     if (registration.checkedInAt)
       throw new ApiRequestError('REGISTRATION_ALREADY_CHECKED_IN', '', 409);
-    registration.checkedInAt = new Date().toISOString();
+    const checkInId = crypto.randomUUID();
+    const now = new Date().toISOString();
+    registration.checkedInAt = now;
+    registration.checkIn = {
+      id: checkInId,
+      registrationId: registration.id,
+      checkedInAt: now,
+    };
     if (!this.screenings.has(registration.id))
       this.screenings.set(
         registration.id,
         this.makeScreening(registration.id, 'PENDING'),
       );
+    return structuredClone(registration);
+  }
+
+  async markNoShow(registrationId: string): Promise<DonorRegistration> {
+    await this.wait();
+    const registration = this.registration(registrationId);
+    if (registration.status !== 'SCHEDULED' && registration.status !== 'CONFIRMED')
+      throw new ApiRequestError('REGISTRATION_INVALID_TRANSITION', '', 409);
+    registration.status = 'NO_SHOW';
     return structuredClone(registration);
   }
 
@@ -356,6 +400,16 @@ export class MockWorkflowRepository implements WorkflowRepository {
     return screening ? structuredClone(screening) : null;
   }
 
+  async getScreening(id: string): Promise<ScreeningRecord> {
+    await this.wait();
+    for (const screening of this.screenings.values()) {
+      if (screening.id === id || screening.registrationId === id) {
+        return structuredClone(screening);
+      }
+    }
+    throw new ApiRequestError('SCREENING_NOT_FOUND', '', 404);
+  }
+
   async saveMeasurements(
     registrationId: string,
     measurements: ScreeningMeasurements,
@@ -378,12 +432,21 @@ export class MockWorkflowRepository implements WorkflowRepository {
   }
 
   async reviewScreening(
-    registrationId: string,
+    registrationIdOrScreeningId: string,
     outcome: ScreeningOutcome,
     reason: string | null,
+    deferredUntil?: string | null,
   ): Promise<ScreeningRecord> {
     await this.wait();
-    const screening = this.screeningOf(registrationId);
+    let screening = this.screeningOf(registrationIdOrScreeningId);
+    if (!screening) {
+      for (const item of this.screenings.values()) {
+        if (item.id === registrationIdOrScreeningId) {
+          screening = item;
+          break;
+        }
+      }
+    }
     if (!screening) throw new ApiRequestError('SCREENING_NOT_FOUND', '', 404);
     if (screening.status !== 'WAITING_REVIEW')
       throw new ApiRequestError('SCREENING_INVALID_TRANSITION', '', 409);
@@ -391,6 +454,8 @@ export class MockWorkflowRepository implements WorkflowRepository {
       throw new ApiRequestError('SCREENING_REVIEW_REASON_REQUIRED', '', 400);
     screening.status = outcome;
     screening.reason = outcome === 'ELIGIBLE' ? null : reason?.trim() ?? null;
+    screening.decisionReason = screening.reason;
+    screening.deferredUntil = deferredUntil ?? null;
     screening.reviewedAt = new Date().toISOString();
     return structuredClone(screening);
   }
@@ -438,7 +503,8 @@ export class MockWorkflowRepository implements WorkflowRepository {
     };
     this.bags.push(bag);
     registration.status = 'COMPLETED';
-    this.issueCertificate(registration, bag);
+    const cert = this.issueCertificate(registration, bag);
+    bag.certificateCode = cert.code;
     return structuredClone(bag);
   }
 
