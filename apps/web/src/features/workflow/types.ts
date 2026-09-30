@@ -146,6 +146,8 @@ export interface BloodBag {
   status: BloodBagStatus;
   receivedAt: string;
   certificateCode?: string;
+  certificateId?: string;
+  certificateFileUrl?: string | null;
 }
 
 export interface DonationCertificate {
@@ -161,6 +163,7 @@ export interface DonationCertificate {
   bloodGroup: string | null;
   status: CertificateStatus;
   issuedAt: string;
+  fileUrl?: string | null;
 }
 
 export interface DonorHistoryEntry {
@@ -213,5 +216,6 @@ export interface WorkflowRepository {
   createBloodBag(input: BloodBagInput): Promise<BloodBag>;
   certificates(donorId: string): Promise<DonationCertificate[]>;
   certificate(id: string): Promise<DonationCertificate>;
+  attachCertificateFile?(id: string, fileUrl: string): Promise<DonationCertificate>;
   history(donorId: string): Promise<DonorHistoryEntry[]>;
 }

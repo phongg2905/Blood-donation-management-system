@@ -59,13 +59,38 @@ export const APP_NAV_ITEMS: readonly NavItem[] = [
     permission: 'bloodbag.read',
     roles: ['DONATION_STAFF'],
   },
-  // Administration. These permissions belong to SYSTEM_ADMIN only, so the
-  // permission check is already the authorization boundary.
-  { label: 'Người dùng', to: '/admin/users', permission: 'user.read' },
-  { label: 'Vai trò & quyền', to: '/admin/roles', permission: 'role.read' },
-  { label: 'Nhật ký', to: '/admin/audit-logs', permission: 'audit.read' },
-  { label: 'Cấu hình', to: '/admin/settings', permission: 'setting.read' },
-  { label: 'Báo cáo', to: '/admin/reports', permission: 'report.read' },
+  // Administration. Scoped to SYSTEM_ADMIN so operational staff (who hold
+  // user.read for donor lookup) never see administration screens.
+  {
+    label: 'Người dùng',
+    to: '/admin/users',
+    permission: 'user.manage',
+    roles: ['SYSTEM_ADMIN'],
+  },
+  {
+    label: 'Vai trò & quyền',
+    to: '/admin/roles',
+    permission: 'role.read',
+    roles: ['SYSTEM_ADMIN'],
+  },
+  {
+    label: 'Nhật ký',
+    to: '/admin/audit-logs',
+    permission: 'audit.read',
+    roles: ['SYSTEM_ADMIN'],
+  },
+  {
+    label: 'Cấu hình',
+    to: '/admin/settings',
+    permission: 'setting.read',
+    roles: ['SYSTEM_ADMIN'],
+  },
+  {
+    label: 'Báo cáo',
+    to: '/admin/reports',
+    permission: 'report.read',
+    roles: ['SYSTEM_ADMIN'],
+  },
 ];
 
 export const visibleNavItems = (

@@ -62,7 +62,7 @@ export function HumanStorySection() {
             </p>
           </Reveal>
 
-          <Reveal className="landing-story__points" delay={120}>
+          <Reveal className="landing-story__points" delay={60}>
             <h3 className="landing-story__points-title">
               Điều bạn có thể yên tâm
             </h3>

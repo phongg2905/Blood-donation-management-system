@@ -38,6 +38,16 @@ describe('Admin access control', () => {
     ).toBeInTheDocument();
   });
 
+  it('blocks donation-staff from user management and hides admin navigation', async () => {
+    await mount('/admin/users', 'donation-staff@example.local');
+    expect(
+      await screen.findByRole('heading', { name: /không có quyền/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('link', { name: 'Người dùng' }),
+    ).not.toBeInTheDocument();
+  });
+
   it('shows the administration navigation to a system admin', async () => {
     await mount('/admin/users');
     await screen.findByRole('heading', { name: 'Người dùng' });

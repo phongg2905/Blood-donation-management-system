@@ -148,6 +148,37 @@ export function NewBloodBagPage() {
   const [volume, setVolume] = useState('350');
   const [errors, setErrors] = useState<FieldErrors>({});
   const [created, setCreated] = useState<BloodBag | null>(null);
+  const [certFileUrl, setCertFileUrl] = useState('');
+  const [attachedUrl, setAttachedUrl] = useState<string | null>(null);
+  const [isAttaching, setIsAttaching] = useState(false);
+  const [attachFeedback, setAttachFeedback] = useState<{ error?: string; success?: string } | null>(null);
+
+  async function handleAttachFile() {
+    if (!created?.certificateId || !workflow.attachCertificateFile) return;
+    const trimmed = certFileUrl.trim();
+    if (!trimmed) {
+      setAttachFeedback({ error: 'Vui lòng nhập đường dẫn file' });
+      return;
+    }
+    if (!trimmed.startsWith('https://')) {
+      setAttachFeedback({ error: 'Đường dẫn file phải dùng giao thức https://' });
+      return;
+    }
+    try {
+      setIsAttaching(true);
+      setAttachFeedback(null);
+      const updated = await workflow.attachCertificateFile(created.certificateId, trimmed);
+      setAttachedUrl(updated.fileUrl ?? trimmed);
+      setAttachFeedback({ success: 'Đã lưu đường dẫn file chứng nhận thành công!' });
+      setCertFileUrl('');
+    } catch (err) {
+      setAttachFeedback({
+        error: err instanceof Error ? err.message : 'Không thể lưu đường dẫn file chứng nhận',
+      });
+    } finally {
+      setIsAttaching(false);
+    }
+  }
 
   function submit() {
     if (!selected) return;
@@ -167,7 +198,10 @@ export function NewBloodBagPage() {
     if (Object.keys(nextErrors).length > 0) return;
     void mutation.run(
       () => workflow.createBloodBag(input),
-      (bag) => setCreated(bag),
+      (bag) => {
+        setCreated(bag);
+        setAttachedUrl(bag.certificateFileUrl ?? null);
+      },
       'Đã ghi nhận túi máu và cấp chứng nhận cho người hiến.',
     );
   }
@@ -203,7 +237,47 @@ export function NewBloodBagPage() {
               },
             ]}
           />
-          <div className="workflow-actions">
+
+          {created.certificateId && workflow.attachCertificateFile && (
+            <div style={{ marginTop: '20px', padding: '16px', backgroundColor: 'var(--color-surface-sunken, #f9fafb)', borderRadius: '8px', border: '1px solid var(--color-border, #e5e7eb)' }}>
+              <h3 style={{ margin: '0 0 6px 0', fontSize: '14px', fontWeight: 600 }}>Đính kèm file PDF chứng nhận</h3>
+              <p className="workflow-muted" style={{ margin: '0 0 10px 0', fontSize: '12px' }}>
+                Gắn liên kết file chứng nhận (bắt buộc https://) để lưu trữ và người hiến có thể tải về.
+              </p>
+              {attachedUrl && (
+                <div style={{ marginBottom: '10px', padding: '8px 12px', backgroundColor: 'var(--color-brand-50, #fef2f4)', borderRadius: '6px', fontSize: '13px' }}>
+                  ✓ Đã gắn file: <a href={attachedUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-brand-600, #a8192e)', textDecoration: 'underline' }}>Xem file PDF chứng nhận</a>
+                </div>
+              )}
+              {attachFeedback?.error && (
+                <div style={{ marginBottom: '10px', color: 'var(--color-danger, #dc2626)', fontSize: '13px' }}>
+                  {attachFeedback.error}
+                </div>
+              )}
+              {attachFeedback?.success && (
+                <div style={{ marginBottom: '10px', color: 'var(--color-success, #16a34a)', fontSize: '13px' }}>
+                  {attachFeedback.success}
+                </div>
+              )}
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <Input
+                  value={certFileUrl}
+                  placeholder="https://example.com/certificates/CERT-xxx.pdf"
+                  onChange={(e) => setCertFileUrl(e.target.value)}
+                  style={{ flex: 1 }}
+                />
+                <Button
+                  variant="secondary"
+                  isLoading={isAttaching}
+                  onClick={handleAttachFile}
+                >
+                  Gắn file
+                </Button>
+              </div>
+            </div>
+          )}
+
+          <div className="workflow-actions" style={{ marginTop: '20px' }}>
             <Button variant="secondary" onClick={() => navigate('/clinic/blood-bags')}>
               Về danh sách túi máu
             </Button>
@@ -213,6 +287,9 @@ export function NewBloodBagPage() {
                 setSelected(null);
                 setCode('');
                 setVolume('350');
+                setCertFileUrl('');
+                setAttachedUrl(null);
+                setAttachFeedback(null);
                 eligible.retry();
               }}
             >

@@ -505,6 +505,8 @@ export class MockWorkflowRepository implements WorkflowRepository {
     registration.status = 'COMPLETED';
     const cert = this.issueCertificate(registration, bag);
     bag.certificateCode = cert.code;
+    bag.certificateId = cert.id;
+    bag.certificateFileUrl = cert.fileUrl ?? null;
     return structuredClone(bag);
   }
 
@@ -695,6 +697,18 @@ export class MockWorkflowRepository implements WorkflowRepository {
       if (found) return structuredClone(found);
     }
     throw new ApiRequestError('ROUTE_NOT_FOUND', '', 404);
+  }
+
+  async attachCertificateFile(id: string, fileUrl: string): Promise<DonationCertificate> {
+    await this.wait();
+    for (const list of this.certificatesByDonor.values()) {
+      const found = list.find((item) => item.id === id);
+      if (found) {
+        found.fileUrl = fileUrl;
+        return structuredClone(found);
+      }
+    }
+    throw new ApiRequestError('ROUTE_NOT_FOUND', 'Không tìm thấy chứng nhận', 404);
   }
 
   async history(donorId: string): Promise<DonorHistoryEntry[]> {
