@@ -7,7 +7,7 @@ import { GLIDE_END_EVENT, isGliding, prefersReducedMotion } from './landingScrol
  * longer pause reads as lag, a shorter one lets the fade start while the view
  * is still moving and the text looks soft.
  */
-const SETTLE_MS = 200;
+const SETTLE_MS = 30;
 
 type RevealHandler = () => void;
 
@@ -30,7 +30,7 @@ let listening = false;
 const flush = (): void => {
   frame = 0;
   if (isGliding() || performance.now() < revealAfter) return;
-  const limit = window.innerHeight * 0.94;
+  const limit = window.innerHeight * 0.98;
   for (const [node, reveal] of Array.from(waiting)) {
     // Anything level with or above the viewport counts: an element a gesture
     // has already passed must never stay invisible.

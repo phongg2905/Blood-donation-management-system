@@ -165,6 +165,16 @@ export function CertificatesPage() {
               >
                 {CERTIFICATE_STATUS_LABELS[certificate.status]}
               </StatusPill>
+              {certificate.fileUrl && (
+                <a
+                  className="btn btn--secondary"
+                  href={certificate.fileUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  File PDF
+                </a>
+              )}
               <Link
                 className="btn btn--secondary"
                 to={`/donor/certificates/${certificate.id}`}
@@ -225,6 +235,27 @@ export function CertificateDetailPage() {
                   label: 'Cấp ngày',
                   value: formatDateTime(certificate.data.issuedAt),
                 },
+                ...(certificate.data.fileUrl
+                  ? [
+                      {
+                        label: 'File chứng nhận',
+                        value: (
+                          <a
+                            href={certificate.data.fileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              color: 'var(--color-brand-600, #a8192e)',
+                              fontWeight: 600,
+                              textDecoration: 'underline',
+                            }}
+                          >
+                            Xem file PDF chính thức
+                          </a>
+                        ),
+                      },
+                    ]
+                  : []),
               ]}
             />
           </div>
@@ -233,6 +264,16 @@ export function CertificateDetailPage() {
       )}
       {certificate.data && (
         <div className="workflow-actions">
+          {certificate.data.fileUrl && (
+            <a
+              className="btn btn--primary"
+              href={certificate.data.fileUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Tải file PDF chứng nhận
+            </a>
+          )}
           <Button variant="secondary" onClick={() => window.print()}>
             In chứng nhận
           </Button>

@@ -205,6 +205,11 @@ export function CheckInPage() {
               </Button>
             )}
           </div>
+          {selected.status === 'NO_SHOW' && (
+            <p className="workflow-muted" style={{ color: 'var(--color-danger, #dc2626)' }}>
+              Đăng ký này đã được ghi nhận vắng mặt (No-show). Không thể tiếp nhận check-in.
+            </p>
+          )}
           {!canCheckIn && !selected.checkedInAt && selected.status !== 'NO_SHOW' && (
             <p className="workflow-muted">
               Chỉ đăng ký đã xếp lịch hoặc đã xác nhận mới được check-in / đánh dấu vắng mặt.

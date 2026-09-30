@@ -14,13 +14,13 @@ import {
  * `GLIDE_COOLDOWN_MS` absorbs the momentum tail of the gesture so a single
  * flick can never turn two pages.
  */
-const GLIDE_MS = 880;
-const GLIDE_PER_PIXEL_MS = 0.075;
-const GLIDE_MAX_MS = 1300;
+const GLIDE_MS = 460;
+const GLIDE_PER_PIXEL_MS = 0.035;
+const GLIDE_MAX_MS = 750;
 /** Wheel events in this tail are momentum from the gesture that just happened. */
-const GLIDE_COOLDOWN_MS = 300;
+const GLIDE_COOLDOWN_MS = 140;
 /** Safety net: never hold the wheel for longer than a glide can possibly run. */
-const GLIDE_HARD_LIMIT_MS = GLIDE_MAX_MS + 400;
+const GLIDE_HARD_LIMIT_MS = GLIDE_MAX_MS + 250;
 
 /**
  * Quartic in/out. Softer at both ends than a cubic, so the page starts moving

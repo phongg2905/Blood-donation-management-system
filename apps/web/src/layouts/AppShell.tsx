@@ -7,6 +7,7 @@ import { Button } from '@/components/ui';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { visibleNavItems } from '@/features/auth/navigation';
 import { AUTH_ROUTES, primaryRole } from '@/features/auth/routing';
+import { NotificationBell } from '@/features/notifications/components/NotificationBell';
 import { useHeaderAutoHide } from '@/hooks/useHeaderAutoHide';
 
 export interface AppShellProps {
@@ -69,6 +70,7 @@ export function AppShell({ children, variant }: AppShellProps) {
           </nav>
 
           <div className="session">
+            <NotificationBell />
             <details
               className="account-menu"
               ref={menuRef}

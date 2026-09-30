@@ -98,6 +98,7 @@ interface BackendCertificateDto {
   donationId: string;
   issuedAt: string;
   status: CertificateStatus;
+  fileUrl?: string | null;
 }
 
 interface BackendBloodBagRecordDto {
@@ -425,6 +426,8 @@ export class ApiWorkflowRepository implements WorkflowRepository {
       status: bag.status ?? 'COLLECTED',
       receivedAt: bag.createdAt ?? new Date().toISOString(),
       certificateCode: cert?.code,
+      certificateId: cert?.id,
+      certificateFileUrl: cert?.fileUrl ?? null,
     };
   }
 
@@ -434,6 +437,29 @@ export class ApiWorkflowRepository implements WorkflowRepository {
 
   async certificate(): Promise<DonationCertificate> {
     throw new ApiRequestError('ROUTE_NOT_FOUND', 'Chứng nhận không tồn tại', 404);
+  }
+
+  async attachCertificateFile(id: string, fileUrl: string): Promise<DonationCertificate> {
+    const response = await apiPost<BackendCertificateDto>(
+      `/certificates/${encodeURIComponent(id)}/file`,
+      { fileUrl },
+    );
+    const cert = response.data;
+    return {
+      id: cert.id,
+      code: cert.code,
+      donationId: cert.donationId,
+      donorId: '',
+      donorName: '',
+      campaignName: '',
+      location: '',
+      donationDate: cert.issuedAt,
+      volumeMl: 0,
+      bloodGroup: null,
+      status: cert.status,
+      issuedAt: cert.issuedAt,
+      fileUrl: cert.fileUrl ?? fileUrl,
+    };
   }
 
   async history(): Promise<DonorHistoryEntry[]> {

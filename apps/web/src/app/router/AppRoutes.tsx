@@ -197,7 +197,7 @@ export function AppRoutes() {
           <Route
             path="/admin/users"
             element={
-              <PermissionGuard requiredPermission="user.read">
+              <PermissionGuard requiredPermission="user.manage">
                 <UsersPage />
               </PermissionGuard>
             }

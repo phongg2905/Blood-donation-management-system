@@ -348,6 +348,22 @@ export type BloodBagStatus = (typeof BLOOD_BAG_STATUSES)[number];
 export const CERTIFICATE_STATUSES = ['ACTIVE', 'REVOKED'] as const;
 export type CertificateStatus = (typeof CERTIFICATE_STATUSES)[number];
 
+export const NOTIFICATION_TYPES = [
+  'GENERAL',
+  'REGISTRATION',
+  'CAMPAIGN',
+  'DONATION',
+  'CERTIFICATE',
+  'SYSTEM',
+] as const;
+export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
+
+export const NOTIFICATION_CHANNELS = ['IN_APP', 'EMAIL', 'SMS'] as const;
+export type NotificationChannel = (typeof NOTIFICATION_CHANNELS)[number];
+
+export const NOTIFICATION_STATUSES = ['PENDING', 'SENT', 'FAILED'] as const;
+export type NotificationStatus = (typeof NOTIFICATION_STATUSES)[number];
+
 /* -------------------------------------------------------------------------- */
 /* State transitions                                                          */
 /* -------------------------------------------------------------------------- */
