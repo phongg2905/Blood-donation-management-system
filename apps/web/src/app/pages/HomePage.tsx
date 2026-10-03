@@ -1,41 +1,41 @@
-import { CampaignSection } from './landing/CampaignSection';
-import { DonationJourneySection } from './landing/DonationJourneySection';
-import { FinalCtaSection } from './landing/FinalCtaSection';
-import { HumanStorySection } from './landing/HumanStorySection';
-import { ImpactSection } from './landing/ImpactSection';
 import { LandingHero } from './landing/LandingHero';
-import { PersonalActionsSection } from './landing/PersonalActionsSection';
-import { PreparationSection } from './landing/PreparationSection';
-import { useLandingPaging } from './landing/useLandingPaging';
-import { usePagedScroll } from './landing/usePagedScroll';
+import { CampaignSection } from './landing/CampaignSection';
+import { ImpactSection } from './landing/ImpactSection';
+import { DonationJourneySection } from './landing/DonationJourneySection';
+import { StoriesFaqSection } from './landing/StoriesFaqSection';
+import { LandingFooter } from './landing/LandingFooter';
 
 /**
- * Authenticated landing page.
+ * Clean Modern Medical Portal - Landing Page
  *
- * Read top to bottom as a story: a cover, why we show up, the donor's journey,
- * what a donation leaves behind, the next campaigns, how to prepare, where to
- * continue, and a closing invitation. Each section owns its own composition and
- * rhythm; this module only sets the order.
- *
- * On desktop every chapter fills one screen and one gesture turns one page;
- * `useLandingPaging` decides when that is safe and degrades to gentle snapping
- * when a chapter no longer fits the viewport, and `usePagedScroll` animates the
- * page turn itself.
+ * Implements a high-trust, accessible, modern healthcare experience:
+ * 1. Hero with interactive quick-booking widget and floating medical badges
+ * 2. Active open campaigns with capacity progress indicators
+ * 3. Real-time blood supply levels and verified impact metrics (Bento grid)
+ * 4. 4-step digitalized donation journey
+ * 5. Medical testimonials and interactive FAQ accordion
+ * 6. Standard healthcare regulatory footer
  */
 export function HomePage() {
-  useLandingPaging();
-  usePagedScroll();
-
   return (
-    <div className="landing">
+    <div className="medical-landing">
+      {/* 1. Hero Section */}
       <LandingHero />
-      <HumanStorySection />
-      <DonationJourneySection />
-      <ImpactSection />
+
+      {/* 2. Active Campaigns Section */}
       <CampaignSection />
-      <PreparationSection />
-      <PersonalActionsSection />
-      <FinalCtaSection />
+
+      {/* 3. Impact & Real-time Blood Needs (Bento Grid) */}
+      <ImpactSection />
+
+      {/* 4. 4-Step Digital Donation Journey */}
+      <DonationJourneySection />
+
+      {/* 5. Stories & Medical FAQ Accordion */}
+      <StoriesFaqSection />
+
+      {/* 6. Medical Portal Footer */}
+      <LandingFooter />
     </div>
   );
 }
