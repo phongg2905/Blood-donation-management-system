@@ -1,0 +1,870 @@
+diff --git a/apps/api/src/modules/donation-campaigns/campaign-staff.repository.ts b/apps/api/src/modules/donation-campaigns/campaign-staff.repository.ts
+new file mode 100644
+index 0000000..10ad2a4
+--- /dev/null
++++ b/apps/api/src/modules/donation-campaigns/campaign-staff.repository.ts
+@@ -0,0 +1,47 @@
++import type { Prisma } from '@prisma/client';
++import { database } from '../../config/database';
++
++export const campaignStaffRepository = {
++  transaction: <T>(work: (tx: Prisma.TransactionClient) => Promise<T>) =>
++    database.$transaction(work),
++
++  listByCampaign: (campaignId: string) =>
++    database.campaignStaff.findMany({
++      where: { campaignId },
++      include: { user: { select: { id: true, fullName: true, email: true } } },
++    }),
++
++  campaignExistsTx: (tx: Prisma.TransactionClient, campaignId: string) =>
++    tx.donationCampaign.findUnique({
++      where: { id: campaignId },
++      select: { id: true },
++    }),
++
++  /** A user's role codes, to reject assigning a DONOR account as staff. */
++  userRoleCodesTx: (tx: Prisma.TransactionClient, userId: string) =>
++    tx.userRole
++      .findMany({
++        where: { userId },
++        include: { role: { select: { code: true } } },
++      })
++      .then((rows) => rows.map((r) => r.role.code)),
++
++  create: (
++    tx: Prisma.TransactionClient,
++    data: Prisma.CampaignStaffUncheckedCreateInput,
++  ) => tx.campaignStaff.create({ data }),
++
++  findAssignmentTx: (
++    tx: Prisma.TransactionClient,
++    campaignId: string,
++    userId: string,
++  ) =>
++    tx.campaignStaff.findUnique({
++      where: { campaignId_userId: { campaignId, userId } },
++    }),
++
++  remove: (tx: Prisma.TransactionClient, campaignId: string, userId: string) =>
++    tx.campaignStaff.delete({
++      where: { campaignId_userId: { campaignId, userId } },
++    }),
++};
+diff --git a/apps/api/src/modules/donation-campaigns/campaign-staff.service.ts b/apps/api/src/modules/donation-campaigns/campaign-staff.service.ts
+new file mode 100644
+index 0000000..3b2525e
+--- /dev/null
++++ b/apps/api/src/modules/donation-campaigns/campaign-staff.service.ts
+@@ -0,0 +1,73 @@
++import {
++  AUDIT_ACTIONS,
++  AUDIT_ENTITY_TYPES,
++  ERROR_CODES,
++} from '@blood/shared-types';
++import { AppError } from '../../common/errors/app.error';
++import type { AuditContext } from '../audit-logs/audit.service';
++import { auditLogService } from '../audit-logs/audit.service';
++import { campaignStaffRepository as repo } from './campaign-staff.repository';
++import { validateAssignStaff } from './campaign-staff.validation';
++
++export const campaignStaffService = {
++  list: (campaignId: string) => repo.listByCampaign(campaignId),
++
++  async assign(campaignId: string, input: unknown, ctx: AuditContext) {
++    const data = validateAssignStaff(input);
++    return repo.transaction(async (tx) => {
++      const campaign = await repo.campaignExistsTx(tx, campaignId);
++      if (!campaign) throw AppError.notFound(ERROR_CODES.CAMPAIGN_NOT_FOUND);
++
++      const roles = await repo.userRoleCodesTx(tx, data.userId);
++      if (roles.length === 0 || roles.includes('DONOR')) {
++        throw AppError.badRequest(ERROR_CODES.CAMPAIGN_STAFF_INVALID_ROLE);
++      }
++
++      const existing = await repo.findAssignmentTx(tx, campaignId, data.userId);
++      if (existing) {
++        throw AppError.conflict(ERROR_CODES.CAMPAIGN_STAFF_ALREADY_ASSIGNED);
++      }
++
++      const created = await repo.create(tx, {
++        campaignId,
++        userId: data.userId,
++        assignment: data.assignment ?? null,
++      });
++      await auditLogService.record(
++        {
++          ...ctx,
++          action: AUDIT_ACTIONS.STAFF_ASSIGNED,
++          entityType: AUDIT_ENTITY_TYPES.CAMPAIGN_STAFF,
++          entityId: created.id,
++          metadata: {
++            campaignId,
++            userId: data.userId,
++            assignment: data.assignment ?? null,
++          },
++        },
++        tx,
++      );
++      return created;
++    });
++  },
++
++  async remove(campaignId: string, userId: string, ctx: AuditContext) {
++    return repo.transaction(async (tx) => {
++      const existing = await repo.findAssignmentTx(tx, campaignId, userId);
++      if (!existing)
++        throw AppError.notFound(ERROR_CODES.CAMPAIGN_STAFF_NOT_FOUND);
++
++      await repo.remove(tx, campaignId, userId);
++      await auditLogService.record(
++        {
++          ...ctx,
++          action: AUDIT_ACTIONS.STAFF_REMOVED,
++          entityType: AUDIT_ENTITY_TYPES.CAMPAIGN_STAFF,
++          entityId: existing.id,
++          metadata: { campaignId, userId },
++        },
++        tx,
++      );
++    });
++  },
++};
+diff --git a/apps/api/src/modules/donation-campaigns/campaign-staff.validation.ts b/apps/api/src/modules/donation-campaigns/campaign-staff.validation.ts
+new file mode 100644
+index 0000000..aa75fea
+--- /dev/null
++++ b/apps/api/src/modules/donation-campaigns/campaign-staff.validation.ts
+@@ -0,0 +1,21 @@
++import { z } from 'zod';
++import { parseDomain } from '../../common/helpers/domain-validation';
++
++/**
++ * A per-campaign duty tag, not a permission grant — see decisions.md:
++ * "CampaignStaff là phân công theo đợt; quyền hệ thống nằm ở RBAC."
++ */
++const assignmentEnum = z.enum([
++  'CHECK_IN',
++  'SCREENING',
++  'COLLECTION',
++  'SUPPORT',
++]);
++
++const assignStaffSchema = z.object({
++  userId: z.string().uuid(),
++  assignment: assignmentEnum.nullish(),
++});
++export function validateAssignStaff(input: unknown) {
++  return parseDomain(assignStaffSchema, input);
++}
+diff --git a/apps/api/src/modules/donation-campaigns/campaign.controller.ts b/apps/api/src/modules/donation-campaigns/campaign.controller.ts
+new file mode 100644
+index 0000000..93fa471
+--- /dev/null
++++ b/apps/api/src/modules/donation-campaigns/campaign.controller.ts
+@@ -0,0 +1,53 @@
++import type { RequestHandler } from 'express';
++import { paramId } from '../../common/helpers/http';
++import {
++  sendCreated,
++  sendList,
++  sendSuccess,
++} from '../../common/helpers/response';
++import { auditContextFrom } from '../audit-logs/audit.service';
++import { campaignService } from './campaign.service';
++
++export const list: RequestHandler = async (req, res) => {
++  const { items, meta } = await campaignService.list(req.query);
++  sendList(res, items, meta.page, meta.limit, meta.total);
++};
++
++export const getById: RequestHandler = async (req, res) => {
++  sendSuccess(res, await campaignService.getById(paramId(req)));
++};
++
++export const create: RequestHandler = async (req, res) => {
++  sendCreated(
++    res,
++    await campaignService.create(req.body, auditContextFrom(req)),
++  );
++};
++
++export const update: RequestHandler = async (req, res) => {
++  sendSuccess(
++    res,
++    await campaignService.update(paramId(req), req.body, auditContextFrom(req)),
++  );
++};
++
++export const open: RequestHandler = async (req, res) => {
++  sendSuccess(
++    res,
++    await campaignService.open(paramId(req), auditContextFrom(req)),
++  );
++};
++
++export const close: RequestHandler = async (req, res) => {
++  sendSuccess(
++    res,
++    await campaignService.close(paramId(req), auditContextFrom(req)),
++  );
++};
++
++export const cancel: RequestHandler = async (req, res) => {
++  sendSuccess(
++    res,
++    await campaignService.cancel(paramId(req), req.body, auditContextFrom(req)),
++  );
++};
+diff --git a/apps/api/src/modules/donation-campaigns/campaign.repository.ts b/apps/api/src/modules/donation-campaigns/campaign.repository.ts
+new file mode 100644
+index 0000000..152e7f1
+--- /dev/null
++++ b/apps/api/src/modules/donation-campaigns/campaign.repository.ts
+@@ -0,0 +1,64 @@
++import { Prisma } from '@prisma/client';
++import type { CampaignStatus } from '@blood/shared-types';
++import { database } from '../../config/database';
++
++export interface CampaignListFilter {
++  status?: CampaignStatus | undefined;
++  from?: Date | undefined;
++  to?: Date | undefined;
++  skip: number;
++  take: number;
++}
++
++function whereFromFilter(
++  filter: Pick<CampaignListFilter, 'status' | 'from' | 'to'>,
++): Prisma.DonationCampaignWhereInput {
++  return {
++    ...(filter.status ? { status: filter.status } : {}),
++    ...(filter.from || filter.to
++      ? {
++          startsAt: {
++            ...(filter.from ? { gte: filter.from } : {}),
++            ...(filter.to ? { lte: filter.to } : {}),
++          },
++        }
++      : {}),
++  };
++}
++
++export const campaignRepository = {
++  /** No capacity-style contention here — a plain transaction is enough. */
++  transaction: <T>(work: (tx: Prisma.TransactionClient) => Promise<T>) =>
++    database.$transaction(work),
++
++  async list(filter: CampaignListFilter) {
++    const where = whereFromFilter(filter);
++    const [items, total] = await Promise.all([
++      database.donationCampaign.findMany({
++        where,
++        skip: filter.skip,
++        take: filter.take,
++        orderBy: { startsAt: 'desc' },
++      }),
++      database.donationCampaign.count({ where }),
++    ]);
++    return { items, total };
++  },
++
++  findById: (id: string) =>
++    database.donationCampaign.findUnique({ where: { id } }),
++
++  findByIdTx: (tx: Prisma.TransactionClient, id: string) =>
++    tx.donationCampaign.findUnique({ where: { id } }),
++
++  create: (
++    tx: Prisma.TransactionClient,
++    data: Prisma.DonationCampaignUncheckedCreateInput,
++  ) => tx.donationCampaign.create({ data }),
++
++  update: (
++    tx: Prisma.TransactionClient,
++    id: string,
++    data: Prisma.DonationCampaignUncheckedUpdateInput,
++  ) => tx.donationCampaign.update({ where: { id }, data }),
++};
+diff --git a/apps/api/src/modules/donation-campaigns/campaign.routes.ts b/apps/api/src/modules/donation-campaigns/campaign.routes.ts
+new file mode 100644
+index 0000000..343fd6e
+--- /dev/null
++++ b/apps/api/src/modules/donation-campaigns/campaign.routes.ts
+@@ -0,0 +1,97 @@
++import type { RequestHandler } from 'express';
++import { Router } from 'express';
++import { paramId } from '../../common/helpers/http';
++import { sendCreated, sendSuccess } from '../../common/helpers/response';
++import { requireAuth } from '../../middlewares/auth.middleware';
++import { requirePermission } from '../../middlewares/permission.middleware';
++import { auditContextFrom } from '../audit-logs/audit.service';
++import * as campaign from './campaign.controller';
++import { campaignStaffService } from './campaign-staff.service';
++
++export const campaignRoutes = Router();
++
++campaignRoutes.get(
++  '/',
++  requireAuth,
++  requirePermission('campaign.read'),
++  campaign.list,
++);
++campaignRoutes.get(
++  '/:id',
++  requireAuth,
++  requirePermission('campaign.read'),
++  campaign.getById,
++);
++campaignRoutes.post(
++  '/',
++  requireAuth,
++  requirePermission('campaign.create'),
++  campaign.create,
++);
++campaignRoutes.patch(
++  '/:id',
++  requireAuth,
++  requirePermission('campaign.update'),
++  campaign.update,
++);
++campaignRoutes.post(
++  '/:id/open',
++  requireAuth,
++  requirePermission('campaign.open'),
++  campaign.open,
++);
++campaignRoutes.post(
++  '/:id/close',
++  requireAuth,
++  requirePermission('campaign.close'),
++  campaign.close,
++);
++campaignRoutes.post(
++  '/:id/cancel',
++  requireAuth,
++  requirePermission('campaign.cancel'),
++  campaign.cancel,
++);
++
++// Campaign staff roster — not yet in docs/api/frontend-contract.md, same as
++// the auth-phase gap pattern: implemented per design, PM confirmation pending.
++const listStaff: RequestHandler = async (req, res) => {
++  sendSuccess(res, await campaignStaffService.list(paramId(req)));
++};
++const assignStaff: RequestHandler = async (req, res) => {
++  sendCreated(
++    res,
++    await campaignStaffService.assign(
++      paramId(req),
++      req.body,
++      auditContextFrom(req),
++    ),
++  );
++};
++const removeStaff: RequestHandler = async (req, res) => {
++  await campaignStaffService.remove(
++    paramId(req),
++    paramId(req, 'userId'),
++    auditContextFrom(req),
++  );
++  sendSuccess(res, {});
++};
++
++campaignRoutes.get(
++  '/:id/staff',
++  requireAuth,
++  requirePermission('campaign_staff.read'),
++  listStaff,
++);
++campaignRoutes.post(
++  '/:id/staff',
++  requireAuth,
++  requirePermission('campaign_staff.assign'),
++  assignStaff,
++);
++campaignRoutes.delete(
++  '/:id/staff/:userId',
++  requireAuth,
++  requirePermission('campaign_staff.remove'),
++  removeStaff,
++);
+diff --git a/apps/api/src/modules/donation-campaigns/campaign.service.ts b/apps/api/src/modules/donation-campaigns/campaign.service.ts
+new file mode 100644
+index 0000000..106c3b0
+--- /dev/null
++++ b/apps/api/src/modules/donation-campaigns/campaign.service.ts
+@@ -0,0 +1,136 @@
++import {
++  AUDIT_ACTIONS,
++  AUDIT_ENTITY_TYPES,
++  ERROR_CODES,
++  type CampaignStatus,
++} from '@blood/shared-types';
++import { AppError } from '../../common/errors/app.error';
++import type { AuditContext } from '../audit-logs/audit.service';
++import { auditLogService } from '../audit-logs/audit.service';
++import {
++  paginationMeta,
++  resolvePagination,
++} from '../../common/helpers/response';
++import { campaignRepository as repo } from './campaign.repository';
++import {
++  assertCampaignEditable,
++  assertCampaignTransition,
++  validateCampaign,
++  validateCampaignListQuery,
++  validateCampaignPatch,
++  validateCancelCampaign,
++  validateCreateCampaign,
++} from './campaign.validation';
++
++type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];
++
++async function transition(
++  id: string,
++  to: CampaignStatus,
++  action: AuditAction,
++  ctx: AuditContext,
++  metadata: Record<string, unknown> = {},
++) {
++  return repo.transaction(async (tx) => {
++    const existing = await repo.findByIdTx(tx, id);
++    if (!existing) throw AppError.notFound(ERROR_CODES.CAMPAIGN_NOT_FOUND);
++    assertCampaignTransition(existing.status, to);
++
++    const updated = await repo.update(tx, id, { status: to });
++    await auditLogService.record(
++      {
++        ...ctx,
++        action,
++        entityType: AUDIT_ENTITY_TYPES.CAMPAIGN,
++        entityId: id,
++        metadata: { from: existing.status, to, ...metadata },
++      },
++      tx,
++    );
++    return updated;
++  });
++}
++
++export const campaignService = {
++  async list(query: unknown) {
++    const filters = validateCampaignListQuery(query);
++    const pagination = resolvePagination(filters);
++    const { items, total } = await repo.list({
++      status: filters.status,
++      from: filters.from,
++      to: filters.to,
++      skip: pagination.skip,
++      take: pagination.take,
++    });
++    return {
++      items,
++      meta: paginationMeta(pagination.page, pagination.limit, total),
++    };
++  },
++
++  async getById(id: string) {
++    const campaign = await repo.findById(id);
++    if (!campaign) throw AppError.notFound(ERROR_CODES.CAMPAIGN_NOT_FOUND);
++    return campaign;
++  },
++
++  async create(input: unknown, ctx: AuditContext) {
++    const data = validateCreateCampaign(input);
++    return repo.transaction(async (tx) => {
++      const created = await repo.create(tx, data);
++      await auditLogService.record(
++        {
++          ...ctx,
++          action: AUDIT_ACTIONS.CAMPAIGN_CREATED,
++          entityType: AUDIT_ENTITY_TYPES.CAMPAIGN,
++          entityId: created.id,
++        },
++        tx,
++      );
++      return created;
++    });
++  },
++
++  /**
++   * Merges the patch onto the existing row and re-validates the *resulting*
++   * record — a partial patch can never leave startsAt/endsAt or the target
++   * fields in an inconsistent state (see campaign.validation.ts).
++   */
++  async update(id: string, input: unknown, ctx: AuditContext) {
++    const patch = validateCampaignPatch(input);
++    return repo.transaction(async (tx) => {
++      const existing = await repo.findByIdTx(tx, id);
++      if (!existing) throw AppError.notFound(ERROR_CODES.CAMPAIGN_NOT_FOUND);
++      assertCampaignEditable(existing.status);
++
++      const merged = { ...existing, ...patch };
++      const data = validateCampaign(merged);
++
++      const updated = await repo.update(tx, id, data);
++      await auditLogService.record(
++        {
++          ...ctx,
++          action: AUDIT_ACTIONS.CAMPAIGN_UPDATED,
++          entityType: AUDIT_ENTITY_TYPES.CAMPAIGN,
++          entityId: id,
++          metadata: { fields: Object.keys(patch) },
++        },
++        tx,
++      );
++      return updated;
++    });
++  },
++
++  open: (id: string, ctx: AuditContext) =>
++    transition(id, 'OPEN', AUDIT_ACTIONS.CAMPAIGN_OPENED, ctx),
++
++  close: (id: string, ctx: AuditContext) =>
++    transition(id, 'CLOSED', AUDIT_ACTIONS.CAMPAIGN_CLOSED, ctx),
++
++  cancel: (id: string, input: unknown, ctx: AuditContext) => {
++    const { reason } = validateCancelCampaign(input);
++    return transition(id, 'CANCELLED', AUDIT_ACTIONS.CAMPAIGN_CANCELLED, ctx, {
++      reason: reason ?? null,
++    });
++  },
++};
+diff --git a/apps/api/src/modules/donation-campaigns/campaign.validation.ts b/apps/api/src/modules/donation-campaigns/campaign.validation.ts
+index 5c6a99f..393810d 100644
+--- a/apps/api/src/modules/donation-campaigns/campaign.validation.ts
++++ b/apps/api/src/modules/donation-campaigns/campaign.validation.ts
+@@ -150,3 +150,52 @@ export function assertRegistrationWindowOpen(
+ 
+ export const isCampaignStatus = (value: string): value is CampaignStatus =>
+   (CAMPAIGN_STATUSES as readonly string[]).includes(value);
++
++/* -------------------------------------------------------------------------- */
++/* HTTP layer — campaignSchema above stays the single source of cross-field   */
++/* truth; these only shape what the client is allowed to send.                */
++/* -------------------------------------------------------------------------- */
++
++/** POST /campaigns — unlike campaignSchema, name/location are mandatory here. */
++const createCampaignRequiredSchema = z.object({
++  name: z.string().trim().min(1).max(200),
++  location: z.string().trim().min(1).max(500),
++});
++export function validateCreateCampaign(input: unknown) {
++  const required = parseDomain(createCampaignRequiredSchema, input);
++  const rest = validateCampaign(input);
++  return { ...rest, ...required };
++}
++
++/**
++ * PATCH /campaigns/:id — every field optional; the service merges this onto
++ * the existing row and re-validates the *resulting* record with
++ * `validateCampaign` so a partial patch can never leave startsAt/endsAt or
++ * the target fields inconsistent.
++ */
++export const campaignPatchSchema = campaignSchema.partial();
++export function validateCampaignPatch(input: unknown) {
++  return parseDomain(campaignPatchSchema, input);
++}
++
++const cancelCampaignSchema = z.object({
++  reason: z.string().trim().min(1).max(500).optional(),
++});
++export function validateCancelCampaign(input: unknown) {
++  return parseDomain(cancelCampaignSchema, input ?? {});
++}
++
++const campaignListQuerySchema = z.object({
++  status: z.enum(CAMPAIGN_STATUSES).optional(),
++  from: z.coerce.date().optional(),
++  to: z.coerce.date().optional(),
++  page: z.coerce.number().int().positive().optional(),
++  limit: z.coerce.number().int().positive().optional(),
++});
++export function validateCampaignListQuery(input: unknown) {
++  const query = parseDomain(campaignListQuerySchema, input);
++  if (query.from && query.to) {
++    assertTimeRange(query.from, query.to, ERROR_CODES.VALIDATION_ERROR);
++  }
++  return query;
++}
+diff --git a/apps/api/src/modules/time-slots/time-slot.repository.ts b/apps/api/src/modules/time-slots/time-slot.repository.ts
+index b73ccac..d054387 100644
+--- a/apps/api/src/modules/time-slots/time-slot.repository.ts
++++ b/apps/api/src/modules/time-slots/time-slot.repository.ts
+@@ -38,6 +38,21 @@ export const timeSlotRepository = {
+     tx: Prisma.TransactionClient,
+     data: Prisma.CampaignTimeSlotUncheckedCreateInput,
+   ) => tx.campaignTimeSlot.create({ data }),
++  listByCampaign: (campaignId: string, activeOnly: boolean) =>
++    database.campaignTimeSlot.findMany({
++      where: { campaignId, ...(activeOnly ? { isActive: true } : {}) },
++      orderBy: { startsAt: 'asc' },
++    }),
++  findById: (id: string) =>
++    database.campaignTimeSlot.findUnique({
++      where: { id },
++      include: { campaign: true },
++    }),
++  update: (
++    tx: Prisma.TransactionClient,
++    id: string,
++    data: Prisma.CampaignTimeSlotUncheckedUpdateInput,
++  ) => tx.campaignTimeSlot.update({ where: { id }, data }),
+   occupied: (
+     tx: Prisma.TransactionClient,
+     slotId: string,
+diff --git a/apps/api/src/modules/time-slots/time-slot.routes.ts b/apps/api/src/modules/time-slots/time-slot.routes.ts
+new file mode 100644
+index 0000000..8f39258
+--- /dev/null
++++ b/apps/api/src/modules/time-slots/time-slot.routes.ts
+@@ -0,0 +1,75 @@
++import type { RequestHandler } from 'express';
++import { Router } from 'express';
++import { paramId } from '../../common/helpers/http';
++import { sendCreated, sendSuccess } from '../../common/helpers/response';
++import { requireAuth } from '../../middlewares/auth.middleware';
++import { requirePermission } from '../../middlewares/permission.middleware';
++import { auditContextFrom } from '../audit-logs/audit.service';
++import { timeSlotService } from './time-slot.service';
++
++const listForCampaign: RequestHandler = async (req, res) => {
++  const activeOnly = req.query.activeOnly === 'true';
++  sendSuccess(
++    res,
++    await timeSlotService.list(paramId(req, 'campaignId'), activeOnly),
++  );
++};
++
++const createForCampaign: RequestHandler = async (req, res) => {
++  const body = { ...req.body, campaignId: paramId(req, 'campaignId') };
++  sendCreated(res, await timeSlotService.create(body));
++};
++
++const getById: RequestHandler = async (req, res) => {
++  sendSuccess(res, await timeSlotService.getById(paramId(req)));
++};
++
++const update: RequestHandler = async (req, res) => {
++  sendSuccess(
++    res,
++    await timeSlotService.update(paramId(req), req.body, auditContextFrom(req)),
++  );
++};
++
++const deactivate: RequestHandler = async (req, res) => {
++  sendSuccess(
++    res,
++    await timeSlotService.deactivate(paramId(req), auditContextFrom(req)),
++  );
++};
++
++/** Nested under /campaigns/:campaignId/time-slots — for GET (list) only. */
++export const campaignTimeSlotRoutes = Router();
++campaignTimeSlotRoutes.get(
++  '/:campaignId/time-slots',
++  requireAuth,
++  requirePermission('timeslot.read'),
++  listForCampaign,
++);
++campaignTimeSlotRoutes.post(
++  '/:campaignId/time-slots',
++  requireAuth,
++  requirePermission('timeslot.create'),
++  createForCampaign,
++);
++
++/** Flat /time-slots/:id — for single-resource read/update/deactivate. */
++export const timeSlotRoutes = Router();
++timeSlotRoutes.get(
++  '/:id',
++  requireAuth,
++  requirePermission('timeslot.read'),
++  getById,
++);
++timeSlotRoutes.patch(
++  '/:id',
++  requireAuth,
++  requirePermission('timeslot.update'),
++  update,
++);
++timeSlotRoutes.post(
++  '/:id/deactivate',
++  requireAuth,
++  requirePermission('timeslot.deactivate'),
++  deactivate,
++);
+diff --git a/apps/api/src/modules/time-slots/time-slot.service.ts b/apps/api/src/modules/time-slots/time-slot.service.ts
+index 11f37c6..963388a 100644
+--- a/apps/api/src/modules/time-slots/time-slot.service.ts
++++ b/apps/api/src/modules/time-slots/time-slot.service.ts
+@@ -5,6 +5,7 @@ import {
+ } from '@blood/shared-types';
+ import { AppError } from '../../common/errors/app.error';
+ import { parseDomain } from '../../common/helpers/domain-validation';
++import type { AuditContext } from '../audit-logs/audit.service';
+ import { auditLogService } from '../audit-logs/audit.service';
+ import {
+   assertCampaignAcceptsRegistration,
+@@ -21,13 +22,15 @@ import {
+   assertTimeSlotHasCapacity,
+   timeSlotSchema,
+   validateTimeSlot,
++  validateTimeSlotPatch,
+ } from './time-slot.validation';
+ 
+ export interface ScheduleContext {
+   actorId?: string | null;
+ }
+ 
+-// Internal application services only; no new HTTP CRUD endpoints.
++// `create`/`schedule` below stay internal-only (called from registration
++// flow); `list`/`getById`/`update`/`deactivate` back the new HTTP CRUD.
+ export const timeSlotService = {
+   async create(input: unknown) {
+     const data = parseDomain(timeSlotSchema, input);
+@@ -130,4 +133,58 @@ export const timeSlotService = {
+       return updated;
+     });
+   },
++
++  async list(campaignId: string, activeOnly: boolean) {
++    return repository.listByCampaign(campaignId, activeOnly);
++  },
++
++  async getById(id: string) {
++    const slot = await repository.findById(id);
++    if (!slot) throw AppError.notFound(ERROR_CODES.TIME_SLOT_NOT_FOUND);
++    return slot;
++  },
++
++  /** Merge-then-validate like campaign.update — see validateTimeSlotPatch. */
++  async update(id: string, input: unknown, ctx: AuditContext) {
++    const patch = validateTimeSlotPatch(input);
++    return repository.transaction(async (tx) => {
++      const existing = await repository.slot(tx, id);
++      if (!existing) throw AppError.notFound(ERROR_CODES.TIME_SLOT_NOT_FOUND);
++      const campaign = await repository.campaign(tx, existing.campaignId);
++      if (!campaign) throw AppError.notFound(ERROR_CODES.CAMPAIGN_NOT_FOUND);
++
++      const merged = { ...existing, ...patch };
++      const data = validateTimeSlot(merged, campaign);
++      const updated = await repository.update(tx, id, data);
++      await auditLogService.record(
++        {
++          ...ctx,
++          action: AUDIT_ACTIONS.TIME_SLOT_UPDATED,
++          entityType: AUDIT_ENTITY_TYPES.TIME_SLOT,
++          entityId: id,
++          metadata: { fields: Object.keys(patch) },
++        },
++        tx,
++      );
++      return updated;
++    });
++  },
++
++  async deactivate(id: string, ctx: AuditContext) {
++    return repository.transaction(async (tx) => {
++      const existing = await repository.slot(tx, id);
++      if (!existing) throw AppError.notFound(ERROR_CODES.TIME_SLOT_NOT_FOUND);
++      const updated = await repository.update(tx, id, { isActive: false });
++      await auditLogService.record(
++        {
++          ...ctx,
++          action: AUDIT_ACTIONS.TIME_SLOT_DEACTIVATED,
++          entityType: AUDIT_ENTITY_TYPES.TIME_SLOT,
++          entityId: id,
++        },
++        tx,
++      );
++      return updated;
++    });
++  },
+ };
+diff --git a/apps/api/src/modules/time-slots/time-slot.validation.ts b/apps/api/src/modules/time-slots/time-slot.validation.ts
+index 293b762..e713d3f 100644
+--- a/apps/api/src/modules/time-slots/time-slot.validation.ts
++++ b/apps/api/src/modules/time-slots/time-slot.validation.ts
+@@ -38,6 +38,17 @@ export function validateTimeSlot(
+   return slot;
+ }
+ 
++/** PATCH /time-slots/:id — campaignId never changes; merge-then-validate like campaign patch. */
++const timeSlotPatchSchema = z.object({
++  startsAt: z.date().optional(),
++  endsAt: z.date().optional(),
++  capacity: positiveInteger.optional(),
++  label: z.string().trim().max(200).nullish(),
++});
++export function validateTimeSlotPatch(input: unknown) {
++  return parseDomain(timeSlotPatchSchema, input);
++}
++
+ /**
+  * Mandatory Phase 1 rule: a deactivated slot can never be scheduled or
+  * rescheduled, regardless of remaining capacity.
+diff --git a/apps/api/src/routes/index.ts b/apps/api/src/routes/index.ts
+index 79d7102..0f81850 100644
+--- a/apps/api/src/routes/index.ts
++++ b/apps/api/src/routes/index.ts
+@@ -6,6 +6,11 @@ import { screeningRoutes } from '../modules/screenings/screening.routes';
+ import { bloodBagRoutes } from '../modules/blood-bags/blood-bag.routes';
+ import { notificationRoutes } from '../modules/notifications/notification.routes';
+ import { certificateRoutes } from '../modules/certificates/certificate.routes';
++import { campaignRoutes } from '../modules/donation-campaigns/campaign.routes';
++import {
++  campaignTimeSlotRoutes,
++  timeSlotRoutes,
++} from '../modules/time-slots/time-slot.routes';
+ import { healthRoutes } from './health.routes';
+ export const apiRoutes = Router();
+ apiRoutes.use('/health', healthRoutes);
+@@ -16,3 +21,6 @@ apiRoutes.use('/screenings', screeningRoutes);
+ apiRoutes.use(bloodBagRoutes);
+ apiRoutes.use('/notifications', notificationRoutes);
+ apiRoutes.use('/certificates', certificateRoutes);
++apiRoutes.use('/campaigns', campaignRoutes);
++apiRoutes.use('/campaigns', campaignTimeSlotRoutes);
++apiRoutes.use('/time-slots', timeSlotRoutes);
+diff --git a/packages/shared-types/src/index.ts b/packages/shared-types/src/index.ts
+index e9252a6..79a7382 100644
+--- a/packages/shared-types/src/index.ts
++++ b/packages/shared-types/src/index.ts
+@@ -533,6 +533,10 @@ export const ERROR_CODES = {
+   TIME_SLOT_INACTIVE: 'TIME_SLOT_INACTIVE',
+   TIME_SLOT_OUTSIDE_CAMPAIGN: 'TIME_SLOT_OUTSIDE_CAMPAIGN',
+ 
++  CAMPAIGN_STAFF_ALREADY_ASSIGNED: 'CAMPAIGN_STAFF_ALREADY_ASSIGNED',
++  CAMPAIGN_STAFF_NOT_FOUND: 'CAMPAIGN_STAFF_NOT_FOUND',
++  CAMPAIGN_STAFF_INVALID_ROLE: 'CAMPAIGN_STAFF_INVALID_ROLE',
++
+   REGISTRATION_NOT_FOUND: 'REGISTRATION_NOT_FOUND',
+   REGISTRATION_DUPLICATE: 'REGISTRATION_DUPLICATE',
+   REGISTRATION_CLOSED: 'REGISTRATION_CLOSED',
+@@ -598,6 +602,12 @@ export const ERROR_MESSAGES: Readonly<Record<ErrorCode, string>> = {
+   TIME_SLOT_NOT_FOUND: 'Không tìm thấy khung giờ',
+   TIME_SLOT_FULL: 'Khung giờ đã đủ số lượng đăng ký',
+   TIME_SLOT_INACTIVE: 'Khung giờ đã ngừng sử dụng',
++
++  CAMPAIGN_STAFF_ALREADY_ASSIGNED:
++    'Nhân sự đã được phân công cho đợt hiến máu này',
++  CAMPAIGN_STAFF_NOT_FOUND: 'Không tìm thấy phân công nhân sự này',
++  CAMPAIGN_STAFF_INVALID_ROLE:
++    'Chỉ có thể phân công tài khoản có vai trò nhân viên',
+   TIME_SLOT_OUTSIDE_CAMPAIGN:
+     'Khung giờ phải nằm trong thời gian của đợt hiến máu',
+ 
+@@ -662,6 +672,11 @@ export const AUDIT_ACTIONS = {
+   CAMPAIGN_OPENED: 'CAMPAIGN_OPENED',
+   CAMPAIGN_CLOSED: 'CAMPAIGN_CLOSED',
+   CAMPAIGN_CANCELLED: 'CAMPAIGN_CANCELLED',
++  TIME_SLOT_CREATED: 'TIME_SLOT_CREATED',
++  TIME_SLOT_UPDATED: 'TIME_SLOT_UPDATED',
++  TIME_SLOT_DEACTIVATED: 'TIME_SLOT_DEACTIVATED',
++  STAFF_ASSIGNED: 'STAFF_ASSIGNED',
++  STAFF_REMOVED: 'STAFF_REMOVED',
+ 
+   REGISTRATION_CREATED: 'REGISTRATION_CREATED',
+   REGISTRATION_RESCHEDULED: 'REGISTRATION_RESCHEDULED',

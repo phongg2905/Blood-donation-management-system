@@ -150,3 +150,52 @@ export function assertRegistrationWindowOpen(
 
 export const isCampaignStatus = (value: string): value is CampaignStatus =>
   (CAMPAIGN_STATUSES as readonly string[]).includes(value);
+
+/* -------------------------------------------------------------------------- */
+/* HTTP layer — campaignSchema above stays the single source of cross-field   */
+/* truth; these only shape what the client is allowed to send.                */
+/* -------------------------------------------------------------------------- */
+
+/** POST /campaigns — unlike campaignSchema, name/location are mandatory here. */
+const createCampaignRequiredSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  location: z.string().trim().min(1).max(500),
+});
+export function validateCreateCampaign(input: unknown) {
+  const required = parseDomain(createCampaignRequiredSchema, input);
+  const rest = validateCampaign(input);
+  return { ...rest, ...required };
+}
+
+/**
+ * PATCH /campaigns/:id — every field optional; the service merges this onto
+ * the existing row and re-validates the *resulting* record with
+ * `validateCampaign` so a partial patch can never leave startsAt/endsAt or
+ * the target fields inconsistent.
+ */
+export const campaignPatchSchema = campaignSchema.partial();
+export function validateCampaignPatch(input: unknown) {
+  return parseDomain(campaignPatchSchema, input);
+}
+
+const cancelCampaignSchema = z.object({
+  reason: z.string().trim().min(1).max(500).optional(),
+});
+export function validateCancelCampaign(input: unknown) {
+  return parseDomain(cancelCampaignSchema, input ?? {});
+}
+
+const campaignListQuerySchema = z.object({
+  status: z.enum(CAMPAIGN_STATUSES).optional(),
+  from: z.coerce.date().optional(),
+  to: z.coerce.date().optional(),
+  page: z.coerce.number().int().positive().optional(),
+  limit: z.coerce.number().int().positive().optional(),
+});
+export function validateCampaignListQuery(input: unknown) {
+  const query = parseDomain(campaignListQuerySchema, input);
+  if (query.from && query.to) {
+    assertTimeRange(query.from, query.to, ERROR_CODES.VALIDATION_ERROR);
+  }
+  return query;
+}

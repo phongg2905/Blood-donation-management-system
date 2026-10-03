@@ -38,6 +38,21 @@ export const timeSlotRepository = {
     tx: Prisma.TransactionClient,
     data: Prisma.CampaignTimeSlotUncheckedCreateInput,
   ) => tx.campaignTimeSlot.create({ data }),
+  listByCampaign: (campaignId: string, activeOnly: boolean) =>
+    database.campaignTimeSlot.findMany({
+      where: { campaignId, ...(activeOnly ? { isActive: true } : {}) },
+      orderBy: { startsAt: 'asc' },
+    }),
+  findById: (id: string) =>
+    database.campaignTimeSlot.findUnique({
+      where: { id },
+      include: { campaign: true },
+    }),
+  update: (
+    tx: Prisma.TransactionClient,
+    id: string,
+    data: Prisma.CampaignTimeSlotUncheckedUpdateInput,
+  ) => tx.campaignTimeSlot.update({ where: { id }, data }),
   occupied: (
     tx: Prisma.TransactionClient,
     slotId: string,
