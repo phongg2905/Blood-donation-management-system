@@ -5,6 +5,7 @@ import {
 } from '@blood/shared-types';
 import { AppError } from '../../common/errors/app.error';
 import { parseDomain } from '../../common/helpers/domain-validation';
+import type { AuditContext } from '../audit-logs/audit.service';
 import { auditLogService } from '../audit-logs/audit.service';
 import {
   assertCampaignAcceptsRegistration,
@@ -21,13 +22,15 @@ import {
   assertTimeSlotHasCapacity,
   timeSlotSchema,
   validateTimeSlot,
+  validateTimeSlotPatch,
 } from './time-slot.validation';
 
 export interface ScheduleContext {
   actorId?: string | null;
 }
 
-// Internal application services only; no new HTTP CRUD endpoints.
+// `create`/`schedule` below stay internal-only (called from registration
+// flow); `list`/`getById`/`update`/`deactivate` back the new HTTP CRUD.
 export const timeSlotService = {
   async create(input: unknown) {
     const data = parseDomain(timeSlotSchema, input);
@@ -127,6 +130,60 @@ export const timeSlotService = {
         tx,
       );
 
+      return updated;
+    });
+  },
+
+  async list(campaignId: string, activeOnly: boolean) {
+    return repository.listByCampaign(campaignId, activeOnly);
+  },
+
+  async getById(id: string) {
+    const slot = await repository.findById(id);
+    if (!slot) throw AppError.notFound(ERROR_CODES.TIME_SLOT_NOT_FOUND);
+    return slot;
+  },
+
+  /** Merge-then-validate like campaign.update — see validateTimeSlotPatch. */
+  async update(id: string, input: unknown, ctx: AuditContext) {
+    const patch = validateTimeSlotPatch(input);
+    return repository.transaction(async (tx) => {
+      const existing = await repository.slot(tx, id);
+      if (!existing) throw AppError.notFound(ERROR_CODES.TIME_SLOT_NOT_FOUND);
+      const campaign = await repository.campaign(tx, existing.campaignId);
+      if (!campaign) throw AppError.notFound(ERROR_CODES.CAMPAIGN_NOT_FOUND);
+
+      const merged = { ...existing, ...patch };
+      const data = validateTimeSlot(merged, campaign);
+      const updated = await repository.update(tx, id, data);
+      await auditLogService.record(
+        {
+          ...ctx,
+          action: AUDIT_ACTIONS.TIME_SLOT_UPDATED,
+          entityType: AUDIT_ENTITY_TYPES.TIME_SLOT,
+          entityId: id,
+          metadata: { fields: Object.keys(patch) },
+        },
+        tx,
+      );
+      return updated;
+    });
+  },
+
+  async deactivate(id: string, ctx: AuditContext) {
+    return repository.transaction(async (tx) => {
+      const existing = await repository.slot(tx, id);
+      if (!existing) throw AppError.notFound(ERROR_CODES.TIME_SLOT_NOT_FOUND);
+      const updated = await repository.update(tx, id, { isActive: false });
+      await auditLogService.record(
+        {
+          ...ctx,
+          action: AUDIT_ACTIONS.TIME_SLOT_DEACTIVATED,
+          entityType: AUDIT_ENTITY_TYPES.TIME_SLOT,
+          entityId: id,
+        },
+        tx,
+      );
       return updated;
     });
   },

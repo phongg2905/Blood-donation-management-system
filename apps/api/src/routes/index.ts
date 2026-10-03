@@ -6,6 +6,11 @@ import { screeningRoutes } from '../modules/screenings/screening.routes';
 import { bloodBagRoutes } from '../modules/blood-bags/blood-bag.routes';
 import { notificationRoutes } from '../modules/notifications/notification.routes';
 import { certificateRoutes } from '../modules/certificates/certificate.routes';
+import { campaignRoutes } from '../modules/donation-campaigns/campaign.routes';
+import {
+  campaignTimeSlotRoutes,
+  timeSlotRoutes,
+} from '../modules/time-slots/time-slot.routes';
 import { healthRoutes } from './health.routes';
 export const apiRoutes = Router();
 apiRoutes.use('/health', healthRoutes);
@@ -16,3 +21,6 @@ apiRoutes.use('/screenings', screeningRoutes);
 apiRoutes.use(bloodBagRoutes);
 apiRoutes.use('/notifications', notificationRoutes);
 apiRoutes.use('/certificates', certificateRoutes);
+apiRoutes.use('/campaigns', campaignRoutes);
+apiRoutes.use('/campaigns', campaignTimeSlotRoutes);
+apiRoutes.use('/time-slots', timeSlotRoutes);

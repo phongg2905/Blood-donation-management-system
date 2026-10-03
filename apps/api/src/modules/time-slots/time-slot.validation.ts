@@ -38,6 +38,17 @@ export function validateTimeSlot(
   return slot;
 }
 
+/** PATCH /time-slots/:id — campaignId never changes; merge-then-validate like campaign patch. */
+const timeSlotPatchSchema = z.object({
+  startsAt: z.date().optional(),
+  endsAt: z.date().optional(),
+  capacity: positiveInteger.optional(),
+  label: z.string().trim().max(200).nullish(),
+});
+export function validateTimeSlotPatch(input: unknown) {
+  return parseDomain(timeSlotPatchSchema, input);
+}
+
 /**
  * Mandatory Phase 1 rule: a deactivated slot can never be scheduled or
  * rescheduled, regardless of remaining capacity.
