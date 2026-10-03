@@ -17,3 +17,33 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
 });
+
+// Mock IntersectionObserver & ResizeObserver for Framer Motion and scroll reveals in jsdom
+if (typeof window !== 'undefined') {
+  if (!window.IntersectionObserver) {
+    class MockIntersectionObserver implements IntersectionObserver {
+      readonly root: Element | Document | null = null;
+      readonly rootMargin: string = '';
+      readonly thresholds: ReadonlyArray<number> = [];
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+      takeRecords(): IntersectionObserverEntry[] {
+        return [];
+      }
+    }
+    window.IntersectionObserver = MockIntersectionObserver as unknown as typeof IntersectionObserver;
+    (global as unknown as { IntersectionObserver: typeof MockIntersectionObserver }).IntersectionObserver = MockIntersectionObserver;
+  }
+
+  if (!window.ResizeObserver) {
+    class MockResizeObserver implements ResizeObserver {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    }
+    window.ResizeObserver = MockResizeObserver as unknown as typeof ResizeObserver;
+    (global as unknown as { ResizeObserver: typeof MockResizeObserver }).ResizeObserver = MockResizeObserver;
+  }
+}
+

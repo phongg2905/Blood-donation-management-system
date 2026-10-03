@@ -7,6 +7,7 @@ import { Button } from '@/components/ui';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { visibleNavItems } from '@/features/auth/navigation';
 import { AUTH_ROUTES, primaryRole } from '@/features/auth/routing';
+import { Heart } from 'lucide-react';
 import { NotificationBell } from '@/features/notifications/components/NotificationBell';
 import { useHeaderAutoHide } from '@/hooks/useHeaderAutoHide';
 
@@ -56,7 +57,6 @@ export function AppShell({ children, variant }: AppShellProps) {
       <header className="app-header">
         <div className="app-header__inner">
           <Brand
-            inverse={isHome}
             to="/"
             tagline={variant === 'admin' ? 'Quản trị' : 'Quản lý hiến máu'}
           />
@@ -70,6 +70,12 @@ export function AppShell({ children, variant }: AppShellProps) {
           </nav>
 
           <div className="session">
+            {hasPermission('registration.create') && (
+              <Link to="/donor/register" className="header-quick-btn">
+                <Heart size={15} fill="currentColor" />
+                <span>Đặt lịch hiến máu</span>
+              </Link>
+            )}
             <NotificationBell />
             <details
               className="account-menu"
