@@ -130,17 +130,28 @@ describe('MockWorkflowRepository', () => {
 });
 
 describe('clinic check-in page', () => {
-  it('searches and checks in a donor', async () => {
+  it('searches and checks in a donor via campaign selection', async () => {
     const user = userEvent.setup();
     const auth = createMockAuthService();
     await signInAs(auth, 'donation-staff@example.local');
     renderWithAuth(
-      <WorkflowRepositoryContext.Provider
-        value={new MockWorkflowRepository({ latency: 0 })}
-      >
-        <AppRoutes />
-      </WorkflowRepositoryContext.Provider>,
+      withRepositories(<AppRoutes />),
       { service: auth, route: '/clinic/check-in' },
+    );
+
+    expect(
+      await screen.findByRole('heading', {
+        name: 'Chọn đợt hiến máu để tiếp nhận',
+      }),
+    ).toBeInTheDocument();
+
+    const campaignItem = (
+      await screen.findByText('Ngày hội giọt hồng')
+    ).closest('li');
+    await user.click(
+      within(campaignItem as HTMLElement).getByRole('link', {
+        name: 'Vào bàn tiếp nhận',
+      }),
     );
 
     expect(
@@ -156,21 +167,55 @@ describe('clinic check-in page', () => {
     expect(await screen.findByText(/Check-in thành công/)).toBeInTheDocument();
   });
 
+  it('shows campaign selection at /clinic/screening', async () => {
+    const auth = createMockAuthService();
+    await signInAs(auth, 'donation-staff@example.local');
+    renderWithAuth(
+      withRepositories(<AppRoutes />),
+      { service: auth, route: '/clinic/screening' },
+    );
+
+    expect(
+      await screen.findByRole('heading', {
+        name: 'Chọn đợt hiến máu để sàng lọc y tế',
+      }),
+    ).toBeInTheDocument();
+    const screeningLinks = await screen.findAllByRole('link', {
+      name: 'Vào bàn sàng lọc',
+    });
+    expect(screeningLinks.length).toBeGreaterThan(0);
+  });
+
   it('blocks a donor from the clinic route', async () => {
     const auth = createMockAuthService();
     await signInAs(auth, 'donor@example.local');
     renderWithAuth(
-      <WorkflowRepositoryContext.Provider
-        value={new MockWorkflowRepository({ latency: 0 })}
-      >
-        <AppRoutes />
-      </WorkflowRepositoryContext.Provider>,
+      withRepositories(<AppRoutes />),
       { service: auth, route: '/clinic/check-in' },
     );
     expect(
       await screen.findByRole('heading', {
         name: 'Bạn không có quyền truy cập',
       }),
+    ).toBeInTheDocument();
+  });
+
+  it('supports campaign-scoped check-in route', async () => {
+    const auth = createMockAuthService();
+    await signInAs(auth, 'donation-staff@example.local');
+    renderWithAuth(
+      withRepositories(<AppRoutes />),
+      { service: auth, route: '/campaigns/demo-1/check-in' },
+    );
+
+    expect(
+      await screen.findByRole('heading', { name: 'Check-in người hiến' }),
+    ).toBeInTheDocument();
+    expect(
+      (await screen.findAllByText(/Ngày hội giọt hồng/)).length,
+    ).toBeGreaterThan(0);
+    expect(
+      await screen.findByRole('button', { name: 'Tất cả đăng ký đợt này' }),
     ).toBeInTheDocument();
   });
 });

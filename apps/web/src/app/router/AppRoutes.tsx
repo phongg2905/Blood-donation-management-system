@@ -107,6 +107,30 @@ export function AppRoutes() {
                 </PermissionGuard>
               }
             />
+            <Route
+              path="/campaigns/:campaignId/check-in"
+              element={
+                <PermissionGuard requiredPermission="registration.checkin">
+                  <CheckInPage />
+                </PermissionGuard>
+              }
+            />
+            <Route
+              path="/campaigns/:campaignId/screening"
+              element={
+                <PermissionGuard requiredPermission="screening.review">
+                  <ScreeningQueuePage />
+                </PermissionGuard>
+              }
+            />
+            <Route
+              path="/campaigns/:campaignId/screening/:registrationId"
+              element={
+                <PermissionGuard requiredPermission="screening.review">
+                  <ScreeningPage />
+                </PermissionGuard>
+              }
+            />
           </Route>
           <Route
             path="/profile"

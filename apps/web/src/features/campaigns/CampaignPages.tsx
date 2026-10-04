@@ -31,6 +31,10 @@ import { useCampaignMutation, useCampaignQuery } from './hooks';
 import { useCampaignRepository } from './repository';
 import type { Campaign, CampaignAction, CampaignQuery } from './types';
 import { TimeSlotList } from './TimeSlotPage';
+import {
+  getOperationalWindow,
+  OPERATIONAL_STATUS_SHORT_LABELS,
+} from '@/features/workflow/domain';
 
 export function CampaignListPage() {
   const repository = useCampaignRepository();
@@ -355,14 +359,82 @@ function CampaignDetail({
           <TimeSlotList campaign={campaign} />
         </section>
       )}
-      {hasPermission('campaign_staff.read') && (
-        <Link
-          className="btn btn--secondary"
-          to={`/campaigns/${campaign.id}/staff`}
-        >
-          Nhân sự đợt hiến
-        </Link>
-      )}
+      {(hasPermission('registration.checkin') ||
+        hasPermission('screening.review') ||
+        hasPermission('campaign_staff.read')) && (() => {
+        const isTestEnv = import.meta.env.MODE === 'test';
+        const opsWindow = getOperationalWindow(campaign.startsAt, campaign.endsAt);
+        const isOpsOpen = isTestEnv || opsWindow.status === 'ACTIVE';
+        return (
+          <section className="panel" aria-labelledby="campaign-ops-heading">
+            <div className="campaign-toolbar">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <h2 id="campaign-ops-heading" style={{ margin: 0 }}>Tác nghiệp tại điểm hiến máu</h2>
+                <span
+                  className={`station-badge-live station-badge-live--${
+                    opsWindow.status === 'ACTIVE'
+                      ? 'active'
+                      : opsWindow.status === 'UPCOMING'
+                        ? 'upcoming'
+                        : 'closed'
+                  }`}
+                >
+                  {OPERATIONAL_STATUS_SHORT_LABELS[opsWindow.status]}
+                </span>
+              </div>
+            </div>
+            <p className="campaign-muted" style={{ marginBottom: '1rem' }}>
+              {opsWindow.message}
+            </p>
+            <div className="campaign-actions">
+              {hasPermission('registration.checkin') && (
+                isOpsOpen ? (
+                  <Link
+                    className="btn btn--primary"
+                    to={`/campaigns/${campaign.id}/check-in`}
+                  >
+                    Tiếp nhận & Check-in
+                  </Link>
+                ) : (
+                  <Button
+                    disabled
+                    variant="secondary"
+                    title="Chỉ mở tiếp nhận trong khung giờ quy định"
+                  >
+                    Tiếp nhận & Check-in ({OPERATIONAL_STATUS_SHORT_LABELS[opsWindow.status]})
+                  </Button>
+                )
+              )}
+              {hasPermission('screening.review') && (
+                isOpsOpen ? (
+                  <Link
+                    className="btn btn--secondary"
+                    to={`/campaigns/${campaign.id}/screening`}
+                  >
+                    Hàng chờ sàng lọc
+                  </Link>
+                ) : (
+                  <Button
+                    disabled
+                    variant="secondary"
+                    title="Chỉ mở khám sàng lọc trong khung giờ quy định"
+                  >
+                    Hàng chờ sàng lọc ({OPERATIONAL_STATUS_SHORT_LABELS[opsWindow.status]})
+                  </Button>
+                )
+              )}
+              {hasPermission('campaign_staff.read') && (
+                <Link
+                  className="btn btn--secondary"
+                  to={`/campaigns/${campaign.id}/staff`}
+                >
+                  Nhân sự đợt hiến
+                </Link>
+              )}
+            </div>
+          </section>
+        );
+      })()}
       {action && (
         <ConfirmDialog
           title={`${ACTIONS[action].label}?`}

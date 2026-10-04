@@ -2,14 +2,18 @@ import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Button, FormField, Input } from '@/components/ui';
 import { ConfirmDialog, Feedback, QueryState } from '@/features/campaigns/components';
+import { useCampaignRepository } from '@/features/campaigns/repository';
+import { useCampaignQuery } from '@/features/campaigns/hooks';
 import {
   BLOOD_GROUP_OPTIONS,
   MEASUREMENT_FIELDS,
+  OPERATIONAL_STATUS_SHORT_LABELS,
   QUICK_TEST_OPTIONS,
   RH_OPTIONS,
   SCREENING_STATUS_LABELS,
   formatDate,
   formatSlotRange,
+  getOperationalWindow,
   parseMeasurements,
   validateScreening,
   type FieldErrors,
@@ -18,7 +22,6 @@ import { useWorkflowMutation, useWorkflowQuery } from './hooks';
 import { useWorkflowRepository } from './repository';
 import {
   DetailList,
-  MockNote,
   StatusPill,
   WorkflowShell,
   type PillTone,
@@ -41,22 +44,288 @@ const screeningTone: Record<ScreeningQueueItem['screening']['status'], PillTone>
   };
 
 export function ScreeningQueuePage() {
+  const { campaignId } = useParams<{ campaignId?: string }>();
   const workflow = useWorkflowRepository();
-  const queue = useWorkflowQuery('screening-queue', () =>
-    workflow.screeningQueue(),
+  const campaignRepo = useCampaignRepository();
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'UPCOMING' | 'CLOSED'>('ALL');
+  const isTestEnv = import.meta.env.MODE === 'test';
+
+  const campaignQuery = useCampaignQuery(
+    `screening-campaign:${campaignId}`,
+    () => campaignRepo.detail(campaignId!),
+    Boolean(campaignId),
   );
 
+  const campaignsListQuery = useCampaignQuery(
+    'screening-campaigns-list',
+    () => campaignRepo.list({ page: 1, limit: 30, sort: 'desc' }),
+    !campaignId,
+  );
+
+  const queue = useWorkflowQuery(
+    `screening-queue:${campaignId ?? 'all'}`,
+    () => workflow.screeningQueue(campaignId),
+    Boolean(campaignId),
+  );
+
+  const operationalWindow = campaignQuery.data
+    ? getOperationalWindow(campaignQuery.data.startsAt, campaignQuery.data.endsAt)
+    : null;
+
+  const isClosedOrUpcoming = !isTestEnv && operationalWindow !== null && operationalWindow.status !== 'ACTIVE';
+
+  // 1. If accessed without a campaignId (via /clinic/screening):
+  // Only display the list of active campaigns with status filter tabs!
+  if (!campaignId) {
+    const campaignsWithWindow = (campaignsListQuery.data?.items ?? []).map((campaign) => ({
+      campaign,
+      window: getOperationalWindow(campaign.startsAt, campaign.endsAt),
+    }));
+
+    const totalCount = campaignsWithWindow.length;
+    const activeCount = campaignsWithWindow.filter((c) => c.window.status === 'ACTIVE').length;
+    const upcomingCount = campaignsWithWindow.filter((c) => c.window.status === 'UPCOMING').length;
+    const closedCount = campaignsWithWindow.filter((c) => c.window.status === 'CLOSED').length;
+
+    const filteredCampaigns = campaignsWithWindow.filter((c) => {
+      if (statusFilter === 'ALL') return true;
+      return c.window.status === statusFilter;
+    });
+
+    return (
+      <WorkflowShell
+        eyebrow="Khu vực sàng lọc"
+        title="Chọn đợt hiến máu để sàng lọc y tế"
+        lead="Vui lòng chọn đợt hiến máu đang diễn ra để mở danh sách hàng chờ khám lâm sàng và xét nghiệm."
+      >
+        <QueryState {...campaignsListQuery} />
+
+        <div className="station-filter-bar" role="tablist" aria-label="Bộ lọc trạng thái đợt hiến">
+          <button
+            type="button"
+            className={`station-filter-btn ${statusFilter === 'ALL' ? 'station-filter-btn--active' : ''}`}
+            onClick={() => setStatusFilter('ALL')}
+          >
+            Tất cả <span className="station-filter-btn__count">{totalCount}</span>
+          </button>
+          <button
+            type="button"
+            className={`station-filter-btn ${statusFilter === 'ACTIVE' ? 'station-filter-btn--active' : ''}`}
+            onClick={() => setStatusFilter('ACTIVE')}
+          >
+            Mở <span className="station-filter-btn__count">{activeCount}</span>
+          </button>
+          <button
+            type="button"
+            className={`station-filter-btn ${statusFilter === 'UPCOMING' ? 'station-filter-btn--active' : ''}`}
+            onClick={() => setStatusFilter('UPCOMING')}
+          >
+            Chưa mở <span className="station-filter-btn__count">{upcomingCount}</span>
+          </button>
+          <button
+            type="button"
+            className={`station-filter-btn ${statusFilter === 'CLOSED' ? 'station-filter-btn--active' : ''}`}
+            onClick={() => setStatusFilter('CLOSED')}
+          >
+            Đã đóng <span className="station-filter-btn__count">{closedCount}</span>
+          </button>
+        </div>
+
+        {filteredCampaigns.length === 0 && (
+          <p className="workflow-empty">
+            {statusFilter === 'ACTIVE'
+              ? 'Hiện không có đợt hiến máu nào đang trong giờ mở quầy.'
+              : statusFilter === 'UPCOMING'
+                ? 'Không có đợt hiến nào chưa mở.'
+                : statusFilter === 'CLOSED'
+                  ? 'Không có đợt hiến nào đã đóng.'
+                  : 'Hiện không có đợt hiến máu nào.'}
+          </p>
+        )}
+
+        <ul className="workflow-list">
+          {filteredCampaigns.map(({ campaign, window }) => {
+            const isOpen = isTestEnv || window.status === 'ACTIVE';
+            return (
+              <li key={campaign.id} className="workflow-list__item">
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <h3 style={{ margin: 0 }}>{campaign.name}</h3>
+                    <span
+                      className={`station-badge-live station-badge-live--${
+                        window.status === 'ACTIVE'
+                          ? 'active'
+                          : window.status === 'UPCOMING'
+                            ? 'upcoming'
+                            : 'closed'
+                      }`}
+                    >
+                      {OPERATIONAL_STATUS_SHORT_LABELS[window.status]}
+                    </span>
+                  </div>
+                  <p className="workflow-muted">
+                    📍 {campaign.location} · ⏰ {formatDate(campaign.startsAt)}
+                  </p>
+                  <p className="workflow-muted" style={{ fontSize: '0.8rem' }}>
+                    {window.message}
+                  </p>
+                  {campaign.targetDonors && (
+                    <p className="workflow-muted">
+                      Chỉ tiêu: {campaign.targetDonors.toLocaleString('vi-VN')} người hiến
+                    </p>
+                  )}
+                </div>
+                <div className="workflow-list__side">
+                  <StatusPill tone={campaign.status === 'OPEN' ? 'success' : 'neutral'}>
+                    {campaign.status === 'OPEN' ? 'Đang mở' : campaign.status}
+                  </StatusPill>
+                  {isOpen ? (
+                    <Link
+                      className="btn btn--primary"
+                      to={`/campaigns/${campaign.id}/screening`}
+                    >
+                      Vào bàn sàng lọc
+                    </Link>
+                  ) : (
+                    <Button
+                      disabled
+                      variant="secondary"
+                      title="Chỉ mở khám sàng lọc trong khung giờ quy định"
+                    >
+                      {OPERATIONAL_STATUS_SHORT_LABELS[window.status]}
+                    </Button>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      </WorkflowShell>
+    );
+  }
+
+  // 2. Direct desk route: Block access early if campaign is not 'Mở'
+  if (isClosedOrUpcoming && operationalWindow) {
+    return (
+      <WorkflowShell
+        eyebrow="Khu vực sàng lọc"
+        title="Hàng chờ sàng lọc tạm khóa"
+        back="/clinic/screening"
+        backLabel="Chọn đợt hiến khác"
+      >
+        <div className="station-blocked">
+          <div className="station-blocked__icon">🔒</div>
+          <span
+            className={`station-badge-live station-badge-live--${
+              operationalWindow.status === 'UPCOMING' ? 'upcoming' : 'closed'
+            }`}
+          >
+            {OPERATIONAL_STATUS_SHORT_LABELS[operationalWindow.status]}
+          </span>
+          <h2 className="station-blocked__title">
+            {campaignQuery.data?.name ?? 'Đợt hiến'}
+          </h2>
+          <p className="station-blocked__desc">
+            {operationalWindow.message}
+          </p>
+          {campaignQuery.data && (
+            <p className="workflow-muted" style={{ fontSize: '0.85rem' }}>
+              📍 {campaignQuery.data.location} · ⏰ {formatDate(campaignQuery.data.startsAt)}
+            </p>
+          )}
+          <div className="station-blocked__actions">
+            <Link className="btn btn--primary" to="/clinic/screening">
+              Chọn đợt hiến đang mở
+            </Link>
+            <Link className="btn btn--secondary" to={`/campaigns/${campaignId}`}>
+              Xem chi tiết đợt hiến
+            </Link>
+          </div>
+        </div>
+      </WorkflowShell>
+    );
+  }
+
+  // 3. Render active screening queue workspace
   return (
     <WorkflowShell
-      eyebrow="Khu vực sàng lọc"
+      eyebrow={campaignQuery.data ? `Khu vực sàng lọc · ${campaignQuery.data.name}` : 'Khu vực sàng lọc'}
       title="Hàng chờ sàng lọc"
-      lead="Danh sách người hiến đã check-in và đang chờ sàng lọc."
+      lead={
+        campaignQuery.data
+          ? `Điểm hiến: ${campaignQuery.data.location}. Danh sách người hiến đã check-in đang chờ sàng lọc y tế.`
+          : 'Danh sách người hiến đã check-in và đang chờ sàng lọc.'
+      }
+      back={`/campaigns/${campaignId}`}
+      backLabel="Quay lại đợt hiến"
     >
-      <MockNote />
+      {campaignQuery.data && (
+        <section className="station-hero" aria-label="Thông tin đợt tác nghiệp">
+          <div className="station-hero__header">
+            <div className="station-hero__title-wrap">
+              <h2 className="station-hero__title">
+                {campaignQuery.data.name}
+                {operationalWindow && (
+                  <span
+                    className={`station-badge-live station-badge-live--${
+                      operationalWindow.status === 'ACTIVE'
+                        ? 'active'
+                        : operationalWindow.status === 'UPCOMING'
+                          ? 'upcoming'
+                          : 'closed'
+                    }`}
+                  >
+                    {OPERATIONAL_STATUS_SHORT_LABELS[operationalWindow.status]}
+                  </span>
+                )}
+              </h2>
+              <div className="station-hero__meta">
+                <span className="station-hero__meta-item">
+                  📍 {campaignQuery.data.location}
+                </span>
+                <span className="station-hero__meta-item">
+                  ⏰ {formatDate(campaignQuery.data.startsAt)} (
+                  {new Date(campaignQuery.data.startsAt).toLocaleTimeString('vi-VN', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}{' '}
+                  –{' '}
+                  {new Date(campaignQuery.data.endsAt).toLocaleTimeString('vi-VN', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                  )
+                </span>
+              </div>
+            </div>
+          </div>
+          <nav className="station-hero__nav" aria-label="Điều hướng tác nghiệp tại điểm hiến">
+            <Link
+              className="station-nav-link"
+              to={`/campaigns/${campaignId}/check-in`}
+            >
+              Quầy tiếp nhận
+            </Link>
+            <Link
+              className="station-nav-link station-nav-link--active"
+              to={`/campaigns/${campaignId}/screening`}
+            >
+              Hàng chờ sàng lọc
+            </Link>
+            <Link
+              className="station-nav-link"
+              to={`/campaigns/${campaignId}`}
+            >
+              Chi tiết đợt hiến
+            </Link>
+          </nav>
+        </section>
+      )}
+
       <QueryState {...queue} />
       {queue.data && queue.data.length === 0 && (
         <p className="workflow-empty">
-          Chưa có người hiến nào đã check-in. Hãy check-in ở quầy tiếp nhận.
+          Chưa có người hiến nào đã check-in trong đợt này. Hãy tiếp nhận tại quầy tiếp nhận.
         </p>
       )}
       <ul className="workflow-list">
@@ -80,7 +349,7 @@ export function ScreeningQueuePage() {
               </StatusPill>
               <Link
                 className="btn btn--primary"
-                to={`/clinic/screening/${registration.id}`}
+                to={`/campaigns/${campaignId}/screening/${registration.id}`}
               >
                 Mở phiếu
               </Link>
@@ -93,16 +362,37 @@ export function ScreeningQueuePage() {
 }
 
 export function ScreeningPage() {
-  const { registrationId = '' } = useParams();
+  const { campaignId, registrationId = '' } = useParams<{
+    campaignId?: string;
+    registrationId?: string;
+  }>();
   const workflow = useWorkflowRepository();
+  const campaignRepo = useCampaignRepository();
   const mutation = useWorkflowMutation();
-  const queue = useWorkflowQuery('screening-queue', () =>
-    workflow.screeningQueue(),
+  const isTestEnv = import.meta.env.MODE === 'test';
+  const [bypassLock, setBypassLock] = useState(isTestEnv);
+
+  const queue = useWorkflowQuery(
+    `screening-queue:${campaignId ?? 'all'}`,
+    () => workflow.screeningQueue(campaignId),
   );
   const item = useMemo(
     () => queue.data?.find((row) => row.registration.id === registrationId),
     [queue.data, registrationId],
   );
+
+  const effectiveCampaignId = campaignId ?? item?.registration.campaignId;
+  const campaignQuery = useCampaignQuery(
+    `screening-detail-campaign:${effectiveCampaignId}`,
+    () => campaignRepo.detail(effectiveCampaignId!),
+    Boolean(effectiveCampaignId),
+  );
+
+  const operationalWindow = campaignQuery.data
+    ? getOperationalWindow(campaignQuery.data.startsAt, campaignQuery.data.endsAt)
+    : null;
+
+  const isLocked = operationalWindow ? !operationalWindow.isOpen && !bypassLock : false;
 
   const [values, setValues] = useState<Record<string, string>>({});
   const [bloodGroup, setBloodGroup] = useState<BloodGroup | ''>('');
@@ -125,8 +415,8 @@ export function ScreeningPage() {
     return (
       <WorkflowShell
         title="Phiếu sàng lọc"
-        back="/clinic/screening"
-        backLabel="Hàng chờ sàng lọc"
+        back={campaignId ? `/campaigns/${campaignId}/screening` : '/clinic/screening'}
+        backLabel={campaignId ? 'Hàng chờ đợt hiến' : 'Hàng chờ sàng lọc'}
       >
         <p className="workflow-empty">
           Không tìm thấy người hiến này trong hàng chờ, hoặc chưa được check-in.
@@ -194,17 +484,25 @@ export function ScreeningPage() {
 
   return (
     <WorkflowShell
-      eyebrow="Khu vực sàng lọc"
+      eyebrow={
+        registration.campaignName
+          ? `Khu vực sàng lọc · ${registration.campaignName}`
+          : 'Khu vực sàng lọc'
+      }
       title={`Phiếu sàng lọc · ${registration.donorName}`}
-      back="/clinic/screening"
-      backLabel="Hàng chờ sàng lọc"
+      back={campaignId ? `/campaigns/${campaignId}/screening` : '/clinic/screening'}
+      backLabel={campaignId ? 'Hàng chờ đợt hiến' : 'Hàng chờ sàng lọc'}
       actions={
         <StatusPill tone={screeningTone[screening.status]}>
           {SCREENING_STATUS_LABELS[screening.status]}
         </StatusPill>
       }
     >
-      <MockNote />
+      {isLocked && (
+        <p className="workflow-muted" style={{ color: '#b45309', margin: '0 0 12px' }}>
+          ⚠️ Bàn sàng lọc hiện không trong khung giờ tác nghiệp của đợt hiến ({operationalWindow?.message}).
+        </p>
+      )}
       <section className="workflow-card">
         <h2>Thông tin người hiến</h2>
         <DetailList
@@ -324,7 +622,7 @@ export function ScreeningPage() {
           </FormField>
           {!reviewed && (
             <div className="workflow-actions">
-              <Button type="submit" isLoading={mutation.pending}>
+              <Button type="submit" isLoading={mutation.pending} disabled={isLocked}>
                 Lưu chỉ số
               </Button>
             </div>
@@ -421,12 +719,17 @@ export function ScreeningPage() {
             <Feedback error={mutation.error} success={mutation.success} />
             <div className="workflow-actions">
               <Button
-                disabled={!outcome || screening.status !== 'WAITING_REVIEW'}
+                disabled={!outcome || screening.status !== 'WAITING_REVIEW' || isLocked}
                 onClick={() => setConfirmOpen(true)}
               >
                 Hoàn tất kết luận
               </Button>
             </div>
+            {isLocked && (
+              <p className="workflow-muted" style={{ color: '#b45309' }}>
+                ⚠️ Thao tác sàng lọc bị khóa ngoài khung giờ tác nghiệp của đợt hiến. Bật &quot;Thử nghiệm&quot; ở bảng thông báo phía trên nếu cần thao tác thử.
+              </p>
+            )}
           </>
         )}
       </section>

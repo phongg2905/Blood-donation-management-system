@@ -149,6 +149,83 @@ export const formatDate = (value: string): string =>
     new Date(value),
   );
 
+export interface OperationalWindow {
+  opensAt: Date;
+  closesAt: Date;
+  status: 'UPCOMING' | 'ACTIVE' | 'CLOSED';
+  isOpen: boolean;
+  message: string;
+}
+
+export const OPERATIONAL_STATUS_SHORT_LABELS: Record<
+  'ACTIVE' | 'UPCOMING' | 'CLOSED',
+  string
+> = {
+  ACTIVE: 'Mở',
+  UPCOMING: 'Chưa mở',
+  CLOSED: 'Đã đóng',
+};
+
+/**
+ * Calculates the operational window for on-site check-in and medical screening.
+ * Per business rules, on-site stations open 30-60m before startsAt and close 30-60m after endsAt.
+ * Default early/late buffer is 60 minutes.
+ */
+export function getOperationalWindow(
+  startsAt: string | Date,
+  endsAt: string | Date,
+  options?: {
+    earlyMinutes?: number;
+    lateMinutes?: number;
+    now?: Date;
+  },
+): OperationalWindow {
+  const earlyMs = (options?.earlyMinutes ?? 60) * 60 * 1000;
+  const lateMs = (options?.lateMinutes ?? 60) * 60 * 1000;
+  const now = options?.now ?? new Date();
+
+  const startDate = new Date(startsAt);
+  const endDate = new Date(endsAt);
+
+  const opensAt = new Date(startDate.getTime() - earlyMs);
+  const closesAt = new Date(endDate.getTime() + lateMs);
+
+  const timeFormatter = new Intl.DateTimeFormat('vi-VN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    day: '2-digit',
+    month: '2-digit',
+  });
+
+  if (now.getTime() < opensAt.getTime()) {
+    return {
+      opensAt,
+      closesAt,
+      status: 'UPCOMING',
+      isOpen: false,
+      message: `Quầy tiếp nhận & sàng lọc chưa mở. Dự kiến mở lúc ${timeFormatter.format(opensAt)} (sớm 60 phút trước khi bắt đầu).`,
+    };
+  }
+
+  if (now.getTime() > closesAt.getTime()) {
+    return {
+      opensAt,
+      closesAt,
+      status: 'CLOSED',
+      isOpen: false,
+      message: `Đã kết thúc giờ tác nghiệp tại điểm hiến. Quầy đã đóng lúc ${timeFormatter.format(closesAt)} (muộn 60 phút sau khi kết thúc).`,
+    };
+  }
+
+  return {
+    opensAt,
+    closesAt,
+    status: 'ACTIVE',
+    isOpen: true,
+    message: `Đang trong khung giờ tiếp nhận & sàng lọc (${timeFormatter.format(opensAt)} – ${timeFormatter.format(closesAt)}).`,
+  };
+}
+
 export const formatSlotRange = (startsAt: string, endsAt: string): string => {
   const start = new Date(startsAt);
   const end = new Date(endsAt);

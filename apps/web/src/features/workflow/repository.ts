@@ -270,7 +270,7 @@ export class ApiWorkflowRepository implements WorkflowRepository {
     return mapRegistration(response.data);
   }
 
-  async screeningQueue(): Promise<ScreeningQueueItem[]> {
+  async screeningQueue(campaignId?: string): Promise<ScreeningQueueItem[]> {
     return [];
   }
 
