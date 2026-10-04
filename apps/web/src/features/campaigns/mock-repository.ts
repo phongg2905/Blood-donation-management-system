@@ -42,72 +42,113 @@ export class MockCampaignRepository implements CampaignRepository {
     },
   ];
   constructor(private options: MockOptions = {}) {
-    const day = (offset: number, hour: number) => {
+    const day = (offset: number, hour: number, minute = 0) => {
       const date = new Date();
       date.setDate(date.getDate() + offset);
-      date.setHours(hour, 0, 0, 0);
+      date.setHours(hour, minute, 0, 0);
       return date.toISOString();
     };
+
+    const campaignDefs: Array<{
+      status: Campaign['status'];
+      name: string;
+      location: string;
+      startsAt: string;
+      endsAt: string;
+      targetDonors: number;
+    }> = [
+      {
+        status: 'OPEN',
+        name: 'Ngày hội giọt hồng',
+        location: 'Nhà văn hóa Thanh niên, TP. Hồ Chí Minh',
+        startsAt: day(0, 7),
+        endsAt: day(0, 21),
+        targetDonors: 150,
+      },
+      {
+        status: 'OPEN',
+        name: 'Kết nối những trái tim',
+        location: 'Trung tâm hiến máu nhân đạo, TP. Hồ Chí Minh',
+        startsAt: day(2, 8),
+        endsAt: day(2, 16, 30),
+        targetDonors: 100,
+      },
+      {
+        status: 'CLOSED',
+        name: 'Sẻ chia sự sống',
+        location: 'Nhà văn hóa Thanh niên, TP. Hồ Chí Minh',
+        startsAt: day(-5, 7, 30),
+        endsAt: day(-5, 16),
+        targetDonors: 120,
+      },
+      {
+        status: 'COMPLETED',
+        name: 'Một giọt máu, triệu hy vọng',
+        location: 'Bệnh viện Truyền máu Huyết học, TP. Hồ Chí Minh',
+        startsAt: day(-12, 8),
+        endsAt: day(-12, 16, 30),
+        targetDonors: 80,
+      },
+      {
+        status: 'OPEN',
+        name: 'Hành trình nhân ái',
+        location: 'KTX Khu B ĐHQG TP.HCM, Dĩ An',
+        startsAt: day(6, 7, 30),
+        endsAt: day(6, 16),
+        targetDonors: 200,
+      },
+      {
+        status: 'OPEN',
+        name: 'Ngày chủ nhật yêu thương',
+        location: 'Trung tâm hiến máu nhân đạo, TP. Hồ Chí Minh',
+        startsAt: day(0, 8),
+        endsAt: day(0, 17, 30),
+        targetDonors: 120,
+      },
+      {
+        status: 'OPEN',
+        name: 'Tiếp nối hy vọng',
+        location: 'Cung Văn hóa Lao động, Quận 1',
+        startsAt: day(12, 8),
+        endsAt: day(12, 17),
+        targetDonors: 100,
+      },
+    ];
+
     this.campaigns =
       options.scenario === 'empty'
         ? []
-        : (
-            [
-              'OPEN',
-              'DRAFT',
-              'CLOSED',
-              'COMPLETED',
-              'CANCELLED',
-              'OPEN',
-              'OPEN',
-            ] as const
-          ).map((status, index) => ({
+        : campaignDefs.map((def, index) => ({
             id: `demo-${index + 1}`,
-            name: [
-              'Ngày hội giọt hồng',
-              'Kết nối những trái tim',
-              'Sẻ chia sự sống',
-              'Một giọt máu, triệu hy vọng',
-              'Hành trình nhân ái',
-              'Ngày chủ nhật yêu thương',
-              'Tiếp nối hy vọng',
-            ][index]!,
-            location:
-              index % 2
-                ? 'Nhà văn hóa Thanh niên, TP. Hồ Chí Minh'
-                : 'Trung tâm hiến máu nhân đạo, TP. Hồ Chí Minh',
+            name: def.name,
+            location: def.location,
             description:
               'Cùng cộng đồng sẻ chia và tiếp thêm hy vọng. Vui lòng xem kỹ thời gian, địa điểm và các khung giờ của đợt hiến.',
             organizerName: 'Ban tổ chức ngày hội hiến máu',
-            contactPhone: null,
-            startsAt: day(
-              index === 2 || index === 3 ? -10 : index === 5 ? 0 : 7 + index,
-              8,
-            ),
-            endsAt: day(
-              index === 2 || index === 3 ? -10 : index === 5 ? 0 : 7 + index,
-              16,
-            ),
+            contactPhone: '028 3822 5555',
+            startsAt: def.startsAt,
+            endsAt: def.endsAt,
             registrationOpensAt: null,
             registrationClosesAt: null,
-            targetDonors: 120,
+            targetDonors: def.targetDonors,
             targetBloodVolumeMl: null,
-            status,
+            status: def.status,
           }));
+
     const first = this.campaigns[0];
     if (first) {
-      this.timeSlots = [0, 1, 2].map((i) => ({
+      this.timeSlots = [0, 1, 2, 3, 4].map((i) => ({
         id: `slot-${i}`,
         campaignId: first.id,
         label: null,
         startsAt: new Date(
-          Date.parse(first.startsAt) + i * 3600000,
+          Date.parse(first.startsAt) + (i + 0.5) * 3600000,
         ).toISOString(),
         endsAt: new Date(
-          Date.parse(first.startsAt) + (i + 1) * 3600000,
+          Date.parse(first.startsAt) + (i + 1.5) * 3600000,
         ).toISOString(),
         capacity: 20,
-        isActive: i !== 2,
+        isActive: i !== 4,
       }));
       this.assignments = [
         {

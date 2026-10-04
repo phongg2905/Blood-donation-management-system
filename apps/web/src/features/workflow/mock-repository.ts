@@ -20,10 +20,10 @@ export interface MockWorkflowOptions {
   latency?: number;
 }
 
-const isoDay = (offsetDays: number, hour = 8): string => {
+const isoDay = (offsetDays: number, hour = 8, minute = 0): string => {
   const date = new Date();
   date.setDate(date.getDate() + offsetDays);
-  date.setHours(hour, 0, 0, 0);
+  date.setHours(hour, minute, 0, 0);
   return date.toISOString();
 };
 
@@ -87,7 +87,7 @@ export class MockWorkflowRepository implements WorkflowRepository {
     const campaign = {
       id: 'demo-1',
       name: 'Ngày hội giọt hồng',
-      location: 'Nhà văn hóa Thanh Niên, Quận 1',
+      location: 'Nhà văn hóa Thanh niên, TP. Hồ Chí Minh',
     };
     const seeds: SeedRegistration[] = [
       {
@@ -147,14 +147,23 @@ export class MockWorkflowRepository implements WorkflowRepository {
         donorName: 'Vũ Hoài An',
         donorPhone: '0906666666',
         donorIdentity: '079203006789',
-        status: 'SCHEDULED',
+        status: 'CONFIRMED',
         checkedIn: false,
         screening: null,
       },
     ];
 
     seeds.forEach((seed, index) => {
-      const slotStart = isoDay(2, 8 + index);
+      const slotHour = 8 + Math.floor(index / 2);
+      const slotMinute = (index % 2) * 30;
+      const endMinute = slotMinute === 0 ? 30 : 0;
+      const endHour = slotMinute === 0 ? slotHour : slotHour + 1;
+
+      const slotStart = isoDay(0, slotHour, slotMinute);
+      const slotEnd = isoDay(0, endHour, endMinute);
+
+      const checkInMinute = slotMinute === 0 ? 15 : 45;
+
       const registration: DonorRegistration = {
         id: `seed-reg-${index + 1}`,
         code: seed.code,
@@ -165,19 +174,19 @@ export class MockWorkflowRepository implements WorkflowRepository {
         campaignId: campaign.id,
         campaignName: campaign.name,
         location: campaign.location,
-        campaignStartsAt: isoDay(2, 7),
-        campaignEndsAt: isoDay(2, 17),
+        campaignStartsAt: isoDay(0, 7),
+        campaignEndsAt: isoDay(0, 21),
         slotId: `slot-${index + 1}`,
         slotStartsAt: slotStart,
-        slotEndsAt: isoDay(2, 8 + index).replace(':00:00', ':30:00'),
+        slotEndsAt: slotEnd,
         status: seed.status,
         healthDeclaration: {
           answers: { FEVER: false, INFECTION: false },
           confirmed: true,
-          declaredAt: isoDay(-1, 9),
+          declaredAt: isoDay(0, 6, 30),
         },
-        checkedInAt: seed.checkedIn ? isoDay(0, 8) : null,
-        createdAt: isoDay(-1, 9),
+        checkedInAt: seed.checkedIn ? isoDay(0, slotHour, checkInMinute) : null,
+        createdAt: isoDay(-2, 9),
       };
       this.registrations.push(registration);
       this.sequence = Math.max(this.sequence, index + 1);
@@ -201,6 +210,38 @@ export class MockWorkflowRepository implements WorkflowRepository {
         });
       }
     });
+
+    const campaign6 = {
+      id: 'demo-6',
+      name: 'Ngày chủ nhật yêu thương',
+      location: 'Trung tâm hiến máu nhân đạo, TP. Hồ Chí Minh',
+    };
+    const reg7: DonorRegistration = {
+      id: 'seed-reg-7',
+      code: 'REG-00007',
+      donorId: 'seed-donor-7',
+      donorName: 'Hoàng Kim Ngân',
+      donorPhone: '0907777777',
+      donorIdentity: '079203007890',
+      campaignId: campaign6.id,
+      campaignName: campaign6.name,
+      location: campaign6.location,
+      campaignStartsAt: isoDay(0, 8),
+      campaignEndsAt: isoDay(0, 17, 30),
+      slotId: 'slot-c6-1',
+      slotStartsAt: isoDay(0, 9),
+      slotEndsAt: isoDay(0, 9, 30),
+      status: 'CONFIRMED',
+      healthDeclaration: {
+        answers: { FEVER: false, INFECTION: false },
+        confirmed: true,
+        declaredAt: isoDay(0, 7),
+      },
+      checkedInAt: null,
+      createdAt: isoDay(-1, 14),
+    };
+    this.registrations.push(reg7);
+    this.sequence = Math.max(this.sequence, 7);
   }
 
   private makeScreening(
@@ -329,8 +370,9 @@ export class MockWorkflowRepository implements WorkflowRepository {
     const code = query.code?.trim().toLocaleUpperCase('vi');
     const identity = query.identity?.trim();
     const phone = query.phone?.trim();
+    const campaignId = query.campaignId?.trim();
     const hasQuery = Boolean(code || identity || phone);
-    const matches = hasQuery
+    let matches = hasQuery
       ? this.registrations.filter(
           (item) =>
             (code && item.code.toLocaleUpperCase('vi').includes(code)) ||
@@ -338,6 +380,9 @@ export class MockWorkflowRepository implements WorkflowRepository {
             (phone && item.donorPhone?.includes(phone)),
         )
       : this.registrations;
+    if (campaignId) {
+      matches = matches.filter((item) => item.campaignId === campaignId);
+    }
     return structuredClone(
       matches.sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)),
     );
@@ -375,14 +420,19 @@ export class MockWorkflowRepository implements WorkflowRepository {
     return structuredClone(registration);
   }
 
-  async screeningQueue(): Promise<ScreeningQueueItem[]> {
+  async screeningQueue(campaignId?: string): Promise<ScreeningQueueItem[]> {
     await this.wait();
-    return structuredClone(this.queueItems());
+    return structuredClone(this.queueItems(campaignId));
   }
 
-  private queueItems(): ScreeningQueueItem[] {
-    return this.registrations
-      .filter((item) => item.checkedInAt && this.screenings.has(item.id))
+  private queueItems(campaignId?: string): ScreeningQueueItem[] {
+    let list = this.registrations.filter(
+      (item) => item.checkedInAt && this.screenings.has(item.id),
+    );
+    if (campaignId) {
+      list = list.filter((item) => item.campaignId === campaignId);
+    }
+    return list
       .map((registration) => ({
         registration,
         screening: this.screenings.get(registration.id)!,

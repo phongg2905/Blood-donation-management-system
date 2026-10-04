@@ -179,6 +179,7 @@ export interface DonorHistoryEntry {
 
 /** Lookup used by the clinic check-in desk. At least one field is required. */
 export interface CheckInQuery {
+  campaignId?: string;
   code?: string;
   identity?: string;
   phone?: string;
@@ -195,7 +196,7 @@ export interface WorkflowRepository {
   findRegistrations(query: CheckInQuery): Promise<DonorRegistration[]>;
   checkIn(registrationId: string): Promise<DonorRegistration>;
   markNoShow?(registrationId: string): Promise<DonorRegistration>;
-  screeningQueue(): Promise<ScreeningQueueItem[]>;
+  screeningQueue(campaignId?: string): Promise<ScreeningQueueItem[]>;
   screeningFor(registrationId: string): Promise<ScreeningRecord | null>;
   getScreening?(id: string): Promise<ScreeningRecord>;
   saveMeasurements(
