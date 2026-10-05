@@ -370,7 +370,7 @@ export function ScreeningPage() {
   const campaignRepo = useCampaignRepository();
   const mutation = useWorkflowMutation();
   const isTestEnv = import.meta.env.MODE === 'test';
-  const [bypassLock, setBypassLock] = useState(isTestEnv);
+  const [bypassLock] = useState(isTestEnv);
 
   const queue = useWorkflowQuery(
     `screening-queue:${campaignId ?? 'all'}`,

@@ -1,7 +1,11 @@
 import type { RequestHandler } from 'express';
 import { AppError } from '../../common/errors/app.error';
 import { paramId } from '../../common/helpers/http';
-import { sendCreated, sendSuccess } from '../../common/helpers/response';
+import {
+  sendCreated,
+  sendList,
+  sendSuccess,
+} from '../../common/helpers/response';
 import { auditContextFrom } from '../audit-logs/audit.service';
 import { registrationService } from './registration.service';
 
@@ -32,6 +36,22 @@ export const reschedule: RequestHandler = async (req, res) => {
       auditContextFrom(req),
     ),
   );
+};
+
+export const search: RequestHandler = async (req, res) => {
+  if (!req.auth || !req.auth.roles.some((r) => r !== 'DONOR'))
+    throw AppError.forbidden();
+  const { items, meta } = await registrationService.search(req.query);
+  sendList(res, items, meta.page, meta.limit, meta.total);
+};
+
+export const my: RequestHandler = async (req, res) => {
+  if (!req.auth) throw AppError.unauthorized();
+  const { items, meta } = await registrationService.my(
+    req.auth.userId,
+    req.query,
+  );
+  sendList(res, items, meta.page, meta.limit, meta.total);
 };
 
 export const cancel: RequestHandler = async (req, res) => {

@@ -7,6 +7,11 @@ import {
 } from '@blood/shared-types';
 import { AppError } from '../../common/errors/app.error';
 import { parseDomain } from '../../common/helpers/domain-validation';
+import {
+  paginationMeta,
+  resolvePagination,
+} from '../../common/helpers/response';
+import { database } from '../../config/database';
 import type { AuditContext } from '../audit-logs/audit.service';
 import { auditLogService } from '../audit-logs/audit.service';
 import { notificationService } from '../notifications/notification.service';
@@ -92,6 +97,51 @@ export const registrationService = {
       );
     }
     return registration.row;
+  },
+
+  /** Staff-only directory search by CCCD/phone/name/email — DONOR uses `my()` instead. */
+  async search(query: unknown) {
+    const schema = z.object({
+      search: z.string().trim().min(1).max(100).optional(),
+      status: z.string().trim().optional(),
+      campaignId: z.string().uuid().optional(),
+      page: z.coerce.number().int().positive().optional(),
+      limit: z.coerce.number().int().positive().optional(),
+    });
+    const filters = parseDomain(schema, query);
+    const pagination = resolvePagination(filters);
+    const { items, total } = await repo.search({
+      search: filters.search,
+      status: filters.status,
+      campaignId: filters.campaignId,
+      skip: pagination.skip,
+      take: pagination.take,
+    });
+    return {
+      items,
+      meta: paginationMeta(pagination.page, pagination.limit, total),
+    };
+  },
+
+  async my(userId: string, query: unknown) {
+    const schema = z.object({
+      page: z.coerce.number().int().positive().optional(),
+      limit: z.coerce.number().int().positive().optional(),
+    });
+    const filters = parseDomain(schema, query);
+    const pagination = resolvePagination(filters);
+    const donor = await database.donorProfile.findUnique({ where: { userId } });
+    if (!donor)
+      throw AppError.internal('DonorProfile missing for a DONOR account');
+    const { items, total } = await repo.listByDonor(
+      donor.id,
+      pagination.skip,
+      pagination.take,
+    );
+    return {
+      items,
+      meta: paginationMeta(pagination.page, pagination.limit, total),
+    };
   },
 
   async getById(

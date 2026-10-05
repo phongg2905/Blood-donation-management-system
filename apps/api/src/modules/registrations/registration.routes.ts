@@ -12,6 +12,18 @@ registrationRoutes.post(
   controller.create,
 );
 registrationRoutes.get(
+  '/',
+  requireAuth,
+  requirePermission('registration.read'),
+  controller.search,
+);
+registrationRoutes.get(
+  '/my',
+  requireAuth,
+  requirePermission('registration.read'),
+  controller.my,
+);
+registrationRoutes.get(
   '/:id',
   requireAuth,
   requirePermission('registration.read'),
