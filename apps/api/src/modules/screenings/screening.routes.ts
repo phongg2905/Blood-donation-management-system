@@ -22,6 +22,10 @@ const create: RequestHandler = async (req, res) => {
   );
 };
 
+const queue: RequestHandler = async (req, res) => {
+  sendSuccess(res, await screeningService.queue());
+};
+
 const getById: RequestHandler = async (req, res) => {
   sendSuccess(res, await screeningService.getById(paramId(req)));
 };
@@ -43,6 +47,12 @@ screeningRoutes.post(
   requireAuth,
   requirePermission('screening.create'),
   create,
+);
+screeningRoutes.get(
+  '/queue',
+  requireAuth,
+  requirePermission('screening.read'),
+  queue,
 );
 screeningRoutes.get(
   '/:id',

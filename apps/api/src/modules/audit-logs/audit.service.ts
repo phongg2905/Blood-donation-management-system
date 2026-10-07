@@ -1,9 +1,23 @@
 import type { Request } from 'express';
+import { z } from 'zod';
+import { parseDomain } from '../../common/helpers/domain-validation';
+import {
+  paginationMeta,
+  resolvePagination,
+} from '../../common/helpers/response';
 import {
   auditLogRepository,
   type AuditClient,
   type AuditLogInput,
 } from './audit-log.repository';
+
+const listQuerySchema = z.object({
+  actorId: z.string().uuid().optional(),
+  entityType: z.string().trim().optional(),
+  action: z.string().trim().optional(),
+  page: z.coerce.number().int().positive().optional(),
+  limit: z.coerce.number().int().positive().optional(),
+});
 
 export interface AuditContext {
   actorId: string | null;
@@ -58,5 +72,21 @@ export const auditLogService = {
     } catch (error) {
       console.error('Audit log write failed', input.action, error);
     }
+  },
+
+  async list(query: unknown) {
+    const filters = parseDomain(listQuerySchema, query);
+    const pagination = resolvePagination(filters);
+    const { items, total } = await auditLogRepository.list({
+      actorId: filters.actorId,
+      entityType: filters.entityType,
+      action: filters.action,
+      skip: pagination.skip,
+      take: pagination.take,
+    });
+    return {
+      items,
+      meta: paginationMeta(pagination.page, pagination.limit, total),
+    };
   },
 };

@@ -4,6 +4,7 @@ import {
   ERROR_CODES,
 } from '@blood/shared-types';
 import { AppError } from '../../common/errors/app.error';
+import { database } from '../../config/database';
 import type { AuditContext } from '../audit-logs/audit.service';
 import { auditLogService } from '../audit-logs/audit.service';
 import { notificationService } from '../notifications/notification.service';
@@ -59,6 +60,21 @@ export const screeningService = {
         tx,
       );
       return screening;
+    });
+  },
+
+  /** Checked-in donors still waiting on a screening to be opened. */
+  async queue() {
+    return database.checkIn.findMany({
+      where: { screening: null },
+      include: {
+        registration: {
+          include: {
+            donor: { include: { user: { select: { fullName: true } } } },
+          },
+        },
+      },
+      orderBy: { checkedInAt: 'asc' },
     });
   },
 

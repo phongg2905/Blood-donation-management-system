@@ -1,0 +1,972 @@
+diff --git a/apps/api/src/modules/audit-logs/audit-log.repository.ts b/apps/api/src/modules/audit-logs/audit-log.repository.ts
+index 3fd6949..20a4d85 100644
+--- a/apps/api/src/modules/audit-logs/audit-log.repository.ts
++++ b/apps/api/src/modules/audit-logs/audit-log.repository.ts
+@@ -15,7 +15,33 @@ export interface AuditLogInput {
+ /** `tx` is supplied whenever the audit entry must share a business transaction. */
+ export type AuditClient = Prisma.TransactionClient | typeof database;
+ 
++export interface AuditLogFilter {
++  actorId?: string | undefined;
++  entityType?: string | undefined;
++  action?: string | undefined;
++  skip: number;
++  take: number;
++}
++
+ export const auditLogRepository = {
++  async list(filter: AuditLogFilter) {
++    const where: Prisma.AuditLogWhereInput = {
++      ...(filter.actorId ? { actorId: filter.actorId } : {}),
++      ...(filter.entityType ? { entityType: filter.entityType } : {}),
++      ...(filter.action ? { action: filter.action } : {}),
++    };
++    const [items, total] = await Promise.all([
++      database.auditLog.findMany({
++        where,
++        skip: filter.skip,
++        take: filter.take,
++        orderBy: { createdAt: 'desc' },
++      }),
++      database.auditLog.count({ where }),
++    ]);
++    return { items, total };
++  },
++
+   create(client: AuditClient, input: AuditLogInput): Promise<{ id: string }> {
+     return client.auditLog.create({
+       data: {
+diff --git a/apps/api/src/modules/audit-logs/audit.routes.ts b/apps/api/src/modules/audit-logs/audit.routes.ts
+new file mode 100644
+index 0000000..62b2fb0
+--- /dev/null
++++ b/apps/api/src/modules/audit-logs/audit.routes.ts
+@@ -0,0 +1,14 @@
++import type { RequestHandler } from 'express';
++import { Router } from 'express';
++import { sendList } from '../../common/helpers/response';
++import { requireAuth } from '../../middlewares/auth.middleware';
++import { requirePermission } from '../../middlewares/permission.middleware';
++import { auditLogService } from './audit.service';
++
++const list: RequestHandler = async (req, res) => {
++  const { items, meta } = await auditLogService.list(req.query);
++  sendList(res, items, meta.page, meta.limit, meta.total);
++};
++
++export const auditLogRoutes = Router();
++auditLogRoutes.get('/', requireAuth, requirePermission('audit.read'), list);
+diff --git a/apps/api/src/modules/audit-logs/audit.service.ts b/apps/api/src/modules/audit-logs/audit.service.ts
+index 71b9c47..f7d7e78 100644
+--- a/apps/api/src/modules/audit-logs/audit.service.ts
++++ b/apps/api/src/modules/audit-logs/audit.service.ts
+@@ -1,10 +1,24 @@
+ import type { Request } from 'express';
++import { z } from 'zod';
++import { parseDomain } from '../../common/helpers/domain-validation';
++import {
++  paginationMeta,
++  resolvePagination,
++} from '../../common/helpers/response';
+ import {
+   auditLogRepository,
+   type AuditClient,
+   type AuditLogInput,
+ } from './audit-log.repository';
+ 
++const listQuerySchema = z.object({
++  actorId: z.string().uuid().optional(),
++  entityType: z.string().trim().optional(),
++  action: z.string().trim().optional(),
++  page: z.coerce.number().int().positive().optional(),
++  limit: z.coerce.number().int().positive().optional(),
++});
++
+ export interface AuditContext {
+   actorId: string | null;
+   ipAddress: string | null;
+@@ -59,4 +73,20 @@ export const auditLogService = {
+       console.error('Audit log write failed', input.action, error);
+     }
+   },
++
++  async list(query: unknown) {
++    const filters = parseDomain(listQuerySchema, query);
++    const pagination = resolvePagination(filters);
++    const { items, total } = await auditLogRepository.list({
++      actorId: filters.actorId,
++      entityType: filters.entityType,
++      action: filters.action,
++      skip: pagination.skip,
++      take: pagination.take,
++    });
++    return {
++      items,
++      meta: paginationMeta(pagination.page, pagination.limit, total),
++    };
++  },
+ };
+diff --git a/apps/api/src/modules/certificates/certificate.repository.ts b/apps/api/src/modules/certificates/certificate.repository.ts
+index ffc823f..7895f39 100644
+--- a/apps/api/src/modules/certificates/certificate.repository.ts
++++ b/apps/api/src/modules/certificates/certificate.repository.ts
+@@ -1,7 +1,50 @@
++import type { CertificateStatus, Prisma } from '@prisma/client';
+ import { database } from '../../config/database';
+ 
+ export const certificateRepository = {
+   findById: (id: string) => database.certificate.findUnique({ where: { id } }),
+   setFileUrl: (id: string, fileUrl: string) =>
+     database.certificate.update({ where: { id }, data: { fileUrl } }),
++
++  revoke: (id: string, reason: string | undefined) =>
++    database.certificate.update({
++      where: { id },
++      data: {
++        status: 'REVOKED',
++        revokedAt: new Date(),
++        revokeReason: reason ?? null,
++      },
++    }),
++
++  async list(filter: {
++    donorUserId?: string | undefined;
++    status?: string | undefined;
++    skip: number;
++    take: number;
++  }) {
++    const where: Prisma.CertificateWhereInput = {
++      ...(filter.status ? { status: filter.status as CertificateStatus } : {}),
++      ...(filter.donorUserId
++        ? {
++            donation: {
++              screening: {
++                checkIn: {
++                  registration: { donor: { userId: filter.donorUserId } },
++                },
++              },
++            },
++          }
++        : {}),
++    };
++    const [items, total] = await Promise.all([
++      database.certificate.findMany({
++        where,
++        skip: filter.skip,
++        take: filter.take,
++        orderBy: { issuedAt: 'desc' },
++      }),
++      database.certificate.count({ where }),
++    ]);
++    return { items, total };
++  },
+ };
+diff --git a/apps/api/src/modules/certificates/certificate.routes.ts b/apps/api/src/modules/certificates/certificate.routes.ts
+index 688de3c..f125896 100644
+--- a/apps/api/src/modules/certificates/certificate.routes.ts
++++ b/apps/api/src/modules/certificates/certificate.routes.ts
+@@ -1,7 +1,8 @@
+ import type { RequestHandler } from 'express';
+ import { Router } from 'express';
++import { AppError } from '../../common/errors/app.error';
+ import { paramId } from '../../common/helpers/http';
+-import { sendSuccess } from '../../common/helpers/response';
++import { sendList, sendSuccess } from '../../common/helpers/response';
+ import { requireAuth } from '../../middlewares/auth.middleware';
+ import { requirePermission } from '../../middlewares/permission.middleware';
+ import { auditContextFrom } from '../audit-logs/audit.service';
+@@ -18,10 +19,44 @@ const attachFile: RequestHandler = async (req, res) => {
+   );
+ };
+ 
++const list: RequestHandler = async (req, res) => {
++  if (!req.auth) throw AppError.unauthorized();
++  // DONOR can only ever see their own, regardless of what the query asks for.
++  const donorOnly = !req.auth.roles.some((r) => r !== 'DONOR');
++  const query = donorOnly
++    ? { ...req.query, donorUserId: req.auth.userId }
++    : req.query;
++  const { items, meta } = await certificateService.list(query);
++  sendList(res, items, meta.page, meta.limit, meta.total);
++};
++
++const revoke: RequestHandler = async (req, res) => {
++  sendSuccess(
++    res,
++    await certificateService.revoke(
++      paramId(req),
++      req.body,
++      auditContextFrom(req),
++    ),
++  );
++};
++
+ export const certificateRoutes = Router();
++certificateRoutes.get(
++  '/',
++  requireAuth,
++  requirePermission('certificate.read'),
++  list,
++);
+ certificateRoutes.post(
+   '/:id/file',
+   requireAuth,
+   requirePermission('certificate.issue'),
+   attachFile,
+ );
++certificateRoutes.post(
++  '/:id/revoke',
++  requireAuth,
++  requirePermission('certificate.revoke'),
++  revoke,
++);
+diff --git a/apps/api/src/modules/certificates/certificate.service.ts b/apps/api/src/modules/certificates/certificate.service.ts
+index b8e458d..0949d8b 100644
+--- a/apps/api/src/modules/certificates/certificate.service.ts
++++ b/apps/api/src/modules/certificates/certificate.service.ts
+@@ -6,6 +6,10 @@ import {
+ } from '@blood/shared-types';
+ import { AppError } from '../../common/errors/app.error';
+ import { parseDomain } from '../../common/helpers/domain-validation';
++import {
++  paginationMeta,
++  resolvePagination,
++} from '../../common/helpers/response';
+ import type { AuditContext } from '../audit-logs/audit.service';
+ import { auditLogService } from '../audit-logs/audit.service';
+ import { database } from '../../config/database';
+@@ -19,6 +23,15 @@ const fileSchema = z.object({
+     .url()
+     .refine((u) => u.startsWith('https://'), 'fileUrl phải dùng https'),
+ });
++const revokeSchema = z.object({
++  reason: z.string().trim().min(1).max(500).optional(),
++});
++const listQuerySchema = z.object({
++  donorUserId: z.string().uuid().optional(),
++  status: z.string().trim().optional(),
++  page: z.coerce.number().int().positive().optional(),
++  limit: z.coerce.number().int().positive().optional(),
++});
+ 
+ export const certificateService = {
+   /** Records where the (externally stored) certificate PDF lives; no file bytes go through this API. */
+@@ -26,10 +39,7 @@ export const certificateService = {
+     const { fileUrl } = parseDomain(fileSchema, input);
+     const certificate = await repo.findById(id);
+     if (!certificate)
+-      throw AppError.notFound(
+-        ERROR_CODES.DONATION_NOT_FOUND,
+-        'Không tìm thấy chứng nhận',
+-      );
++      throw AppError.notFound(ERROR_CODES.CERTIFICATE_NOT_FOUND);
+     if (certificate.status !== 'ACTIVE') {
+       throw AppError.conflict(
+         ERROR_CODES.CERTIFICATE_NOT_ALLOWED,
+@@ -49,4 +59,45 @@ export const certificateService = {
+     );
+     return updated;
+   },
++
++  /** Administrative override — corrects a wrongly issued certificate. SYSTEM_ADMIN only. */
++  async revoke(id: string, input: unknown, ctx: AuditContext) {
++    const { reason } = parseDomain(revokeSchema, input ?? {});
++    const certificate = await repo.findById(id);
++    if (!certificate)
++      throw AppError.notFound(ERROR_CODES.CERTIFICATE_NOT_FOUND);
++    if (certificate.status !== 'ACTIVE') {
++      throw AppError.conflict(
++        ERROR_CODES.CERTIFICATE_NOT_ALLOWED,
++        'Chứng nhận đã bị thu hồi trước đó',
++      );
++    }
++    const updated = await repo.revoke(id, reason);
++    await auditLogService.recordSafely(
++      {
++        ...ctx,
++        action: AUDIT_ACTIONS.CERTIFICATE_REVOKED,
++        entityType: AUDIT_ENTITY_TYPES.CERTIFICATE,
++        entityId: id,
++        metadata: { reason: reason ?? null },
++      },
++      database,
++    );
++    return updated;
++  },
++
++  async list(query: unknown) {
++    const filters = parseDomain(listQuerySchema, query);
++    const pagination = resolvePagination(filters);
++    const { items, total } = await repo.list({
++      donorUserId: filters.donorUserId,
++      status: filters.status,
++      skip: pagination.skip,
++      take: pagination.take,
++    });
++    return {
++      items,
++      meta: paginationMeta(pagination.page, pagination.limit, total),
++    };
++  },
+ };
+diff --git a/apps/api/src/modules/donors/donor.repository.ts b/apps/api/src/modules/donors/donor.repository.ts
+new file mode 100644
+index 0000000..859cda3
+--- /dev/null
++++ b/apps/api/src/modules/donors/donor.repository.ts
+@@ -0,0 +1,26 @@
++import { database } from '../../config/database';
++
++export const donorRepository = {
++  findByUserId: (userId: string) =>
++    database.donorProfile.findUnique({ where: { userId } }),
++
++  history: (donorId: string) =>
++    database.registration.findMany({
++      where: { donorId },
++      include: {
++        campaign: { select: { id: true, name: true, startsAt: true } },
++        checkIn: {
++          include: {
++            screening: {
++              include: {
++                donation: {
++                  include: { bloodBags: true, certificate: true },
++                },
++              },
++            },
++          },
++        },
++      },
++      orderBy: { createdAt: 'desc' },
++    }),
++};
+diff --git a/apps/api/src/modules/donors/donor.routes.ts b/apps/api/src/modules/donors/donor.routes.ts
+new file mode 100644
+index 0000000..b5bb724
+--- /dev/null
++++ b/apps/api/src/modules/donors/donor.routes.ts
+@@ -0,0 +1,20 @@
++import type { RequestHandler } from 'express';
++import { Router } from 'express';
++import { AppError } from '../../common/errors/app.error';
++import { sendSuccess } from '../../common/helpers/response';
++import { requireAuth } from '../../middlewares/auth.middleware';
++import { requirePermission } from '../../middlewares/permission.middleware';
++import { donorService } from './donor.service';
++
++const myHistory: RequestHandler = async (req, res) => {
++  if (!req.auth) throw AppError.unauthorized();
++  sendSuccess(res, await donorService.myHistory(req.auth.userId));
++};
++
++export const donorRoutes = Router();
++donorRoutes.get(
++  '/me/history',
++  requireAuth,
++  requirePermission('donation.read'),
++  myHistory,
++);
+diff --git a/apps/api/src/modules/donors/donor.service.ts b/apps/api/src/modules/donors/donor.service.ts
+new file mode 100644
+index 0000000..f54b7fa
+--- /dev/null
++++ b/apps/api/src/modules/donors/donor.service.ts
+@@ -0,0 +1,11 @@
++import { AppError } from '../../common/errors/app.error';
++import { donorRepository as repo } from './donor.repository';
++
++export const donorService = {
++  async myHistory(userId: string) {
++    const donor = await repo.findByUserId(userId);
++    if (!donor)
++      throw AppError.internal('DonorProfile missing for a DONOR account');
++    return repo.history(donor.id);
++  },
++};
+diff --git a/apps/api/src/modules/registrations/registration.controller.ts b/apps/api/src/modules/registrations/registration.controller.ts
+index 13d16a8..2a765d8 100644
+--- a/apps/api/src/modules/registrations/registration.controller.ts
++++ b/apps/api/src/modules/registrations/registration.controller.ts
+@@ -1,7 +1,11 @@
+ import type { RequestHandler } from 'express';
+ import { AppError } from '../../common/errors/app.error';
+ import { paramId } from '../../common/helpers/http';
+-import { sendCreated, sendSuccess } from '../../common/helpers/response';
++import {
++  sendCreated,
++  sendList,
++  sendSuccess,
++} from '../../common/helpers/response';
+ import { auditContextFrom } from '../audit-logs/audit.service';
+ import { registrationService } from './registration.service';
+ 
+@@ -34,6 +38,22 @@ export const reschedule: RequestHandler = async (req, res) => {
+   );
+ };
+ 
++export const search: RequestHandler = async (req, res) => {
++  if (!req.auth || !req.auth.roles.some((r) => r !== 'DONOR'))
++    throw AppError.forbidden();
++  const { items, meta } = await registrationService.search(req.query);
++  sendList(res, items, meta.page, meta.limit, meta.total);
++};
++
++export const my: RequestHandler = async (req, res) => {
++  if (!req.auth) throw AppError.unauthorized();
++  const { items, meta } = await registrationService.my(
++    req.auth.userId,
++    req.query,
++  );
++  sendList(res, items, meta.page, meta.limit, meta.total);
++};
++
+ export const cancel: RequestHandler = async (req, res) => {
+   const { reason } = (req.body ?? {}) as { reason?: string };
+   sendSuccess(
+diff --git a/apps/api/src/modules/registrations/registration.repository.ts b/apps/api/src/modules/registrations/registration.repository.ts
+index 042fd05..61f9aac 100644
+--- a/apps/api/src/modules/registrations/registration.repository.ts
++++ b/apps/api/src/modules/registrations/registration.repository.ts
+@@ -1,4 +1,4 @@
+-import type { Prisma } from '@prisma/client';
++import type { Prisma, RegistrationStatus } from '@prisma/client';
+ import { database } from '../../config/database';
+ 
+ export const registrationRepository = {
+@@ -51,4 +51,66 @@ export const registrationRepository = {
+     id: string,
+     data: Prisma.RegistrationUncheckedUpdateInput,
+   ) => tx.registration.update({ where: { id }, data }),
++
++  async search(filter: {
++    search?: string | undefined;
++    status?: string | undefined;
++    campaignId?: string | undefined;
++    skip: number;
++    take: number;
++  }) {
++    const where: Prisma.RegistrationWhereInput = {
++      ...(filter.status ? { status: filter.status as RegistrationStatus } : {}),
++      ...(filter.campaignId ? { campaignId: filter.campaignId } : {}),
++      ...(filter.search
++        ? {
++            donor: {
++              OR: [
++                { citizenId: { contains: filter.search } },
++                { phone: { contains: filter.search } },
++                {
++                  user: {
++                    fullName: { contains: filter.search, mode: 'insensitive' },
++                  },
++                },
++                {
++                  user: {
++                    email: { contains: filter.search, mode: 'insensitive' },
++                  },
++                },
++              ],
++            },
++          }
++        : {}),
++    };
++    const include = {
++      donor: { include: { user: { select: { fullName: true, email: true } } } },
++    };
++    const [items, total] = await Promise.all([
++      database.registration.findMany({
++        where,
++        include,
++        skip: filter.skip,
++        take: filter.take,
++        orderBy: { createdAt: 'desc' },
++      }),
++      database.registration.count({ where }),
++    ]);
++    return { items, total };
++  },
++
++  async listByDonor(donorId: string, skip: number, take: number) {
++    const where: Prisma.RegistrationWhereInput = { donorId };
++    const [items, total] = await Promise.all([
++      database.registration.findMany({
++        where,
++        include: { healthDeclaration: true, checkIn: true },
++        skip,
++        take,
++        orderBy: { createdAt: 'desc' },
++      }),
++      database.registration.count({ where }),
++    ]);
++    return { items, total };
++  },
+ };
+diff --git a/apps/api/src/modules/registrations/registration.routes.ts b/apps/api/src/modules/registrations/registration.routes.ts
+index 67657e7..4eec037 100644
+--- a/apps/api/src/modules/registrations/registration.routes.ts
++++ b/apps/api/src/modules/registrations/registration.routes.ts
+@@ -11,6 +11,18 @@ registrationRoutes.post(
+   requirePermission('registration.create'),
+   controller.create,
+ );
++registrationRoutes.get(
++  '/',
++  requireAuth,
++  requirePermission('registration.read'),
++  controller.search,
++);
++registrationRoutes.get(
++  '/my',
++  requireAuth,
++  requirePermission('registration.read'),
++  controller.my,
++);
+ registrationRoutes.get(
+   '/:id',
+   requireAuth,
+diff --git a/apps/api/src/modules/registrations/registration.service.ts b/apps/api/src/modules/registrations/registration.service.ts
+index 826b19d..afb14ae 100644
+--- a/apps/api/src/modules/registrations/registration.service.ts
++++ b/apps/api/src/modules/registrations/registration.service.ts
+@@ -7,6 +7,11 @@ import {
+ } from '@blood/shared-types';
+ import { AppError } from '../../common/errors/app.error';
+ import { parseDomain } from '../../common/helpers/domain-validation';
++import {
++  paginationMeta,
++  resolvePagination,
++} from '../../common/helpers/response';
++import { database } from '../../config/database';
+ import type { AuditContext } from '../audit-logs/audit.service';
+ import { auditLogService } from '../audit-logs/audit.service';
+ import { notificationService } from '../notifications/notification.service';
+@@ -94,6 +99,51 @@ export const registrationService = {
+     return registration.row;
+   },
+ 
++  /** Staff-only directory search by CCCD/phone/name/email — DONOR uses `my()` instead. */
++  async search(query: unknown) {
++    const schema = z.object({
++      search: z.string().trim().min(1).max(100).optional(),
++      status: z.string().trim().optional(),
++      campaignId: z.string().uuid().optional(),
++      page: z.coerce.number().int().positive().optional(),
++      limit: z.coerce.number().int().positive().optional(),
++    });
++    const filters = parseDomain(schema, query);
++    const pagination = resolvePagination(filters);
++    const { items, total } = await repo.search({
++      search: filters.search,
++      status: filters.status,
++      campaignId: filters.campaignId,
++      skip: pagination.skip,
++      take: pagination.take,
++    });
++    return {
++      items,
++      meta: paginationMeta(pagination.page, pagination.limit, total),
++    };
++  },
++
++  async my(userId: string, query: unknown) {
++    const schema = z.object({
++      page: z.coerce.number().int().positive().optional(),
++      limit: z.coerce.number().int().positive().optional(),
++    });
++    const filters = parseDomain(schema, query);
++    const pagination = resolvePagination(filters);
++    const donor = await database.donorProfile.findUnique({ where: { userId } });
++    if (!donor)
++      throw AppError.internal('DonorProfile missing for a DONOR account');
++    const { items, total } = await repo.listByDonor(
++      donor.id,
++      pagination.skip,
++      pagination.take,
++    );
++    return {
++      items,
++      meta: paginationMeta(pagination.page, pagination.limit, total),
++    };
++  },
++
+   async getById(
+     id: string,
+     auth: { userId: string; roles: readonly string[] },
+diff --git a/apps/api/src/modules/reports/report.routes.ts b/apps/api/src/modules/reports/report.routes.ts
+new file mode 100644
+index 0000000..375d81b
+--- /dev/null
++++ b/apps/api/src/modules/reports/report.routes.ts
+@@ -0,0 +1,18 @@
++import type { RequestHandler } from 'express';
++import { Router } from 'express';
++import { sendSuccess } from '../../common/helpers/response';
++import { requireAuth } from '../../middlewares/auth.middleware';
++import { requirePermission } from '../../middlewares/permission.middleware';
++import { reportService } from './report.service';
++
++const donations: RequestHandler = async (req, res) => {
++  sendSuccess(res, await reportService.donations(req.query));
++};
++
++export const reportRoutes = Router();
++reportRoutes.get(
++  '/donations',
++  requireAuth,
++  requirePermission('report.read'),
++  donations,
++);
+diff --git a/apps/api/src/modules/reports/report.service.ts b/apps/api/src/modules/reports/report.service.ts
+new file mode 100644
+index 0000000..fe859c4
+--- /dev/null
++++ b/apps/api/src/modules/reports/report.service.ts
+@@ -0,0 +1,38 @@
++import { z } from 'zod';
++import { parseDomain } from '../../common/helpers/domain-validation';
++import { database } from '../../config/database';
++
++const querySchema = z.object({
++  from: z.coerce.date().optional(),
++  to: z.coerce.date().optional(),
++  campaignId: z.string().uuid().optional(),
++});
++
++export const reportService = {
++  async donations(query: unknown) {
++    const filter = parseDomain(querySchema, query);
++    const where = {
++      status: 'COMPLETED' as const,
++      ...(filter.from || filter.to
++        ? {
++            donatedAt: {
++              ...(filter.from ? { gte: filter.from } : {}),
++              ...(filter.to ? { lte: filter.to } : {}),
++            },
++          }
++        : {}),
++      ...(filter.campaignId
++        ? {
++            screening: {
++              checkIn: { registration: { campaignId: filter.campaignId } },
++            },
++          }
++        : {}),
++    };
++    const [count, volume] = await Promise.all([
++      database.donation.count({ where }),
++      database.donation.aggregate({ where, _sum: { volumeMl: true } }),
++    ]);
++    return { totalDonations: count, totalVolumeMl: volume._sum.volumeMl ?? 0 };
++  },
++};
+diff --git a/apps/api/src/modules/roles/role.routes.ts b/apps/api/src/modules/roles/role.routes.ts
+new file mode 100644
+index 0000000..744792d
+--- /dev/null
++++ b/apps/api/src/modules/roles/role.routes.ts
+@@ -0,0 +1,27 @@
++import type { RequestHandler } from 'express';
++import { Router } from 'express';
++import { sendSuccess } from '../../common/helpers/response';
++import { requireAuth } from '../../middlewares/auth.middleware';
++import { requirePermission } from '../../middlewares/permission.middleware';
++import { database } from '../../config/database';
++
++const list: RequestHandler = async (_req, res) => {
++  const roles = await database.role.findMany({
++    include: {
++      permissions: { include: { permission: { select: { code: true } } } },
++    },
++    orderBy: { name: 'asc' },
++  });
++  sendSuccess(
++    res,
++    roles.map((r) => ({
++      id: r.id,
++      code: r.code,
++      name: r.name,
++      permissions: r.permissions.map((p) => p.permission.code),
++    })),
++  );
++};
++
++export const roleRoutes = Router();
++roleRoutes.get('/', requireAuth, requirePermission('role.read'), list);
+diff --git a/apps/api/src/modules/screenings/screening.routes.ts b/apps/api/src/modules/screenings/screening.routes.ts
+index c6b669f..5ba2776 100644
+--- a/apps/api/src/modules/screenings/screening.routes.ts
++++ b/apps/api/src/modules/screenings/screening.routes.ts
+@@ -22,6 +22,10 @@ const create: RequestHandler = async (req, res) => {
+   );
+ };
+ 
++const queue: RequestHandler = async (req, res) => {
++  sendSuccess(res, await screeningService.queue());
++};
++
+ const getById: RequestHandler = async (req, res) => {
+   sendSuccess(res, await screeningService.getById(paramId(req)));
+ };
+@@ -44,6 +48,12 @@ screeningRoutes.post(
+   requirePermission('screening.create'),
+   create,
+ );
++screeningRoutes.get(
++  '/queue',
++  requireAuth,
++  requirePermission('screening.read'),
++  queue,
++);
+ screeningRoutes.get(
+   '/:id',
+   requireAuth,
+diff --git a/apps/api/src/modules/screenings/screening.service.ts b/apps/api/src/modules/screenings/screening.service.ts
+index 25cab00..56c9c2a 100644
+--- a/apps/api/src/modules/screenings/screening.service.ts
++++ b/apps/api/src/modules/screenings/screening.service.ts
+@@ -4,6 +4,7 @@ import {
+   ERROR_CODES,
+ } from '@blood/shared-types';
+ import { AppError } from '../../common/errors/app.error';
++import { database } from '../../config/database';
+ import type { AuditContext } from '../audit-logs/audit.service';
+ import { auditLogService } from '../audit-logs/audit.service';
+ import { notificationService } from '../notifications/notification.service';
+@@ -62,6 +63,21 @@ export const screeningService = {
+     });
+   },
+ 
++  /** Checked-in donors still waiting on a screening to be opened. */
++  async queue() {
++    return database.checkIn.findMany({
++      where: { screening: null },
++      include: {
++        registration: {
++          include: {
++            donor: { include: { user: { select: { fullName: true } } } },
++          },
++        },
++      },
++      orderBy: { checkedInAt: 'asc' },
++    });
++  },
++
+   async getById(id: string) {
+     const screening = await repo.findById(id);
+     if (!screening) throw AppError.notFound(ERROR_CODES.SCREENING_NOT_FOUND);
+diff --git a/apps/api/src/modules/users/user.repository.ts b/apps/api/src/modules/users/user.repository.ts
+new file mode 100644
+index 0000000..8c73303
+--- /dev/null
++++ b/apps/api/src/modules/users/user.repository.ts
+@@ -0,0 +1,59 @@
++import type { Prisma } from '@prisma/client';
++import { database } from '../../config/database';
++
++export const userRepository = {
++  async list(filter: {
++    search?: string | undefined;
++    role?: string | undefined;
++    skip: number;
++    take: number;
++  }) {
++    const where: Prisma.UserWhereInput = {
++      ...(filter.search
++        ? {
++            OR: [
++              { fullName: { contains: filter.search, mode: 'insensitive' } },
++              { email: { contains: filter.search, mode: 'insensitive' } },
++            ],
++          }
++        : {}),
++      ...(filter.role
++        ? { roles: { some: { role: { code: filter.role } } } }
++        : {}),
++    };
++    const include = {
++      roles: { include: { role: { select: { code: true, name: true } } } },
++    };
++    const [items, total] = await Promise.all([
++      database.user.findMany({
++        where,
++        include,
++        skip: filter.skip,
++        take: filter.take,
++        orderBy: { createdAt: 'desc' },
++      }),
++      database.user.count({ where }),
++    ]);
++    return { items, total };
++  },
++
++  findByIdTx: (tx: Prisma.TransactionClient, id: string) =>
++    tx.user.findUnique({ where: { id } }),
++
++  findRoleByIdTx: (tx: Prisma.TransactionClient, roleId: string) =>
++    tx.role.findUnique({ where: { id: roleId } }),
++
++  assignRoleTx: (
++    tx: Prisma.TransactionClient,
++    userId: string,
++    roleId: string,
++  ) =>
++    tx.userRole.upsert({
++      where: { userId_roleId: { userId, roleId } },
++      create: { userId, roleId },
++      update: {},
++    }),
++
++  transaction: <T>(work: (tx: Prisma.TransactionClient) => Promise<T>) =>
++    database.$transaction(work),
++};
+diff --git a/apps/api/src/modules/users/user.routes.ts b/apps/api/src/modules/users/user.routes.ts
+new file mode 100644
+index 0000000..4596d04
+--- /dev/null
++++ b/apps/api/src/modules/users/user.routes.ts
+@@ -0,0 +1,27 @@
++import type { RequestHandler } from 'express';
++import { Router } from 'express';
++import { paramId } from '../../common/helpers/http';
++import { sendList, sendSuccess } from '../../common/helpers/response';
++import { requireAuth } from '../../middlewares/auth.middleware';
++import { requirePermission } from '../../middlewares/permission.middleware';
++import { auditContextFrom } from '../audit-logs/audit.service';
++import { userService } from './user.service';
++
++const list: RequestHandler = async (req, res) => {
++  const { items, meta } = await userService.list(req.query);
++  sendList(res, items, meta.page, meta.limit, meta.total);
++};
++
++const assignRole: RequestHandler = async (req, res) => {
++  await userService.assignRole(paramId(req), req.body, auditContextFrom(req));
++  sendSuccess(res, {});
++};
++
++export const userRoutes = Router();
++userRoutes.get('/', requireAuth, requirePermission('user.read'), list);
++userRoutes.post(
++  '/:id/roles',
++  requireAuth,
++  requirePermission('user.manage'),
++  assignRole,
++);
+diff --git a/apps/api/src/modules/users/user.service.ts b/apps/api/src/modules/users/user.service.ts
+new file mode 100644
+index 0000000..b510ff2
+--- /dev/null
++++ b/apps/api/src/modules/users/user.service.ts
+@@ -0,0 +1,66 @@
++import { z } from 'zod';
++import {
++  AUDIT_ACTIONS,
++  AUDIT_ENTITY_TYPES,
++  ERROR_CODES,
++} from '@blood/shared-types';
++import { AppError } from '../../common/errors/app.error';
++import { parseDomain } from '../../common/helpers/domain-validation';
++import {
++  paginationMeta,
++  resolvePagination,
++} from '../../common/helpers/response';
++import type { AuditContext } from '../audit-logs/audit.service';
++import { auditLogService } from '../audit-logs/audit.service';
++import { userRepository as repo } from './user.repository';
++
++const listQuerySchema = z.object({
++  search: z.string().trim().min(1).max(100).optional(),
++  role: z.string().trim().optional(),
++  page: z.coerce.number().int().positive().optional(),
++  limit: z.coerce.number().int().positive().optional(),
++});
++const assignRoleSchema = z.object({ roleId: z.string().uuid() });
++
++export const userService = {
++  async list(query: unknown) {
++    const filters = parseDomain(listQuerySchema, query);
++    const pagination = resolvePagination(filters);
++    const { items, total } = await repo.list({
++      search: filters.search,
++      role: filters.role,
++      skip: pagination.skip,
++      take: pagination.take,
++    });
++    return {
++      items,
++      meta: paginationMeta(pagination.page, pagination.limit, total),
++    };
++  },
++
++  async assignRole(userId: string, input: unknown, ctx: AuditContext) {
++    const { roleId } = parseDomain(assignRoleSchema, input);
++    return repo.transaction(async (tx) => {
++      const user = await repo.findByIdTx(tx, userId);
++      if (!user)
++        throw AppError.notFound(
++          ERROR_CODES.VALIDATION_ERROR,
++          'Không tìm thấy người dùng',
++        );
++      const role = await repo.findRoleByIdTx(tx, roleId);
++      if (!role) throw AppError.notFound(ERROR_CODES.ROLE_NOT_FOUND);
++
++      await repo.assignRoleTx(tx, userId, roleId);
++      await auditLogService.record(
++        {
++          ...ctx,
++          action: AUDIT_ACTIONS.USER_UPDATED,
++          entityType: AUDIT_ENTITY_TYPES.USER,
++          entityId: userId,
++          metadata: { roleAssigned: role.code },
++        },
++        tx,
++      );
++    });
++  },
++};
+diff --git a/apps/api/src/routes/index.ts b/apps/api/src/routes/index.ts
+index 0f81850..be8f63f 100644
+--- a/apps/api/src/routes/index.ts
++++ b/apps/api/src/routes/index.ts
+@@ -11,6 +11,11 @@ import {
+   campaignTimeSlotRoutes,
+   timeSlotRoutes,
+ } from '../modules/time-slots/time-slot.routes';
++import { userRoutes } from '../modules/users/user.routes';
++import { roleRoutes } from '../modules/roles/role.routes';
++import { auditLogRoutes } from '../modules/audit-logs/audit.routes';
++import { reportRoutes } from '../modules/reports/report.routes';
++import { donorRoutes } from '../modules/donors/donor.routes';
+ import { healthRoutes } from './health.routes';
+ export const apiRoutes = Router();
+ apiRoutes.use('/health', healthRoutes);
+@@ -24,3 +29,8 @@ apiRoutes.use('/certificates', certificateRoutes);
+ apiRoutes.use('/campaigns', campaignRoutes);
+ apiRoutes.use('/campaigns', campaignTimeSlotRoutes);
+ apiRoutes.use('/time-slots', timeSlotRoutes);
++apiRoutes.use('/users', userRoutes);
++apiRoutes.use('/roles', roleRoutes);
++apiRoutes.use('/audit-logs', auditLogRoutes);
++apiRoutes.use('/reports', reportRoutes);
++apiRoutes.use('/donors', donorRoutes);
+diff --git a/packages/shared-types/src/index.ts b/packages/shared-types/src/index.ts
+index 79a7382..b7a212e 100644
+--- a/packages/shared-types/src/index.ts
++++ b/packages/shared-types/src/index.ts
+@@ -550,6 +550,7 @@ export const ERROR_CODES = {
+ 
+   SCREENING_NOT_FOUND: 'SCREENING_NOT_FOUND',
+   NOTIFICATION_NOT_FOUND: 'NOTIFICATION_NOT_FOUND',
++  CERTIFICATE_NOT_FOUND: 'CERTIFICATE_NOT_FOUND',
+   SCREENING_INVALID_TRANSITION: 'SCREENING_INVALID_TRANSITION',
+   SCREENING_NOT_ELIGIBLE: 'SCREENING_NOT_ELIGIBLE',
+   SCREENING_REVIEW_REASON_REQUIRED: 'SCREENING_REVIEW_REASON_REQUIRED',
+@@ -626,6 +627,7 @@ export const ERROR_MESSAGES: Readonly<Record<ErrorCode, string>> = {
+ 
+   SCREENING_NOT_FOUND: 'Không tìm thấy phiếu sàng lọc',
+   NOTIFICATION_NOT_FOUND: 'Không tìm thấy thông báo',
++  CERTIFICATE_NOT_FOUND: 'Không tìm thấy chứng nhận',
+   SCREENING_INVALID_TRANSITION:
+     'Không thể chuyển phiếu sàng lọc sang trạng thái này',
+   SCREENING_NOT_ELIGIBLE: 'Chỉ người hiến đủ điều kiện mới được hiến máu',

@@ -15,7 +15,33 @@ export interface AuditLogInput {
 /** `tx` is supplied whenever the audit entry must share a business transaction. */
 export type AuditClient = Prisma.TransactionClient | typeof database;
 
+export interface AuditLogFilter {
+  actorId?: string | undefined;
+  entityType?: string | undefined;
+  action?: string | undefined;
+  skip: number;
+  take: number;
+}
+
 export const auditLogRepository = {
+  async list(filter: AuditLogFilter) {
+    const where: Prisma.AuditLogWhereInput = {
+      ...(filter.actorId ? { actorId: filter.actorId } : {}),
+      ...(filter.entityType ? { entityType: filter.entityType } : {}),
+      ...(filter.action ? { action: filter.action } : {}),
+    };
+    const [items, total] = await Promise.all([
+      database.auditLog.findMany({
+        where,
+        skip: filter.skip,
+        take: filter.take,
+        orderBy: { createdAt: 'desc' },
+      }),
+      database.auditLog.count({ where }),
+    ]);
+    return { items, total };
+  },
+
   create(client: AuditClient, input: AuditLogInput): Promise<{ id: string }> {
     return client.auditLog.create({
       data: {
