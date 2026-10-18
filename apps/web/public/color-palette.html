@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bảng Màu Hệ Thống Quản Lý Hiến Máu — Design System Color Palette</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      /* Brand Clinical Crimson */
+      --color-brand-50: #fef2f4;
+      --color-brand-100: #fce4e8;
+      --color-brand-200: #f9c9d0;
+      --color-brand-300: #e8879a;
+      --color-brand-400: #d4566e;
+      --color-brand-500: #c0273f;
+      --color-brand-600: #a8192e;
+      --color-brand-700: #8c0f21;
+      --color-brand-800: #720c1c;
+      --color-brand-900: #4a0c1a;
+
+      /* Healthcare Teal */
+      --color-teal-50: #f0fdfa;
+      --color-teal-100: #ccfbf1;
+      --color-teal-200: #99f6e4;
+      --color-teal-300: #5eead4;
+      --color-teal-400: #2dd4bf;
+      --color-teal-500: #14b8a6;
+      --color-teal-600: #0d9488;
+      --color-teal-700: #0f766e;
+
+      /* Neutral Ink */
+      --color-ink-950: #0f1219;
+      --color-ink-900: #1a1f2e;
+      --color-ink-800: #252a38;
+      --color-ink-700: #353b4d;
+      --color-ink-600: #4a5268;
+      --color-ink-500: #5e6680;
+      --color-ink-400: #7f8699;
+      --color-ink-300: #a0a6b5;
+      --color-ink-200: #c4c9d4;
+      --color-ink-100: #e2e5ea;
+      --color-ink-50: #f1f3f6;
+
+      /* Surfaces & Borders */
+      --color-surface: #ffffff;
+      --color-surface-warm: #fafbfc;
+      --color-surface-muted: #f5f6f8;
+      --color-border: #e5e8ee;
+      --color-border-strong: #cdd1da;
+
+      /* Semantic */
+      --color-success: #059669;
+      --color-success-bg: #ecfdf5;
+      --color-warning: #f59e0b;
+      --color-warning-dark: #d97706;
+      --color-warning-bg: #fffbeb;
+      --color-danger: #dc2626;
+      --color-danger-pure: #e53935;
+      --color-danger-bg: #fef2f2;
+      --color-info: #1976d2;
+      --color-info-bright: #2563eb;
+      --color-info-bg: #eff6ff;
+
+      /* Auth & Specific UI */
+      --color-bg-auth: #eeeaf6;
+      --color-panel-dark: #1c1030;
+      --color-panel-dark-mid: #261640;
+      --color-ice-blue: #f0f8ff;
+      --color-cyan-teal: #00acc1;
+      --color-deep-navy: #1a4f9c;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: var(--color-surface-muted);
+      color: var(--color-ink-800);
+      line-height: 1.5;
+      padding: 40px 24px;
+    }
+
+    .container {
+      max-width: 1140px;
+      margin: 0 auto;
+    }
+
+    header {
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 32px 36px;
+      border: 1px solid var(--color-border);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+      margin-bottom: 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+
+    .brand-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--color-brand-600);
+      background: var(--color-brand-50);
+      padding: 4px 12px;
+      border-radius: 999px;
+      margin-bottom: 12px;
+      border: 1px solid var(--color-brand-200);
+    }
+
+    h1 {
+      font-size: 1.85rem;
+      font-weight: 800;
+      color: var(--color-ink-900);
+      letter-spacing: -0.02em;
+      margin-bottom: 8px;
+    }
+
+    .lead {
+      color: var(--color-ink-600);
+      font-size: 0.96rem;
+      max-width: 680px;
+    }
+
+    .header-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: #f0fdfa;
+      border: 1px solid var(--color-teal-200);
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--color-teal-700);
+    }
+
+    .section-card {
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 28px 32px;
+      border: 1px solid var(--color-border);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+      margin-bottom: 28px;
+    }
+
+    .section-header {
+      margin-bottom: 20px;
+    }
+
+    .section-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--color-ink-900);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+
+    .section-desc {
+      font-size: 0.88rem;
+      color: var(--color-ink-500);
+    }
+
+    /* Swatches Grid */
+    .swatches-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 14px;
+    }
+
+    .swatch-card {
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      overflow: hidden;
+      background: #ffffff;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+      position: relative;
+    }
+
+    .swatch-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08);
+      border-color: #cbd5e1;
+    }
+
+    .swatch-color {
+      height: 72px;
+      width: 100%;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .swatch-info {
+      padding: 10px 12px;
+      background: #ffffff;
+    }
+
+    .swatch-name {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--color-ink-900);
+      margin-bottom: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .swatch-hex {
+      font-size: 0.76rem;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      color: var(--color-ink-500);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .swatch-copy-hint {
+      font-size: 0.65rem;
+      color: #94a3b8;
+      text-transform: uppercase;
+    }
+
+    .swatch-role {
+      font-size: 0.72rem;
+      color: #64748b;
+      margin-top: 4px;
+      line-height: 1.3;
+    }
+
+    /* Component Demos */
+    .demo-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      margin-top: 20px;
+    }
+
+    .demo-box {
+      border: 1px solid var(--color-border);
+      border-radius: 10px;
+      padding: 20px;
+      background: var(--color-surface);
+    }
+
+    .demo-box-title {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--color-ink-700);
+      margin-bottom: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 9px 18px;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      border: 1px solid transparent;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.15s ease;
+    }
+
+    .btn-primary {
+      background: var(--color-brand-600);
+      color: #ffffff;
+      box-shadow: 0 1px 2px rgba(168, 25, 46, 0.2);
+    }
+
+    .btn-primary:hover {
+      background: var(--color-brand-700);
+    }
+
+    .btn-secondary {
+      background: #ffffff;
+      border-color: var(--color-border-strong);
+      color: var(--color-ink-800);
+    }
+
+    .btn-secondary:hover {
+      background: var(--color-surface-muted);
+    }
+
+    .btn-outline-blue {
+      background: #ffffff;
+      border-color: #90caf9;
+      color: #1976d2;
+    }
+
+    .btn-outline-blue:hover {
+      background: #f0f7ff;
+      border-color: #1976d2;
+    }
+
+    .btn-danger {
+      background: var(--color-danger);
+      color: #ffffff;
+    }
+
+    .btn-teal {
+      background: var(--color-teal-600);
+      color: #ffffff;
+    }
+
+    /* Badges */
+    .badge {
+      display: inline-block;
+      padding: 4px 14px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #ffffff;
+    }
+
+    .badge-completed {
+      background: #00acc1;
+    }
+
+    .badge-cancelled {
+      background: #e53935;
+    }
+
+    .badge-confirmed {
+      background: #1976d2;
+    }
+
+    .badge-pending {
+      background: #f59e0b;
+    }
+
+    .badge-active {
+      background: #059669;
+    }
+
+    /* Toast */
+    #toast {
+      position: fixed;
+      bottom: 28px;
+      right: 28px;
+      background: #0f172a;
+      color: #ffffff;
+      padding: 12px 22px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    #toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    /* Droplet Card Preview */
+    .preview-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+    <header>
+      <div>
+        <div class="brand-eyebrow">
+          <span>🩸 Hệ Thống Quản Lý Hiến Máu</span>
+          <span>•</span>
+          <span>Design Tokens</span>
+        </div>
+        <h1>Bảng Màu Giao Diện (Color System)</h1>
+        <p class="lead">
+          Hệ màu sắc đồng bộ của hệ thống hiến máu: Sạch sẽ, điềm tĩnh, y tế và nhân đạo (Clinical Crimson & Soft
+          Healthcare Teal).
+          <strong>Bấm vào bất kỳ ô màu nào để tự động copy mã HEX!</strong>
+        </p>
+      </div>
+      <div class="header-badge">
+        <span>🎨 Hài hòa • WCAG AA Chuẩn</span>
+      </div>
+    </header>
+
+    <!-- SECTION 1: BRAND CRIMSON -->
+    <section class="section-card">
+      <div class="section-header">
+        <h2 class="section-title">
+          <span style="color: var(--color-brand-600)">●</span>
+          1. Brand Palette — Đỏ thẫm y tế (Clinical Crimson)
+        </h2>
+        <p class="section-desc">
+          Màu nhận diện thương hiệu chủ đạo. Mang sắc thái đỏ huyết tương sâu lắng, nhân đạo, chuyên nghiệp thay vì màu
+          đỏ chói báo động.
+        </p>
+      </div>
+
+      <div class="swatches-grid">
+        <div class="swatch-card" onclick="copyColor('#fef2f4', '--color-brand-50')">
+          <div class="swatch-color" style="background: #fef2f4; border-bottom: 1px solid #eee;"></div>
+          <div class="swatch-info">
+            <div class="swatch-name">brand-50</div>
+            <div class="swatch-hex"><span>#fef2f4</span> <span class="swatch-copy-hint">Copy</span></div>
+            <div class="swatch-role">Nền tag nhạt, hover</div>
+          </div>
+        </div>
+
+        <div class="swatch-card" onclick="copyColor('#fce4e8', '--color-brand-100')">
+          <div class="swatch-color" style="background: #fce4e8;"></div>
+          <div class="swatch-info">
+            <div class="swatch-name">brand-100</div>
+            <div class="swatch-hex"><span>#fce4e8</span> <span class="swatch-copy-hint">Copy</span></div>
+            <div class="swatch-role">Badge nền phớt hồng</div>
+          </div>
+        </div>
+
+        <div class="swatch-card" onclick="copyColor('#f9c9d0', '--color-brand-200')">
+          <div class="swatch-color" style="background: #f9c9d0;"></div>
+          <div class="swatch-info">
+            <div class="swatch-name">brand-200</div>
+            <div class="swatch-hex"><span>#f9c9d0</span> <span class="swatch-copy-hint">Copy</span></div>
+            <div class="swatch-role">Viền card nổi bật nhẹ</div>
+          </div>
+        </div>
+
+        <div class="swatch-card" onclick="copyColor('#e8879a', '--color-brand-300')">
+          <div class="swatch-color" style="background: #e8879a;"></div>
+          <div class="swatch-info">
+            <div class="swatch-name">brand-300</div>
+            <div class="swatch-hex"><span>#e8879a</span> <span class="swatch-copy-hint">Copy</span></div>
+            <div class="swatch-role">Đồ họa & biểu đồ phụ</div>
+          </div>
+        </div>
+
+        <div class="swatch-card" onclick="copyColor('#d4566e', '--color-brand-400')">
+          <div class="swatch-color" style="background: #d4566e;"></div>
+          <div class="swatch-info">
+            <div class="swatch-name">brand-400</div>
+            <div class="swatch-hex"><span>#d4566e</span> <span class="swatch-copy-hint">Copy</span></div>
+            <div class="swatch-role">Điểm nhấn sáng</div>
+          </div>
+        </div>
+
+        <div class="swatch-card" onclick="copyColor('#c0273f', '--color-brand-500')">
+          <div class="swatch-color" style="background: #c0273f;"></div>
+          <div class="swatch-info">
+            <div class="swatch-name">brand-500</div>
+            <div class="swatch-hex"><span>#c0273f</span> <span class="swatch-copy-hint">Copy</span></div>
+            <div class="swatch-role">Focus ring viền chọn</div>
+          </div>
+        </div>
+
+        <div class="swatch-card" onclick="copyColor('#a8192e', '--color-brand-600')" style="border: 2px solid #a8192e;">
+          <div class="swatch-color" style="background: #a8192e; color: #fff; font-weight: 700; font-size: 0.75rem;">
+            PRIMARY</div>
+          <div class="swatch-info">
+            <div class="swatch-name">brand-600 ★</div>
+            <div class="swatch-hex"><span style="color: #a8192e; font-weight: 700;">#a8192e</span> <span
+                class="swatch-copy-hint">Copy</span></div>
+            <div class="swatch-role">Nút chính .btn--primary</div>
+          </div>
+        </div>
+
+        <div class="swatch-card" onclick="copyColor('#8c0f21', '--color-brand-700')">
+          <div class="swatch-color" style="background: #8c0f21;"></div>
+          <div class="swatch-info">
+            <div class="swatch-name">brand-700</div>
+            <div class="swatch-hex"><span>#8c0f21</span> <span class="swatch-copy-hint">Copy</span></div>
+            <div class="swatch-role">Hover nút chính</div>
+          </div>
+        </div>
+
+        <div class="swatch-card" onclick="copyColor('#720c1c', '--color-brand-800')">
+          <div class="swatch-color" style="background: #720c1c;"></div>
+          <div class="swatch-info">
+            <div class="swatch-name">brand-800</div>
+            <div class="swatch-hex"><span>#720c1c</span> <span class="swatch-copy-hint">Copy</span></div>
+            <div class="swatch-role">Active nút bấm</div>
+          </div>
+        </div>
+
+        <div class="swatch-card" onclick="copyColor('#4a0c1a', '--color-brand-900')">
+          <div class="swatch-color" style="background: #4a0c1a;"></div>
+          <div class="swatch-info">
+            <div class="swatch-name">brand-900</div>
+            <div class="swatch-hex"><span>#4a0c1a</span> <span class="swatch-copy-hint">Copy</span></div>
+            <div class="swatch-role">Đỏ đậm chiều sâu</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 2: HEALTHCARE TEAL -->
+    <section class="section-card">
+      <div class="section-header">
+        <h2 class="section-title">
+          <span style="color: var(--color-teal-600)">●</span>
+          2. Healthcare Secondary — Xanh ngọc y tế (Soft Teal)
+        </h2>
+        <p class="section-desc">
+          Màu phụ trợ y tế tạo sự cân bằng thị giác với màu đỏ, biểu thị sự vô trùng, bình phục, tĩnh lặng và an tâm.
+        </p>
+      </div>
+
+      <div class="swatches-grid">
+        <div class="swatch-card" onclick="copyColor('#f0fdfa', '--color-teal-50')">
+          <div class="swatch-color" style="background: #f0fdfa; border-bottom: 1px solid #e0f2fe;"></div>
+          <div class="swatch-info">
+            <div class="swatch-name">teal-50</div>
+            <div class="swatch-hex"><span>#f0fdfa</span> <span class="swatch-copy-hint">Copy</span></div>
+            <div class="swatch-role">Nền thông báo y tế</div>
+          </div>
+        </div>
+
+        <div class="swatch-card" onclick="copyColor('#ccfbf1', '--color-teal-100')">
+          <div class="swatch-color" style="background: #ccfbf1;"></div>
+          <div class="swatch-info">
+            <div class="swatch-name">teal-100</div>
+            <div class="swatch-hex"><span>#ccfbf1</span> <span class="swatch-copy-hint">Copy</span></div>
+            <div class="swatch-role">Badge y tế nhạt</div>
+          </div>
+        </div>
+
+        <div class="swatch-card" onclick="copyColor('#5eead4', '--color-teal-300')">
+          <div class="swatch-color" style="background: #5eead4;"></div>
+          <div class="swatch-info">
+            <div class="swatch-name">teal-300</div>
+            <div class="swatch-hex"><span>#5eead4</span> <span class="swatch-copy-hint">Copy</span></div>
+            <div class="swatch-role">Điểm nhấn phụ</div>
+          </div>
+        </div>
+
+        <div class="swatch-card" onclick="copyColor('#14b8a6', '--color-teal-500')">
+          <div class="swatch-color" style="background: #14b8a6; color: #fff; font-size: 0.75rem; font-weight: 700;">
+            ACCENT</div>
+          <div class="swatch-info">
+            <div class="swatch-name">teal-500 ★</div>
+            <div class="swatch-hex"><span>#14b8a6</span> <span class="swatch-copy-hint">Copy</span></div>
+            <div class="swatch-role">Điểm nhấn xanh ngọc</div>
+          </div>
+        </div>
+
+        <div class="swatch-card" onclick="copyColor('#0d9488', '--color-teal-600')">
+          <div class="swatch-color" style="background: #0d9488;"></div>
+          <div class="swatch-info">
+            <div class="swatch-name">teal-600</div>
+            <div class="swatch-hex"><span>#0d9488</span> <span class="swatch-copy-hint">Copy</span></div>
+            <div class="swatch-role">Nút phụ y tế, liên kết</div>
+          </div>
+        </div>
+
+        <div class="swatch-card" onclick="copyColor('#0f766e', '--color-teal-700')">
+          <div class="swatch-color" style="background: #0f766e;"></div>
+          <div class="swatch-info">
+            <div class="swatch-name">teal-700</div>
+            <div class="swatch-hex"><span>#0f766e</span> <span class="swatch-copy-hint">Copy</span></div>
+            <div class="swatch-role">Hover nút y tế</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 3: NEUTRAL INK & SURFACES -->
+    <section class="section-card">
+      <div class="section-header">
+        <h2 class="section-title">
+          <span style="color: var(--color-ink-700)">●</span>
+          3. Neutral Ink & Surfaces — Màu mực hiển thị & Bề mặt
+        </h2>
+        <p class="section-desc">
+          Tông màu xám ánh xanh navy sâu (Slate/Navy Ink) giúp chữ viết sắc nét, sang trọng và không gây mỏi mắt như màu
+          đen tuyệt đối #000000.
+        </p>
+      </div>
+
+      <div class="swatches-grid">
+        <div class="swatch-card" onclick="copyColor('#0f1219', '--color-ink-950')">
+          <div class="swatch-color" style="background: #0f1219;"></div>
+          <div class="swatch-info">
+            <div class="swatch-name">ink-950</div>
+            <div class="swatch-hex"><span>#0f1219</span> <span class="swatch-copy-hint">Copy</span></div>
+            <div class="swatch-role">Tiêu đề tối đa H1</div>
+          </div>
+        </div>
+
+        <div class="swatch-card" onclick="copyColor('#1a1f2e', '--color-ink-900')">
+          <div class="swatch-color" style="background: #1a1f2e; color: #fff; font-size: 0.72rem; font-weight: 600;">
+            HEADING</div>
+          <div class="swatch-info">
+            <div class="swatch-name">ink-900 ★</div>
+            <div class="swatch-hex"><span>#1a1f2e</span> <span class="swatch-copy-hint">Copy</span></div>
+            <div class="swatch-role">Tiêu đề trang & thẻ H2</div>
+          </div>
+        </div>
+
+        <div class="swatch-card" onclick="copyColor('#252a38', '--color-ink-800')">
+          <div class="swatch-color" style="background: #252a38; color: #fff; font-size: 0.72rem; font-weight: 600;">BODY
+          </div>
+          <div class="swatch-info">
+            <div class="swatch-name">ink-800 ★</div>
+            <div class="swatch-hex"><span>#252a38</span> <span class="swatch-copy-hint">Copy</span></div>
+            <div class="swatch-role">Chữ nội dung chính</div>
+          </div>
+        </div>
+
+        <div class="swatch-card" onclick="copyColor('#4a5268', '--color-ink-600')">
+          <div class="swatch-color" style="background: #4a5268;"></div>
+          <div class="swatch-info">
+            <div class="swatch-name">ink-600</div>
+            <div class="swatch-hex"><span>#4a5268</span> <span class="swatch-copy-hint">Copy</span></div>
+            <div class="swatch-role">Chữ phụ, nhãn label</div>
+          </div>
+        </div>
+
+        <div class="swatch-card" onclick="copyColor('#7f8699', '--color-ink-400')">
+          <div class="swatch-color" style="background: #7f8699;"></div>
+          <div class="swatch-info">
+            <div class="swatch-name">ink-400</div>
+            <div class="swatch-hex"><span>#7f8699</span> <span class="swatch-copy-hint">Copy</span></div>
+            <div class="swatch-role">Placeholder, icon mờ</div>
+          </div>
+        </div>
+
+        <div class="swatch-card" onclick="copyColor('#e5e8ee', '--color-border')">
+          <div class="swatch-color" style="background: #e5e8ee;"></div>
+          <div class="swatch-info">
+            <div class="swatch-name">border ★</div>
+            <div class="swatch-hex"><span>#e5e8ee</span> <span class="swatch-copy-hint">Copy</span></div>
+            <div class="swatch-role">Đường viền các thẻ</div>
+          </div>
+        </div>
+
+        <div class="swatch-card" onclick="copyColor('#f5f6f8', '--color-surface-muted')">
+          <div class="swatch-color" style="background: #f5f6f8; border-bottom: 1px solid #e2e8f0;"></div>
+          <div class="swatch-info">
+            <div class="swatch-name">surface-muted</div>
+            <div class="swatch-hex"><span>#f5f6f8</span> <span class="swatch-copy-hint">Copy</span></div>
+            <div class="swatch-role">Nền trang toàn ứng dụng</div>
+          </div>
+        </div>
+
+        <div class="swatch-card" onclick="copyColor('#ffffff', '--color-surface')">
+          <div class="swatch-color" style="background: #ffffff; border-bottom: 1px solid #e2e8f0;"></div>
+          <div class="swatch-info">
+            <div class="swatch-name">surface</div>
+            <div class="swatch-hex"><span>#ffffff</span> <span class="swatch-copy-hint">Copy</span></div>
+            <div class="swatch-role">Nền trắng các thẻ Card</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 4: SEMANTIC STATUS -->
+    <section class="section-card">
+      <div class="section-header">
+        <h2 class="section-title">
+          <span style="color: #059669">●</span>
+          4. Semantic Palette — Màu trạng thái nghiệp vụ
+        </h2>
+        <p class="section-desc">
+          Các màu biểu thị trạng thái rõ ràng, nhất quán trên tất cả màn hình người dùng và nhân viên y tế.
+        </p>
+      </div>
+
+      <div class="swatches-grid">
+        <div class="swatch-card" onclick="copyColor('#00acc1', 'appointment-pill--completed')">
+          <div class="swatch-color" style="background: #00acc1; color: #fff; font-size: 0.72rem; font-weight: 700;">CYAN
+          </div>
+          <div class="swatch-info">
+            <div class="swatch-name">Đã hiến máu</div>
+            <div class="swatch-hex"><span>#00acc1</span> <span class="swatch-copy-hint">Copy</span></div>
+            <div class="swatch-role">Badge lịch sử hoàn tất</div>
+          </div>
+        </div>
+
+        <div class="swatch-card" onclick="copyColor('#e53935', 'appointment-pill--cancelled')">
+          <div class="swatch-color" style="background: #e53935; color: #fff; font-size: 0.72rem; font-weight: 700;">RED
+          </div>
+          <div class="swatch-info">
+            <div class="swatch-name">Đã xoá / Hủy</div>
+            <div class="swatch-hex"><span>#e53935</span> <span class="swatch-copy-hint">Copy</span></div>
+            <div class="swatch-role">Badge huỷ & Icon giọt máu</div>
+          </div>
+        </div>
+
+        <div class="swatch-card" onclick="copyColor('#1976d2', 'appointment-pill--confirmed')">
+          <div class="swatch-color" style="background: #1976d2; color: #fff; font-size: 0.72rem; font-weight: 700;">BLUE
+          </div>
+          <div class="swatch-info">
+            <div class="swatch-name">Đã đăng ký</div>
+            <div class="swatch-hex"><span>#1976d2</span> <span class="swatch-copy-hint">Copy</span></div>
+            <div class="swatch-role">Badge đăng ký, link action</div>
+          </div>
+        </div>
+
+        <div class="swatch-card" onclick="copyColor('#f59e0b', 'appointment-pill--pending')">
+          <div class="swatch-color" style="background: #f59e0b; color: #fff; font-size: 0.72rem; font-weight: 700;">
+            AMBER</div>
+          <div class="swatch-info">
+            <div class="swatch-name">Chờ xử lý</div>
+            <div class="swatch-hex"><span>#f59e0b</span> <span class="swatch-copy-hint">Copy</span></div>
+            <div class="swatch-role">Badge chờ duyệt / hoãn</div>
+          </div>
+        </div>
+
+        <div class="swatch-card" onclick="copyColor('#059669', '--color-success-600')">
+          <div class="swatch-color" style="background: #059669; color: #fff; font-size: 0.72rem; font-weight: 700;">
+            SUCCESS</div>
+          <div class="swatch-info">
+            <div class="swatch-name">Đạt / Hiệu lực</div>
+            <div class="swatch-hex"><span>#059669</span> <span class="swatch-copy-hint">Copy</span></div>
+            <div class="swatch-role">Sàng lọc đạt, túi máu chuẩn</div>
+          </div>
+        </div>
+
+        <div class="swatch-card" onclick="copyColor('#1a4f9c', 'history-facility-title')">
+          <div class="swatch-color" style="background: #1a4f9c; color: #fff; font-size: 0.72rem; font-weight: 700;">NAVY
+          </div>
+          <div class="swatch-info">
+            <div class="swatch-name">Deep Blue Title</div>
+            <div class="swatch-hex"><span>#1a4f9c</span> <span class="swatch-copy-hint">Copy</span></div>
+            <div class="swatch-role">Tiêu đề cơ sở y tế</div>
+          </div>
+        </div>
+
+        <div class="swatch-card" onclick="copyColor('#f0f8ff', 'thank-you-banner')">
+          <div class="swatch-color"
+            style="background: #f0f8ff; border-bottom: 1px solid #d0e6fc; font-size: 0.72rem; font-weight: 700; color: #1e3a8a;">
+            ICE BLUE</div>
+          <div class="swatch-info">
+            <div class="swatch-name">Alice Ice Blue</div>
+            <div class="swatch-hex"><span>#f0f8ff</span> <span class="swatch-copy-hint">Copy</span></div>
+            <div class="swatch-role">Banner Cảm ơn & Mascot</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 5: COMPONENT LIVE PREVIEW -->
+    <section class="section-card">
+      <div class="section-header">
+        <h2 class="section-title">
+          <span>⚡</span>
+          5. Xem Trước Thực Tế (Live Component Preview)
+        </h2>
+        <p class="section-desc">
+          Các thành phần giao diện sử dụng trực tiếp các mã màu trên để bạn kiểm tra tương phản và tính thẩm mỹ:
+        </p>
+      </div>
+
+      <div class="demo-grid">
+        <!-- Buttons Preview -->
+        <div class="demo-box">
+          <div class="demo-box-title">Nút Bấm (Button Styles)</div>
+          <div class="btn-row" style="margin-bottom: 12px;">
+            <button class="btn btn-primary">Primary (#a8192e)</button>
+            <button class="btn btn-secondary">Secondary (White)</button>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-outline-blue">Quay về (#1976d2)</button>
+            <button class="btn btn-teal">Healthcare Teal</button>
+            <button class="btn btn-danger">Xóa (#dc2626)</button>
+          </div>
+        </div>
+
+        <!-- Badges Preview -->
+        <div class="demo-box">
+          <div class="demo-box-title">Pill Badges (Trạng Thái)</div>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <span class="badge badge-completed">Đã hiến máu</span>
+            <span class="badge badge-cancelled">Đã xoá</span>
+            <span class="badge badge-confirmed">Đã đăng ký</span>
+            <span class="badge badge-pending">Chờ xác nhận</span>
+            <span class="badge badge-active">Còn hiệu lực</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card Sample -->
+      <div style="margin-top: 20px;">
+        <div class="demo-box-title" style="margin-bottom: 8px;">Thẻ Đặt Hẹn Lịch Sử (Thực tế)</div>
+        <div class="preview-card">
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <div style="text-align: center; width: 50px;">
+              <svg width="34" height="42" viewBox="0 0 44 52" fill="none">
+                <path d="M22 2C22 2 4 23 4 33C4 42.941 12.059 51 22 51C31.941 51 40 42.941 40 33C40 23 22 2 22 2Z"
+                  fill="#E53935" />
+                <path d="M12 30C12 36 15 42 20 44" stroke="white" stroke-width="3.5" stroke-linecap="round" />
+              </svg>
+              <div style="font-size: 0.75rem; font-weight: 600; color: #475569; margin-top: 2px;">Hiến máu</div>
+            </div>
+            <div>
+              <h4 style="color: #1a4f9c; font-size: 1rem; font-weight: 700; margin-bottom: 4px;">
+                Học viện Công nghệ Bưu chính Viễn thông TP. Hồ Chí Minh
+              </h4>
+              <p style="font-size: 0.82rem; color: #475569;">🏢 97, đường Man Thiện Phường Tăng Nhơn Phú, Thành phố Hồ
+                Chí Minh</p>
+              <p style="font-size: 0.82rem; color: #475569;">🕒 07:00 đến 10:30 - 11/03/2026</p>
+            </div>
+          </div>
+          <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 14px;">
+            <span class="badge badge-completed">Đã hiến máu</span>
+            <span style="color: #1976d2; font-size: 0.85rem; font-weight: 600; cursor: pointer;">📋 Xem chi tiết</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div id="toast">📋 Đã sao chép mã màu: <span id="toast-color" style="color: #38bdf8;"></span></div>
+
+  <script>
+    function copyColor(hex, tokenName) {
+      navigator.clipboard.writeText(hex).then(() => {
+        const toast = document.getElementById('toast');
+        const toastColor = document.getElementById('toast-color');
+        toastColor.textContent = `${hex} (${tokenName})`;
+        toast.classList.add('show');
+        setTimeout(() => {
+          toast.classList.remove('show');
+        }, 2200);
+      });
+    }
+  </script>
+</body>
+
+</html>

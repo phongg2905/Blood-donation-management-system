@@ -1,14 +1,13 @@
 /**
  * Clean Modern Medical Portal - Landing Page Content Model
  *
- * Provides typed data structures for:
- * - In-page anchor navigation
- * - Real-time blood group need levels (Bento grid)
- * - 4-step digital donation journey
- * - Community impact metrics
- * - Verified donor & medical staff stories
- * - Medical FAQ accordion
- * - Backwards-compatible anchors and steps
+ * Professional Medical System Architecture:
+ * - Ministry of Health (MoH) & National Institute of Hematology (NIHBT) Standards
+ * - Real-time Clinical Blood Group Demand & Inventory Matrix
+ * - 5-Step Clinical Blood Donation Pathway (Circular 26/2013 & 15/2023 TT-BYT)
+ * - Statutory Donor Rights & Health Benefits
+ * - Hospital Partner Network & Verified Medical Testimonials
+ * - Clinical FAQ Accordion
  */
 
 export const LANDING_ANCHORS = {
@@ -44,53 +43,49 @@ export interface LandingStep {
 export const PREPARATION_STEPS: readonly LandingStep[] = [
   {
     title: 'Nghỉ ngơi đầy đủ',
-    description: 'Ngủ đủ giấc vài ngày trước khi hiến để cơ thể sẵn sàng.',
+    description: 'Ngủ đủ giấc tối thiểu 6 tiếng trước ngày hiến máu.',
   },
   {
-    title: 'Ăn uống hợp lý',
-    description: 'Ăn nhẹ, tránh rượu bia và uống đủ nước trước khi đến.',
+    title: 'Ăn uống khoa học',
+    description: 'Ăn nhẹ, tránh dầu mỡ và uống đủ 300 - 500ml nước.',
   },
   {
-    title: 'Chuẩn bị giấy tờ',
-    description: 'Mang giấy tờ tuỳ thân để xác nhận thông tin người hiến.',
+    title: 'Giấy tờ tùy thân',
+    description: 'Mang theo CCCD gắn chip hoặc ứng dụng định danh VNeID.',
   },
   {
-    title: 'Khai báo trung thực',
-    description:
-      'Thông tin sức khỏe chính xác giúp máu của bạn an toàn cho người nhận.',
+    title: 'Khai báo y tế',
+    description: 'Cung cấp thông tin trung thực để đảm bảo an toàn truyền máu.',
   },
 ];
 
 export const DONATION_JOURNEY: readonly LandingStep[] = [
   {
-    title: 'Đăng ký',
-    description: 'Chọn đợt hiến phù hợp và giữ chỗ cho hành trình của bạn.',
+    title: 'Đăng ký online',
+    description: 'Chọn đợt hiến và hoàn thành phiếu khai báo y tế trực tuyến.',
   },
   {
-    title: 'Khai báo sức khỏe',
-    description:
-      'Chia sẻ thông tin sức khỏe trung thực để bảo vệ bạn và người nhận.',
+    title: 'Khám sàng lọc',
+    description: 'Bác sĩ kiểm tra sức khỏe tổng quát và đo huyết áp.',
   },
   {
-    title: 'Khám & sàng lọc',
-    description: 'Nhân viên y tế thăm khám, tư vấn trước khi bạn hiến.',
+    title: 'Xét nghiệm nhanh',
+    description: 'Kiểm tra huyết sắc tố và kháng nguyên virus viêm gan B.',
   },
   {
     title: 'Hiến máu',
-    description:
-      'Phần máu của bạn được trao đi trong một quy trình an toàn, khép kín.',
+    description: 'Tiếp nhận máu trong quy trình vô trùng khép kín 1 lần.',
   },
   {
-    title: 'Theo dõi sau hiến',
-    description:
-      'Nghỉ ngơi, uống đủ nước và làm theo hướng dẫn của nhân viên y tế.',
+    title: 'Nghỉ ngơi & Nhận quà',
+    description: 'Nghỉ ngơi phục hồi thể lực và nhận chứng nhận số toàn quốc.',
   },
 ];
 
 export const formatIndex = (position: number): string =>
   String(position).padStart(2, '0');
 
-/** 4-step digitalized donation journey */
+/** 5-Step Clinical Donation Journey (NIHBT & MoH Standard) */
 export interface JourneyStep {
   step: string;
   title: string;
@@ -103,43 +98,52 @@ export interface JourneyStep {
 export const DIGITAL_JOURNEY_STEPS: readonly JourneyStep[] = [
   {
     step: '01',
-    title: 'Đăng ký online',
-    subtitle: 'Nhanh chóng & Tiện lợi',
+    title: 'Đăng ký trực tuyến',
+    subtitle: 'Nhanh chóng & Thuận tiện',
     description:
-      'Lựa chọn đợt hiến, địa điểm thuận tiện và hoàn thành phiếu khai báo y tế trực tuyến trong 2 phút.',
+      'Lựa chọn địa điểm, khung giờ thuận tiện và hoàn thành phiếu khai báo y tế trước khi đến.',
     iconName: 'calendar',
-    badge: 'Chỉ mất 2 phút',
+    badge: 'Chỉ 2 phút',
   },
   {
     step: '02',
-    title: 'QR Check-in',
-    subtitle: 'Không chờ đợi giấy tờ',
+    title: 'Khám sàng lọc y khoa',
+    subtitle: 'Bác sĩ chuyên khoa khám',
     description:
-      'Nhận vé hiến máu điện tử kèm mã QR. Quét mã tại quầy tiếp đón để xác thực thông tin ngay lập tức.',
-    iconName: 'qr',
-    badge: 'Ưu tiên không đợi',
+      'Bác sĩ kiểm tra tiền sử sức khỏe, đo huyết áp, mạch và tư vấn thể tích hiến phù hợp.',
+    iconName: 'stethoscope',
+    badge: 'Khám chuyên sâu',
   },
   {
     step: '03',
-    title: 'Sàng lọc & Hiến máu',
-    subtitle: 'An toàn tuyệt đối 100%',
+    title: 'Xét nghiệm máu nhanh',
+    subtitle: 'Kiểm định tại chỗ',
     description:
-      'Bác sĩ thăm khám đo huyết áp, xét nghiệm máu nhanh và lấy máu bằng bộ dụng cụ vô trùng dùng một lần.',
-    iconName: 'stethoscope',
+      'Lấy giọt máu đầu ngón tay để kiểm tra nhanh huyết sắc tố và virus viêm gan B.',
+    iconName: 'qr',
     badge: 'Chuẩn Bộ Y Tế',
   },
   {
     step: '04',
-    title: 'Chứng nhận điện tử',
-    subtitle: 'Lưu trữ & Tra cứu trọn đời',
+    title: 'Tiếp nhận hiến máu',
+    subtitle: 'Vô trùng tuyệt đối 100%',
     description:
-      'Chứng nhận hiến máu điện tử được cấp tức thì trên hệ thống, được công nhận trên toàn quốc.',
+      'Tiếp nhận máu bằng bộ kim và túi dẻo chuyên dụng dùng 1 lần trong 5 - 7 phút.',
+    iconName: 'calendar',
+    badge: 'An toàn vô trùng',
+  },
+  {
+    step: '05',
+    title: 'Bồi dưỡng & Chứng nhận',
+    subtitle: 'Quyền lợi toàn quốc',
+    description:
+      'Nghỉ ngơi tại chỗ, nhận suất ăn nhẹ, gói bồi dưỡng và Giấy chứng nhận điện tử trọn đời.',
     iconName: 'award',
-    badge: 'Có giá trị toàn quốc',
+    badge: 'Bồi hoàn trọn đời',
   },
 ];
 
-/** Real-time blood group supply & need indicators for Bento card */
+/** Real-time clinical blood group supply & need indicators */
 export interface BloodGroupNeed {
   group: 'O' | 'A' | 'B' | 'AB';
   rh: '+/-';
@@ -156,7 +160,7 @@ export const BLOOD_GROUP_NEEDS: readonly BloodGroupNeed[] = [
     level: 'CRITICAL',
     levelText: 'Cần khẩn cấp',
     reservePercent: 34,
-    description: 'Nhóm máu truyền cấp cứu cho mọi người, đang thiếu hụt trầm trọng.',
+    description: 'Khối hồng cầu cấp cứu vạn năng, ưu tiên hồi sức tai nạn và chấn thương lớn.',
   },
   {
     group: 'A',
@@ -164,7 +168,7 @@ export const BLOOD_GROUP_NEEDS: readonly BloodGroupNeed[] = [
     level: 'HIGH',
     levelText: 'Cần bổ sung',
     reservePercent: 52,
-    description: 'Lượng dự trữ dưới ngưỡng an toàn 7 ngày tại các bệnh viện tuyến đầu.',
+    description: 'Phục vụ các ca phẫu thuật tim mạch, ghép tạng và cấp cứu đa chấn thương.',
   },
   {
     group: 'B',
@@ -172,7 +176,7 @@ export const BLOOD_GROUP_NEEDS: readonly BloodGroupNeed[] = [
     level: 'NORMAL',
     levelText: 'Mức ổn định',
     reservePercent: 78,
-    description: 'Duy trì đủ cơ số máu điều trị thường quy trong tuần này.',
+    description: 'Duy trì đủ cơ số điều trị thường quy cho bệnh nhân ung bướu và bệnh máu.',
   },
   {
     group: 'AB',
@@ -180,11 +184,11 @@ export const BLOOD_GROUP_NEEDS: readonly BloodGroupNeed[] = [
     level: 'NORMAL',
     levelText: 'Đủ dự trữ',
     reservePercent: 90,
-    description: 'Kho dự trữ đảm bảo tốt nhu cầu điều trị hiện tại.',
+    description: 'Nhận hồng cầu vạn năng, cung cấp nguồn huyết tương và gạn tách tiểu cầu.',
   },
 ];
 
-/** Human Stories / Testimonials */
+/** Human Stories / Testimonials from Frontline Doctors & Dedicated Donors */
 export interface HumanStory {
   author: string;
   role: string;
@@ -196,34 +200,33 @@ export interface HumanStory {
 
 export const HUMAN_STORIES: readonly HumanStory[] = [
   {
-    author: 'BS. Lê Thị Phương Thảo',
-    role: 'Bác sĩ Hồi sức Cấp cứu · BV Bạch Mai',
-    avatarText: 'PT',
+    author: 'TS.BS. Nguyễn Văn Chung',
+    role: 'Trưởng khoa Cấp cứu · Bệnh viện Bạch Mai',
+    avatarText: 'VC',
     quote:
-      'Trong phòng cấp cứu, mỗi phút đều là ranh giới mong manh giữa sự sống và cái chết. Những đơn vị máu được chuẩn bị sẵn chính là chiếc phao cứu sinh trực tiếp nhất cho người bệnh.',
-    highlight: 'Hơn 850 bệnh nhân được truyền máu kịp thời mỗi tháng',
+      'Trong cấp cứu tai nạn, mỗi phút chờ máu là một cơ hội sống mong manh. Những đơn vị máu được tiếp nhận và chuẩn bị sẵn chính là nguồn sống trực tiếp giữ lại tính mạng người bệnh.',
+    highlight: 'Điều phối hơn 1,200 ca cấp cứu/tháng',
   },
   {
     author: 'Nguyễn Minh Quân',
-    role: 'Tình nguyện viên hiến máu',
+    role: 'Tình nguyện viên hiến máu thường xuyên',
     avatarText: 'MQ',
-    timesDonated: 14,
+    timesDonated: 16,
     quote:
-      'Quy trình đăng ký online và quét QR mới này siêu nhanh, chỉ mất tầm 20 phút là mình đã hoàn thành. Cảm giác nhìn thấy chứng nhận số gửi về máy thực sự rất ấm lòng và tự hào.',
-    highlight: '14 lần hiến máu tình nguyện',
+      'Hệ thống số hóa giúp mình đặt lịch trước, đến nơi quét QR làm thủ tục chỉ mất 3 phút. Nhìn thấy thông báo máu của mình đã được chuyển tới bệnh viện thực sự rất ý nghĩa.',
+    highlight: '16 lần hiến máu tình nguyện',
   },
   {
-    author: 'Trần Thuỳ Linh',
-    role: 'Người hiến máu lần đầu',
-    avatarText: 'TL',
-    timesDonated: 2,
+    author: 'BS. Lê Thị Phương Thảo',
+    role: 'Bác sĩ Viện Huyết học - Truyền máu TW',
+    avatarText: 'PT',
     quote:
-      'Lúc đầu mình rất sợ đau, nhưng các bác sĩ và nhân viên cực kỳ nhẹ nhàng và chu đáo. Sau khi hiến còn được nhận quà bồi dưỡng và theo dõi sức khỏe rất kỹ lưỡng.',
-    highlight: 'Đã hoàn thành 2 lần hiến máu an toàn',
+      'Toàn bộ quy trình từ khâu khám sàng lọc, xét nghiệm đến chiết tách thành phần máu đều tuân thủ nghiêm ngặt chuẩn vô trùng Bộ Y Tế, bảo đảm tuyệt đối an toàn cho người hiến.',
+    highlight: 'Chuyên gia an toàn truyền máu',
   },
 ];
 
-/** FAQ Items */
+/** Clinical & Legal FAQ Items */
 export interface FaqItem {
   id: string;
   question: string;
@@ -233,56 +236,134 @@ export interface FaqItem {
 export const FAQ_ITEMS: readonly FaqItem[] = [
   {
     id: 'faq-1',
-    question: 'Ai có thể tham gia hiến máu tình nguyện?',
+    question: 'Tiêu chuẩn sức khỏe để tham gia hiến máu tình nguyện?',
     answer:
-      'Mọi công dân khỏe mạnh từ đủ 18 đến 60 tuổi, cân nặng từ 45kg trở lên đối với nữ và 48kg đối với nam, không mắc các bệnh truyền nhiễm qua đường máu (HIV, viêm gan B, viêm gan C, giang mai...) và có huyết áp ổn định đều có thể tham gia hiến máu.',
+      'Công dân từ 18 - 60 tuổi, cân nặng từ 45kg trở lên đối với nữ và 48kg đối với nam, huyết áp ổn định và không mắc các bệnh truyền nhiễm qua đường máu.',
   },
   {
     id: 'faq-2',
-    question: 'Hiến máu có làm ảnh hưởng đến sức khỏe hay không?',
+    question: 'Quyền lợi bồi hoàn máu của người hiến máu được quy định như thế nào?',
     answer:
-      'Hoàn toàn không. Lượng máu hiến (khoảng 250ml - 450ml) chiếm khoảng 1/10 tổng lượng máu trong cơ thể. Tủy xương sẽ được kích thích tái tạo lượng máu mới chỉ sau vài ngày, giúp cơ thể khỏe mạnh và hoạt bát hơn.',
+      'Theo quy định của Bộ Y Tế, người hiến máu tình nguyện được cấp Giấy chứng nhận và được bồi hoàn miễn phí số lượng máu tương ứng khi bản thân cần truyền máu tại mọi bệnh viện công lập trên toàn quốc.',
   },
   {
     id: 'faq-3',
-    question: 'Cần chuẩn bị gì trước khi đến hiến máu?',
+    question: 'Khoảng cách an toàn tối thiểu giữa các lần hiến máu là bao lâu?',
     answer:
-      'Đêm trước ngày hiến máu bạn nên ngủ đủ giấc (ít nhất 6 tiếng), không uống rượu bia hay chất kích thích. Sáng ngày hiến nên ăn nhẹ (tránh đồ ăn nhiều dầu mỡ), uống nhiều nước (khoảng 300 - 500ml) và mang theo CCCD/VNeID để đối soát thông tin.',
+      'Khoảng cách tối thiểu giữa 2 lần hiến máu toàn phần là 12 tuần (khoảng 84 ngày). Đối với hiến thành phần máu (gạn tiểu cầu), khoảng cách tối thiểu là 3 tuần (21 ngày).',
   },
   {
     id: 'faq-4',
-    question: 'Khoảng cách giữa hai lần hiến máu là bao lâu?',
+    question: 'Cần chuẩn bị gì trước và sau khi tham gia hiến máu?',
     answer:
-      'Theo quy định y tế, khoảng cách tối thiểu giữa 2 lần hiến máu toàn phần là 12 tuần (khoảng 84 ngày). Đối với hiến thành phần máu (gạn tiểu cầu), khoảng cách tối thiểu là 3 tuần.',
+      'Đêm trước ngày hiến nên ngủ đủ giấc (ít nhất 6 tiếng), không uống rượu bia. Sáng ngày hiến nên ăn nhẹ, uống đủ nước và mang theo CCCD gắn chip hoặc ứng dụng VNeID.',
   },
   {
     id: 'faq-5',
-    question: 'Giấy chứng nhận hiến máu điện tử có quyền lợi gì?',
+    question: 'Hiến máu có ảnh hưởng tới sức khỏe hay gây tăng cân không?',
     answer:
-      'Giấy chứng nhận hiến máu điện tử có giá trị tương đương bản giấy trên toàn quốc. Khi bản thân người hiến cần truyền máu tại bất kỳ bệnh viện công lập nào sẽ được bồi hoàn miễn phí số lượng máu tương ứng đã hiến.',
+      'Hoàn toàn không. Lượng máu hiến (250ml - 450ml) chiếm chưa tới 1/10 lượng máu cơ thể. Tủy xương sẽ kích thích sinh máu mới chỉ sau vài ngày, giúp thúc đẩy tuần hoàn khỏe mạnh.',
   },
 ];
 
-/** Impact numbers */
+/** Verified National Impact Metrics */
 export const IMPACT_METRICS = [
   {
-    label: 'Đơn vị máu đã tiếp nhận',
-    value: '4,850+',
-    subtext: 'Đã phân phối tới 24 bệnh viện',
+    label: 'Đơn vị máu đã điều phối',
+    value: '48,500+',
+    subtext: 'Cung cấp trực tiếp cho 24 bệnh viện tuyến đầu',
   },
   {
-    label: 'Người đăng ký số hoá',
-    value: '14,200+',
-    subtext: 'Cộng đồng tình nguyện viên tích cực',
+    label: 'Người đăng ký hiến máu số hóa',
+    value: '124,000+',
+    subtext: 'Dữ liệu xác thực đồng bộ VNeID',
   },
   {
     label: 'Thời gian check-in trung bình',
-    value: '1.5 phút',
-    subtext: 'Nhanh hơn 80% so với thủ công',
+    value: '2.5 phút',
+    subtext: 'Quy trình không giấy tờ, quét QR tiếp nhận',
   },
   {
-    label: 'Tỷ lệ an toàn truyền máu',
+    label: 'Tỷ lệ kiểm định an toàn truyền máu',
     value: '100%',
-    subtext: 'Quy trình kiểm định 5 bước khép kín',
+    subtext: 'Kiểm soát 5 tác nhân lây nhiễm theo chuẩn Bộ Y Tế',
   },
 ] as const;
+
+/** Key Hospital Receiving Hubs (Compatible with CampusBattle interface) */
+export interface CampusBattle {
+  id: string;
+  school: string;
+  shortName: string;
+  progress: number;
+  donors: number;
+  target: number;
+  color: string;
+}
+
+export const CAMPUS_BATTLES: readonly CampusBattle[] = [
+  {
+    id: 'nihbt',
+    school: 'Viện Huyết học - Truyền máu TW',
+    shortName: 'Viện Huyết Học TW',
+    progress: 88,
+    donors: 352,
+    target: 400,
+    color: '#dc2626',
+  },
+  {
+    id: 'bachmai',
+    school: 'Bệnh viện Bạch Mai Hà Nội',
+    shortName: 'BV Bạch Mai',
+    progress: 92,
+    donors: 368,
+    target: 400,
+    color: '#2563eb',
+  },
+  {
+    id: 'vietduc',
+    school: 'Bệnh viện Hữu nghị Việt Đức',
+    shortName: 'BV Việt Đức',
+    progress: 74,
+    donors: 296,
+    target: 400,
+    color: '#059669',
+  },
+];
+
+/** Statutory Donor Rights & Health Benefits (Circular 15/2023 & 26/2013 MoH) */
+export interface GenZPerk {
+  id: string;
+  title: string;
+  badge: string;
+  iconName: 'stethoscope' | 'certificate' | 'nutrition';
+  desc: string;
+  tagTone: 'red' | 'teal' | 'amber';
+}
+
+export const GENZ_PERKS: readonly GenZPerk[] = [
+  {
+    id: 'screening',
+    title: 'Gói xét nghiệm tầm soát sức khỏe',
+    badge: 'Miễn phí 100%',
+    iconName: 'stethoscope',
+    desc: 'Xét nghiệm 5 bệnh truyền nhiễm qua đường máu, nhóm máu ABO & Rh, chức năng gan thận.',
+    tagTone: 'teal',
+  },
+  {
+    id: 'reimbursement',
+    title: 'Quyền bồi hoàn máu toàn quốc',
+    badge: 'Luật Y Tế',
+    iconName: 'certificate',
+    desc: 'Được truyền máu miễn phí tương đương lượng máu đã hiến tại mọi bệnh viện công lập toàn quốc.',
+    tagTone: 'red',
+  },
+  {
+    id: 'nutrition',
+    title: 'Chế độ bồi dưỡng & Phục hồi',
+    badge: 'Quy định Nhà Nước',
+    iconName: 'nutrition',
+    desc: 'Suất ăn nhẹ tại chỗ, chi phí hỗ trợ đi lại, thuốc bổ vi chất sắt và quà tặng bồi dưỡng sức khỏe.',
+    tagTone: 'amber',
+  },
+];
