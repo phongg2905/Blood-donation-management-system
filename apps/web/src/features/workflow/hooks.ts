@@ -2,8 +2,34 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { describeError } from './domain';
 
+interface WorkflowCacheEntry<T> {
+  data: T;
+  timestamp: number;
+}
+
+const workflowQueryCache = new Map<string, WorkflowCacheEntry<unknown>>();
+const workflowInFlight = new Map<string, Promise<unknown>>();
+
+export function clearWorkflowQueryCache(keyPrefix?: string) {
+  if (!keyPrefix) {
+    workflowQueryCache.clear();
+    workflowInFlight.clear();
+    return;
+  }
+  for (const key of workflowQueryCache.keys()) {
+    if (key.includes(keyPrefix)) {
+      workflowQueryCache.delete(key);
+    }
+  }
+  for (const key of workflowInFlight.keys()) {
+    if (key.includes(keyPrefix)) {
+      workflowInFlight.delete(key);
+    }
+  }
+}
+
 /**
- * Session-scoped async query.
+ * Session-scoped async query with SWR caching and request deduplication.
  *
  * The key includes the user id and permissions so a late response can never
  * replace the data of a different route or user, matching the campaign hooks.
@@ -18,31 +44,57 @@ export function useWorkflowQuery<T>(
   const latest = useRef(fetcher);
   latest.current = fetcher;
   const [revision, setRevision] = useState(0);
+
+  const cached = enabled
+    ? (workflowQueryCache.get(identity) as WorkflowCacheEntry<T> | undefined)
+    : undefined;
+
   const [state, setState] = useState<{
     key: string;
     data?: T;
     error?: unknown;
     loading: boolean;
-  }>({ key: identity, loading: true });
+  }>(() => ({
+    key: identity,
+    data: cached?.data,
+    loading: enabled && cached?.data === undefined,
+  }));
 
   useEffect(() => {
     let active = true;
     if (!enabled) return;
-    setState((previous) => ({
-      key: identity,
-      ...(previous.key === identity && previous.data !== undefined
-        ? { data: previous.data }
-        : {}),
-      loading: true,
-    }));
-    void latest.current().then(
+
+    const currentCached = workflowQueryCache.get(identity) as
+      | WorkflowCacheEntry<T>
+      | undefined;
+    const hasData = currentCached?.data !== undefined;
+
+    if (!hasData) {
+      setState((previous) => ({
+        key: identity,
+        data: previous.key === identity ? previous.data : undefined,
+        loading: true,
+      }));
+    }
+
+    let inFlight = workflowInFlight.get(identity) as Promise<T> | undefined;
+    if (!inFlight) {
+      inFlight = latest.current().finally(() => {
+        workflowInFlight.delete(identity);
+      });
+      workflowInFlight.set(identity, inFlight);
+    }
+
+    void inFlight.then(
       (data) => {
+        workflowQueryCache.set(identity, { data, timestamp: Date.now() });
         if (active) setState({ key: identity, data, loading: false });
       },
       (error) => {
         if (active) setState({ key: identity, error, loading: false });
       },
     );
+
     return () => {
       active = false;
     };
@@ -52,7 +104,11 @@ export function useWorkflowQuery<T>(
     data: state.key === identity ? state.data : undefined,
     error: state.key === identity ? state.error : undefined,
     loading: enabled && (state.key !== identity || state.loading),
-    retry: useCallback(() => setRevision((n) => n + 1), []),
+    retry: useCallback(() => {
+      workflowQueryCache.delete(identity);
+      workflowInFlight.delete(identity);
+      setRevision((n) => n + 1);
+    }, [identity]),
   };
 }
 

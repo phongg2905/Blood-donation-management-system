@@ -108,6 +108,7 @@ export interface ScreeningRecord extends ScreeningNotes {
   checkInId?: string;
   status: ScreeningStatus;
   measurements: ScreeningMeasurements;
+  indicatedVolumeMl?: number | null;
   /** Required for INELIGIBLE / DEFERRED. */
   reason: string | null;
   decisionReason?: string | null;
@@ -125,29 +126,39 @@ export interface ScreeningQueueItem {
 export type ScreeningOutcome = 'ELIGIBLE' | 'INELIGIBLE' | 'DEFERRED';
 
 export interface BloodBagInput {
-  registrationId: string;
+  registrationId?: string;
   screeningId?: string;
   code: string;
   volumeMl: number;
   bloodGroup: string | null;
   bloodType?: string | null;
+  donorName?: string;
+  campaignId?: string;
+  campaignName?: string;
+  status?: BloodBagStatus;
+  storageLocation?: string;
+  syncDonorProfile?: boolean;
+  notes?: string;
 }
 
 export interface BloodBag {
   id: string;
   code: string;
-  registrationId: string;
-  donorId: string;
+  registrationId?: string;
+  donorId?: string;
   donorName: string;
+  campaignId?: string;
   campaignName: string;
   volumeMl: number;
   bloodGroup: string | null;
   bloodType?: string | null;
   status: BloodBagStatus;
+  storageLocation?: string | null;
   receivedAt: string;
   certificateCode?: string;
   certificateId?: string;
   certificateFileUrl?: string | null;
+  notes?: string;
 }
 
 export interface DonationCertificate {
@@ -211,10 +222,13 @@ export interface WorkflowRepository {
     reason: string | null,
     deferredUntil?: string | null,
     notes?: string | null,
+    indicatedVolumeMl?: number | null,
   ): Promise<ScreeningRecord>;
-  eligibleForBag(): Promise<ScreeningQueueItem[]>;
-  bloodBags(): Promise<BloodBag[]>;
+  eligibleForBag(campaignId?: string): Promise<ScreeningQueueItem[]>;
+  bloodBags(campaignId?: string): Promise<BloodBag[]>;
   createBloodBag(input: BloodBagInput): Promise<BloodBag>;
+  updateBloodBag(id: string, input: Partial<BloodBagInput>): Promise<BloodBag>;
+  deleteBloodBag(id: string): Promise<void>;
   certificates(donorId: string): Promise<DonationCertificate[]>;
   certificate(id: string): Promise<DonationCertificate>;
   attachCertificateFile?(id: string, fileUrl: string): Promise<DonationCertificate>;
