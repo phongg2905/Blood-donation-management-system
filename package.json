@@ -13,6 +13,8 @@
     "dev": "pnpm build:shared && pnpm --parallel --filter @blood/api --filter @blood/web dev",
     "dev:web": "pnpm build:shared && pnpm --filter @blood/web dev",
     "dev:api": "pnpm build:shared && pnpm --filter @blood/api dev",
+    "start": "pnpm --parallel --filter @blood/api start --filter @blood/web preview",
+    "build:start": "pnpm build && pnpm start",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "lint": "eslint .",
@@ -23,6 +25,7 @@
     "db:deploy": "pnpm --filter @blood/api db:deploy",
     "db:studio": "pnpm --filter @blood/api db:studio",
     "db:seed": "pnpm --filter @blood/api db:seed",
+    "db:seed:rich": "pnpm --filter @blood/api db:seed:rich",
     "test": "pnpm build:shared && pnpm -r test"
   },
   "devDependencies": {

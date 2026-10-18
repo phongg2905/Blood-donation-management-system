@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { ROLE_NAMES } from '@blood/shared-types';
@@ -9,8 +9,7 @@ import { visibleNavItems } from '@/features/auth/navigation';
 import { AUTH_ROUTES, primaryRole } from '@/features/auth/routing';
 import { Heart } from 'lucide-react';
 import { NotificationBell } from '@/features/notifications/components/NotificationBell';
-import { useHeaderAutoHide } from '@/hooks/useHeaderAutoHide';
-
+import { TopProgressBar } from '@/components/common/TopProgressBar';
 export interface AppShellProps {
   children: ReactNode;
   /** Only used for layout-specific styling hooks. */
@@ -31,11 +30,14 @@ export function AppShell({ children, variant }: AppShellProps) {
   const [loggingOut, setLoggingOut] = useState(false);
   const menuRef = useRef<HTMLDetailsElement>(null);
 
+  useEffect(() => {
+    if (import.meta.env.MODE !== 'test') {
+      window.scrollTo(0, 0);
+    }
+  }, [pathname]);
+
   const role = primaryRole(currentUser?.roles ?? []);
   const items = visibleNavItems(hasPermission, role);
-
-  // The masthead slides out on the way down and back on the way up.
-  useHeaderAutoHide(pathname);
 
   async function handleLogout() {
     setLoggingOut(true);
@@ -51,6 +53,7 @@ export function AppShell({ children, variant }: AppShellProps) {
 
   return (
     <div className={`app-shell app-shell--${variant}${isHome ? ' app-shell--home' : ''}`}>
+      <TopProgressBar />
       <a className="skip-link" href="#main-content">
         Đến nội dung chính
       </a>
@@ -59,6 +62,7 @@ export function AppShell({ children, variant }: AppShellProps) {
           <Brand
             to="/"
             tagline={variant === 'admin' ? 'Quản trị' : 'Quản lý hiến máu'}
+            inverse={isHome}
           />
 
           <nav className="app-nav" aria-label="Điều hướng chính">

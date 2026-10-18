@@ -10,6 +10,7 @@ import { ApiRequestError } from '@/services/api';
 import type {
   BackendBloodType,
   BloodBagInput,
+  DonorRegistration,
   HealthAnswers,
   RhFactor,
   ScreeningMeasurements,
@@ -80,6 +81,41 @@ export function toBackendBloodType(
   return valid.includes(combined) ? combined : null;
 }
 
+export function parseBackendBloodType(
+  bloodType: string | null | undefined,
+): { bloodGroup: BloodGroup | ''; rh: RhFactor | '' } {
+  if (!bloodType) return { bloodGroup: '', rh: '' };
+  if (bloodType.includes('_POSITIVE') || bloodType.includes('+')) {
+    const group = bloodType.replace('_POSITIVE', '').replace('+', '').trim() as BloodGroup;
+    return { bloodGroup: group, rh: 'POSITIVE' };
+  }
+  if (bloodType.includes('_NEGATIVE') || bloodType.includes('−') || bloodType.includes('-')) {
+    const group = bloodType.replace('_NEGATIVE', '').replace('−', '').replace('-', '').trim() as BloodGroup;
+    return { bloodGroup: group, rh: 'NEGATIVE' };
+  }
+  const clean = bloodType.replace(/[^ABO]/g, '') as BloodGroup;
+  return { bloodGroup: clean || '', rh: '' };
+}
+
+export function formatBloodTypeDisplay(
+  bloodType?: string | null,
+  fallbackGroup?: string | null,
+  fallbackRh?: string | null,
+): string {
+  if (bloodType) {
+    const parsed = parseBackendBloodType(bloodType);
+    if (parsed.bloodGroup) {
+      const rhLabel = parsed.rh === 'POSITIVE' ? 'Rh+' : parsed.rh === 'NEGATIVE' ? 'Rh−' : '';
+      return rhLabel ? `Nhóm ${parsed.bloodGroup} (${rhLabel})` : `Nhóm ${parsed.bloodGroup}`;
+    }
+  }
+  if (fallbackGroup) {
+    const rhLabel = fallbackRh === 'POSITIVE' ? 'Rh+' : fallbackRh === 'NEGATIVE' ? 'Rh−' : '';
+    return rhLabel ? `Nhóm ${fallbackGroup} (${rhLabel})` : `Nhóm ${fallbackGroup}`;
+  }
+  return 'Chờ kết quả Lab';
+}
+
 /**
  * Health declaration questions shown during registration.
  *
@@ -129,7 +165,7 @@ export const MEASUREMENT_FIELDS = [
   { code: 'PULSE', label: 'Mạch', unit: 'lần/phút' },
   { code: 'WEIGHT', label: 'Cân nặng', unit: 'kg' },
   { code: 'TEMPERATURE', label: 'Nhiệt độ', unit: '°C' },
-  { code: 'HEMOGLOBIN', label: 'Hemoglobin', unit: 'g/dL' },
+  { code: 'HEMOGLOBIN', label: 'Hemoglobin', unit: 'g/L' },
 ] as const;
 
 export type MeasurementFieldCode = (typeof MEASUREMENT_FIELDS)[number]['code'];
@@ -226,6 +262,104 @@ export function getOperationalWindow(
   };
 }
 
+/**
+ * Sorts campaigns for on-site clinic stations (Check-in and Screening):
+ * Prioritizes campaigns that are currently OPEN / ACTIVE at the very top.
+ * 1. ACTIVE window & OPEN status (highest operational priority)
+ * 2. ACTIVE window (other statuses)
+ * 3. OPEN status (upcoming)
+ * 4. UPCOMING window (closest upcoming startsAt first)
+ * 5. CLOSED window (most recently closed first)
+ */
+export function sortCampaignsForOperationalStation<
+  T extends {
+    campaign: { startsAt: string; endsAt: string; status: string };
+    window: OperationalWindow;
+  },
+>(items: T[]): T[] {
+  return [...items].sort((a, b) => {
+    const getScore = (item: T) => {
+      if (item.window.status === 'ACTIVE' && item.campaign.status === 'OPEN') return 0;
+      if (item.window.status === 'ACTIVE') return 1;
+      if (item.campaign.status === 'OPEN') return 2;
+      if (item.window.status === 'UPCOMING') return 3;
+      return 4; // CLOSED
+    };
+
+    const scoreA = getScore(a);
+    const scoreB = getScore(b);
+
+    if (scoreA !== scoreB) {
+      return scoreA - scoreB;
+    }
+
+    // Both are ACTIVE/OPEN: sort by startsAt ascending
+    if (scoreA <= 2) {
+      return new Date(a.campaign.startsAt).getTime() - new Date(b.campaign.startsAt).getTime();
+    }
+
+    // Both are UPCOMING: sort by startsAt ascending (earliest upcoming first)
+    if (scoreA === 3) {
+      return new Date(a.campaign.startsAt).getTime() - new Date(b.campaign.startsAt).getTime();
+    }
+
+    // Both are CLOSED: sort by endsAt descending (most recently ended first)
+    return new Date(b.campaign.endsAt).getTime() - new Date(a.campaign.endsAt).getTime();
+  });
+}
+
+/**
+ * Sắp xếp người đăng ký tại quầy tiếp nhận (Check-in desk):
+ * 1. ƯU TIÊN CAO NHẤT: Người chưa check-in (`!checkedInAt`) luôn đứng trước người đã check-in.
+ * 2. Trong nhóm Chưa check-in:
+ *    - Đơn có thể tiếp nhận (`SCHEDULED`, `CONFIRMED`) đứng trước đơn hủy/vắng (`CANCELLED`, `NO_SHOW`).
+ *    - Ưu tiên theo ca hiến sớm (`slotStartsAt` tăng dần).
+ *    - Cùng ca hiến: Xếp theo thời gian đăng ký (`createdAt` tăng dần).
+ * 3. Trong nhóm Đã check-in:
+ *    - Xếp theo thời gian check-in gần nhất (`checkedInAt` giảm dần).
+ */
+export function sortRegistrationsForCheckIn(items: DonorRegistration[]): DonorRegistration[] {
+  return [...items].sort((a, b) => {
+    const aCheckedIn = Boolean(a.checkedInAt);
+    const bCheckedIn = Boolean(b.checkedInAt);
+
+    // 1. Người chưa check-in luôn đứng trước người đã check-in
+    if (!aCheckedIn && bCheckedIn) return -1;
+    if (aCheckedIn && !bCheckedIn) return 1;
+
+    // 2. Cả hai chưa check-in
+    if (!aCheckedIn && !bCheckedIn) {
+      const aEligible = a.status === 'SCHEDULED' || a.status === 'CONFIRMED';
+      const bEligible = b.status === 'SCHEDULED' || b.status === 'CONFIRMED';
+      if (aEligible && !bEligible) return -1;
+      if (!aEligible && bEligible) return 1;
+
+      // Ca hiến sớm hơn xếp trước
+      if (a.slotStartsAt && b.slotStartsAt) {
+        const slotDiff = new Date(a.slotStartsAt).getTime() - new Date(b.slotStartsAt).getTime();
+        if (slotDiff !== 0) return slotDiff;
+      } else if (a.slotStartsAt) {
+        return -1;
+      } else if (b.slotStartsAt) {
+        return 1;
+      }
+
+      // Cùng ca hoặc không có slot: người đăng ký trước được phục vụ trước
+      if (a.createdAt && b.createdAt) {
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      }
+      return a.code.localeCompare(b.code);
+    }
+
+    // 3. Cả hai đã check-in: người vừa check-in gần nhất đứng đầu nhóm đã check-in
+    if (a.checkedInAt && b.checkedInAt) {
+      return new Date(b.checkedInAt).getTime() - new Date(a.checkedInAt).getTime();
+    }
+
+    return 0;
+  });
+}
+
 export const formatSlotRange = (startsAt: string, endsAt: string): string => {
   const start = new Date(startsAt);
   const end = new Date(endsAt);
@@ -260,17 +394,47 @@ export function validateScreening(
 ): FieldErrors {
   const errors: FieldErrors = {};
   for (const field of MEASUREMENT_FIELDS) {
-    const raw = values[field.code]?.trim() ?? '';
+    const raw = values[field.code]?.trim().replace(',', '.') ?? '';
     if (!raw) {
       errors[field.code] = 'Nhập chỉ số.';
       continue;
     }
     const parsed = Number(raw);
-    if (!Number.isFinite(parsed) || parsed <= 0)
+    if (!Number.isFinite(parsed) || parsed <= 0) {
       errors[field.code] = 'Chỉ số phải là số lớn hơn 0.';
+      continue;
+    }
+
+    if (field.code === 'WEIGHT' && (parsed < 30 || parsed > 250)) {
+      errors.WEIGHT = 'Cân nặng từ 30 đến 250 kg.';
+    }
+    if (field.code === 'TEMPERATURE' && (parsed < 34 || parsed > 43)) {
+      errors.TEMPERATURE = 'Nhiệt độ từ 34 đến 43 °C.';
+    }
+    if (field.code === 'PULSE' && (parsed < 40 || parsed > 200)) {
+      errors.PULSE = 'Mạch từ 40 đến 200 lần/phút.';
+    }
+    if (field.code === 'BLOOD_PRESSURE_SYSTOLIC' && (parsed < 60 || parsed > 260)) {
+      errors.BLOOD_PRESSURE_SYSTOLIC = 'Huyết áp tâm thu từ 60 đến 260 mmHg.';
+    }
+    if (field.code === 'BLOOD_PRESSURE_DIASTOLIC' && (parsed < 40 || parsed > 160)) {
+      errors.BLOOD_PRESSURE_DIASTOLIC = 'Huyết áp tâm trương từ 40 đến 160 mmHg.';
+    }
+    if (field.code === 'HEMOGLOBIN' && parsed > 250) {
+      errors.HEMOGLOBIN = 'Chỉ số Hemoglobin tối đa 250 g/L.';
+    }
   }
-  if (!notes.bloodGroup) errors.bloodGroup = 'Chọn nhóm máu ABO.';
-  if (!notes.rh) errors.rh = 'Chọn yếu tố Rh.';
+
+  const sys = Number(values.BLOOD_PRESSURE_SYSTOLIC?.trim().replace(',', '.'));
+  const dia = Number(values.BLOOD_PRESSURE_DIASTOLIC?.trim().replace(',', '.'));
+  if (Number.isFinite(sys) && Number.isFinite(dia) && sys > 0 && dia > 0 && sys <= dia) {
+    errors.BLOOD_PRESSURE_SYSTOLIC = 'Huyết áp tâm thu phải lớn hơn huyết áp tâm trương.';
+  }
+
+  // Blood group and Rh factor are optional: first-time donors or pending tests can leave them unspecified ("Chưa rõ").
+  if (notes.bloodGroup && !notes.rh) {
+    errors.rh = 'Vui lòng chọn yếu tố Rh cho nhóm máu đã chọn.';
+  }
   if (!notes.infectiousTest)
     errors.infectiousTest = 'Chọn kết quả xét nghiệm nhanh.';
   return errors;
@@ -280,8 +444,14 @@ export function parseMeasurements(
   values: Record<string, string>,
 ): ScreeningMeasurements {
   const measurements: ScreeningMeasurements = {};
-  for (const field of MEASUREMENT_FIELDS)
-    measurements[field.code] = Number(values[field.code]);
+  for (const field of MEASUREMENT_FIELDS) {
+    const clean = values[field.code]?.trim().replace(',', '.') ?? '';
+    let num = Number(clean);
+    if (field.code === 'HEMOGLOBIN' && num > 0 && num <= 30) {
+      num = Math.round(num * 10 * 10) / 10;
+    }
+    measurements[field.code] = num;
+  }
   return measurements;
 }
 
@@ -308,10 +478,14 @@ export function describeError(error: unknown): {
       409: 'Dữ liệu đã thay đổi hoặc không hợp lệ ở bước này.',
       503: 'Chức năng đang được chuẩn bị. Vui lòng thử lại sau.',
     };
+    const specific =
+      (error.code && ERROR_MESSAGES[error.code as ErrorCode]) ||
+      (error.message && !error.message.startsWith('HTTP ') ? error.message : null);
+
     return {
       message:
+        specific ??
         generic[error.status] ??
-        ERROR_MESSAGES[error.code as ErrorCode] ??
         'Không thể xử lý yêu cầu. Vui lòng thử lại.',
       fields: error.fields ?? {},
     };

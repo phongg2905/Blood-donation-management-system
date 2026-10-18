@@ -11,6 +11,7 @@
 html {
   -webkit-text-size-adjust: 100%;
   scroll-behavior: smooth;
+  font-family: var(--font-sans);
 }
 
 body {
@@ -36,6 +37,7 @@ h4,
 h5,
 h6 {
   margin: 0;
+  font-family: var(--font-sans);
   color: var(--color-ink-900);
   line-height: var(--leading-tight);
   font-weight: var(--weight-bold);
@@ -62,14 +64,14 @@ p {
 
 /* ── Links ────────────────────────────────────────────────────────── */
 
-a {
+a:not(.btn) {
   color: var(--color-brand-600);
   text-decoration: none;
   font-weight: var(--weight-semibold);
   transition: color var(--transition-fast);
 }
 
-a:hover {
+a:not(.btn):hover {
   color: var(--color-brand-700);
   text-decoration: underline;
 }
@@ -93,8 +95,10 @@ svg {
 button,
 input,
 select,
-textarea {
+textarea,
+optgroup {
   font: inherit;
+  font-family: var(--font-sans);
   color: inherit;
 }
 

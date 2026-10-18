@@ -153,13 +153,10 @@ const permissionsFor = (role: ActorCode): CurrentUser['permissions'] => [
   ...ROLE_PERMISSIONS[role],
 ];
 
-const delay = (ms: number): Promise<void> =>
-  ms <= 0
-    ? Promise.resolve()
-    : new Promise((resolve) => setTimeout(resolve, ms));
+const delay = (_ms: number): Promise<void> => Promise.resolve();
 
 export class MockAuthService implements AuthService {
-  constructor(private readonly latencyMs: number = DEFAULT_LATENCY_MS) {}
+  constructor(private readonly latencyMs: number = 0) {}
 
   private registeredUsers(): StoredUser[] {
     return readJson<StoredUser[]>(STORAGE_KEYS.users, []);

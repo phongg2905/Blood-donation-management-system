@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 import { useRef } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
-import { PageLoader } from '@/components/common/PageLoader';
 import { useAuth } from '../hooks/useAuth';
 import { AUTH_ROUTES } from '../routing';
 
@@ -30,7 +29,11 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   if (status === 'authenticated') hadSession.current = true;
 
   if (status === 'loading') {
-    return <PageLoader message="Đang tải…" />;
+    return (
+      <div role="status" aria-label="Đang tải…">
+        <span className="visually-hidden">Đang tải…</span>
+      </div>
+    );
   }
 
   if (status === 'anonymous') {

@@ -1,5 +1,6 @@
 import { createContext, useContext } from 'react';
-import { ApiRequestError, apiGet, apiPatch, apiPost } from '@/services/api';
+import type { RoleCode } from '@blood/shared-types';
+import { ApiRequestError, apiDelete, apiGet, apiPatch, apiPost } from '@/services/api';
 import type {
   Assignment,
   Campaign,
@@ -27,7 +28,7 @@ const unavailable = (): never => {
 export const mapCampaign = (dto: Campaign): Campaign => ({ ...dto });
 export const mapSlot = (dto: TimeSlot): TimeSlot => ({ ...dto });
 export class ApiCampaignRepository implements CampaignRepository {
-  constructor(private staffAdapter?: StaffAdapter) {}
+  constructor(private staffAdapter?: StaffAdapter, private enableDirectApi: boolean = false) {}
   async list(query: CampaignQuery) {
     const params = new URLSearchParams();
     Object.entries(query).forEach(([key, value]) => {
@@ -93,40 +94,49 @@ export class ApiCampaignRepository implements CampaignRepository {
     );
   }
   async staff(id: string): Promise<CampaignStaff[]> {
-    return this.staffAdapter ? this.staffAdapter.staff(id) : unavailable();
+    if (this.staffAdapter) return this.staffAdapter.staff(id);
+    if (!this.enableDirectApi) return unavailable();
+    return (await apiGet<CampaignStaff[]>(`/campaigns/${encodeURIComponent(id)}/staff`)).data;
   }
   async searchStaff(id: string, search: string): Promise<StaffCandidate[]> {
-    return this.staffAdapter
-      ? this.staffAdapter.searchStaff(id, search)
-      : unavailable();
+    if (this.staffAdapter) return this.staffAdapter.searchStaff(id, search);
+    try {
+      const response = await apiGet<{ id: string; fullName: string; email: string; roles: Array<{ role: { code: string } }> }[]>(
+        `/users?${search ? `search=${encodeURIComponent(search)}` : ''}`,
+      );
+      return response.data.map((user) => ({
+        id: user.id,
+        fullName: user.fullName,
+        email: user.email,
+        roles: (user.roles ?? []).map((r) => (r.role?.code ?? 'DONATION_STAFF') as RoleCode),
+      }));
+    } catch {
+      return [];
+    }
   }
   async assign(
     id: string,
     userId: string,
     assignment: Assignment | null,
   ): Promise<CampaignStaff> {
-    return this.staffAdapter
-      ? this.staffAdapter.assign(id, userId, assignment)
-      : unavailable();
+    if (this.staffAdapter) return this.staffAdapter.assign(id, userId, assignment);
+    return (
+      await apiPost<CampaignStaff>(`/campaigns/${encodeURIComponent(id)}/staff`, {
+        userId,
+        assignment,
+      })
+    ).data;
   }
   async unassign(id: string, assignmentId: string): Promise<void> {
-    return this.staffAdapter
-      ? this.staffAdapter.unassign(id, assignmentId)
-      : unavailable();
+    if (this.staffAdapter) return this.staffAdapter.unassign(id, assignmentId);
+    await apiDelete(
+      `/campaigns/${encodeURIComponent(id)}/staff/${encodeURIComponent(assignmentId)}`,
+    );
   }
 }
-export const mockCampaignsEnabled =
-  import.meta.env.DEV && import.meta.env.VITE_USE_MOCK_CAMPAIGNS === 'true';
-let instance: CampaignRepository = new ApiCampaignRepository();
-if (mockCampaignsEnabled) {
-  const { MockCampaignRepository } = await import('./mock-repository');
-  const scenario = import.meta.env.VITE_CAMPAIGN_MOCK_SCENARIO;
-  instance = new MockCampaignRepository({
-    scenario:
-      scenario === 'empty' || scenario === 'error' ? scenario : 'success',
-    latency: Number(import.meta.env.VITE_CAMPAIGN_MOCK_LATENCY) || 300,
-  });
-}
+export const mockCampaignsEnabled = false;
+const instance: CampaignRepository = new ApiCampaignRepository(undefined, true);
+
 export const CampaignRepositoryContext =
   createContext<CampaignRepository | null>(null);
 export const useCampaignRepository = () =>

@@ -1,36 +1,58 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { Button } from '@/components/ui';
+import {
+  Button,
+  SkeletonList,
+  SkeletonWorkflowList,
+  SkeletonCampaignList,
+  SkeletonReadyQueue,
+  SkeletonTable,
+  SkeletonCard,
+  SkeletonStats,
+  SkeletonProfile,
+  SkeletonForm,
+  SkeletonCampaignDetail,
+  SkeletonScreeningForm,
+  SkeletonStationGrid,
+  SkeletonHistoryList,
+  SkeletonRoleGrid,
+  SkeletonDemandGrid,
+} from '@/components/ui';
 import { describeError, STATUS_LABELS } from './domain';
-import { mockCampaignsEnabled } from './repository';
 import type { Campaign } from './types';
 
 export function CampaignShell({
   title,
   lead,
   children,
-  back = '/campaigns',
+  back,
+  backLabel,
+  actions,
 }: {
-  title: string;
+  title?: string;
   lead?: string;
   children: ReactNode;
   back?: string;
+  backLabel?: string;
+  actions?: ReactNode;
 }) {
   return (
     <div className="campaign-page">
-      <header className="campaign-heading">
-        <Link to={back}>
-          {back === '/campaigns' ? 'Đợt hiến máu' : 'Về chi tiết đợt hiến'}
-        </Link>
-        <p className="campaign-eyebrow">Kết nối cộng đồng · Sẻ chia sự sống</p>
-        <h1>{title}</h1>
-        {lead && <p>{lead}</p>}
-      </header>
-      {mockCampaignsEnabled && (
-        <p className="campaign-demo" role="note">
-          Dữ liệu minh họa dành cho phát triển, không phải lịch hiến máu thật.
-          Thay đổi sẽ được đặt lại khi tải lại trang.
-        </p>
+      {(title || back) && (
+        <header className="campaign-heading">
+          {back && (
+            <div className="campaign-heading__nav">
+              <Link to={back} className="campaign-back-link">
+                {backLabel ?? (back === '/campaigns' ? '← Danh sách đợt hiến' : '← Quay lại')}
+              </Link>
+            </div>
+          )}
+          <div className="campaign-heading__row">
+            {title && <h1>{title}</h1>}
+            {actions}
+          </div>
+          {lead && <p className="campaign-lead">{lead}</p>}
+        </header>
       )}
       {children}
     </div>
@@ -49,24 +71,94 @@ export function QueryState({
   loading,
   error,
   retry,
+  variant = 'list',
+  count,
+  columns,
 }: {
   loading: boolean;
   error: unknown;
   retry: () => void;
+  variant?:
+    | 'list'
+    | 'workflow-list'
+    | 'campaign-list'
+    | 'ready-queue'
+    | 'table'
+    | 'card'
+    | 'stats'
+    | 'profile'
+    | 'form'
+    | 'campaign-detail'
+    | 'screening-detail'
+    | 'station-grid'
+    | 'history-list'
+    | 'role-grid'
+    | 'demand-grid';
+  count?: number;
+  columns?: number;
 }) {
-  if (loading)
+  if (loading) {
+    let skeleton: ReactNode;
+    switch (variant) {
+      case 'workflow-list':
+        skeleton = <SkeletonWorkflowList count={count ?? 3} />;
+        break;
+      case 'campaign-list':
+        skeleton = <SkeletonCampaignList count={count ?? 3} />;
+        break;
+      case 'ready-queue':
+        skeleton = <SkeletonReadyQueue count={count ?? 3} />;
+        break;
+      case 'table':
+        skeleton = <SkeletonTable rows={count ?? 5} columns={columns ?? 4} />;
+        break;
+      case 'card':
+        skeleton = <SkeletonCard count={count ?? 3} />;
+        break;
+      case 'stats':
+        skeleton = <SkeletonStats count={count ?? 4} />;
+        break;
+      case 'profile':
+        skeleton = <SkeletonProfile />;
+        break;
+      case 'form':
+        skeleton = <SkeletonForm fields={count ?? 4} />;
+        break;
+      case 'campaign-detail':
+        skeleton = <SkeletonCampaignDetail />;
+        break;
+      case 'screening-detail':
+        skeleton = <SkeletonScreeningForm />;
+        break;
+      case 'station-grid':
+        skeleton = <SkeletonStationGrid count={count ?? 3} />;
+        break;
+      case 'history-list':
+        skeleton = <SkeletonHistoryList count={count ?? 3} />;
+        break;
+      case 'role-grid':
+        skeleton = <SkeletonRoleGrid count={count ?? 4} />;
+        break;
+      case 'demand-grid':
+        skeleton = <SkeletonDemandGrid count={count ?? 3} />;
+        break;
+      case 'list':
+      default:
+        skeleton = <SkeletonList count={count ?? 3} />;
+        break;
+    }
+
     return (
       <div
-        className="campaign-loading"
+        className="query-state-loading"
         role="status"
         aria-label="Đang tải dữ liệu"
       >
-        <span>Đang tải dữ liệu…</span>
-        <div />
-        <div />
-        <div />
+        <span className="visually-hidden">Đang tải dữ liệu…</span>
+        {skeleton}
       </div>
     );
+  }
   if (error)
     return (
       <div className="campaign-empty" role="alert">

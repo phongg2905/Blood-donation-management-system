@@ -9,6 +9,8 @@ import { CampaignRepositoryContext } from '@/features/campaigns/repository';
 import { MockCampaignRepository } from '@/features/campaigns/mock-repository';
 import { MockWorkflowRepository } from './mock-repository';
 import { WorkflowRepositoryContext } from './repository';
+import { sortCampaignsForOperationalStation, sortRegistrationsForCheckIn } from './domain';
+import type { DonorRegistration } from './types';
 
 const withRepositories = (node: ReactNode) => (
   <CampaignRepositoryContext.Provider
@@ -120,6 +122,24 @@ describe('MockWorkflowRepository', () => {
     ).rejects.toMatchObject({ code: 'SCREENING_NOT_ELIGIBLE' });
   });
 
+  it('updates and deletes a blood bag in the repository', async () => {
+    const repo = new MockWorkflowRepository({ latency: 0 });
+    const bags = await repo.bloodBags();
+    const target = bags[0]!;
+
+    const updated = await repo.updateBloodBag(target.id, {
+      volumeMl: 450,
+      status: 'ACCEPTED',
+      notes: 'Đã kiểm tra chất lượng',
+    });
+    expect(updated.volumeMl).toBe(450);
+    expect(updated.status).toBe('ACCEPTED');
+
+    await repo.deleteBloodBag(target.id);
+    const afterDelete = await repo.bloodBags();
+    expect(afterDelete.some((b) => b.id === target.id)).toBe(false);
+  });
+
   it('finds a registration by code', async () => {
     const repo = new MockWorkflowRepository({ latency: 0 });
     const found = await repo.findRegistrations({ code: 'reg-00002' });
@@ -218,6 +238,67 @@ describe('clinic check-in page', () => {
       await screen.findByRole('button', { name: 'Tất cả đăng ký đợt này' }),
     ).toBeInTheDocument();
   });
+
+  it('shows campaign selection at /clinic/blood-bags and supports scoped navigation', async () => {
+    const user = userEvent.setup();
+    const auth = createMockAuthService();
+    await signInAs(auth, 'donation-staff@example.local');
+    renderWithAuth(
+      withRepositories(<AppRoutes />),
+      { service: auth, route: '/clinic/blood-bags' },
+    );
+
+    expect(
+      await screen.findByRole('heading', {
+        name: 'Túi máu đã tiếp nhận',
+      }),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByText(/Vui lòng chọn đợt hiến máu để quản lý và gắn mã túi máu theo đợt/),
+    ).toBeInTheDocument();
+
+    const campaignLinks = await screen.findAllByRole('link', {
+      name: 'Vào quản lý túi máu',
+    });
+    expect(campaignLinks.length).toBeGreaterThan(0);
+
+    await user.click(campaignLinks[0]!);
+
+    expect(
+      await screen.findByRole('heading', { name: /Ngày hội giọt hồng/ }),
+    ).toBeInTheDocument();
+    expect(
+      (await screen.findAllByText(/Ngày hội giọt hồng/)).length,
+    ).toBeGreaterThan(0);
+    expect(
+      await screen.findByRole('link', { name: 'Thêm túi máu' }),
+    ).toBeInTheDocument();
+  });
+
+  it('opens blood bag detail modal and closes it', async () => {
+    const user = userEvent.setup();
+    const auth = createMockAuthService();
+    await signInAs(auth, 'donation-staff@example.local');
+    renderWithAuth(
+      withRepositories(<AppRoutes />),
+      { service: auth, route: '/clinic/blood-bags' },
+    );
+
+    const switchBtn = await screen.findByRole('button', { name: 'Xem toàn bộ túi máu' });
+    await user.click(switchBtn);
+
+    const detailBtns = await screen.findAllByRole('button', { name: 'Chi tiết' });
+    expect(detailBtns.length).toBeGreaterThan(0);
+    await user.click(detailBtns[0]!);
+
+    expect(await screen.findByText('Hồ sơ lưu trữ túi máu')).toBeInTheDocument();
+    expect(screen.getByText('Quản lý kho & Bảo quản')).toBeInTheDocument();
+
+    const closeBtn = screen.getByRole('button', { name: 'Đóng' });
+    await user.click(closeBtn);
+
+    expect(screen.queryByText('Hồ sơ lưu trữ túi máu')).not.toBeInTheDocument();
+  });
 });
 
 describe('donor registration page', () => {
@@ -308,5 +389,156 @@ describe('donor registration page', () => {
     expect(
       await screen.findByText(/Đợt hiến máu bạn chọn hiện không mở đăng ký/),
     ).toBeInTheDocument();
+  });
+});
+
+describe('sortCampaignsForOperationalStation', () => {
+  it('prioritizes active/open campaigns at the top of the list', () => {
+    const items = [
+      {
+        campaign: {
+          startsAt: '2026-10-10T08:00:00.000Z',
+          endsAt: '2026-10-10T16:00:00.000Z',
+          status: 'CLOSED',
+        },
+        window: {
+          status: 'CLOSED' as const,
+          isOpen: false,
+          opensAt: new Date('2026-10-10T07:00:00.000Z'),
+          closesAt: new Date('2026-10-10T17:00:00.000Z'),
+          message: 'Closed',
+        },
+      },
+      {
+        campaign: {
+          startsAt: '2026-10-25T08:00:00.000Z',
+          endsAt: '2026-10-25T16:00:00.000Z',
+          status: 'OPEN',
+        },
+        window: {
+          status: 'UPCOMING' as const,
+          isOpen: false,
+          opensAt: new Date('2026-10-25T07:00:00.000Z'),
+          closesAt: new Date('2026-10-25T17:00:00.000Z'),
+          message: 'Upcoming',
+        },
+      },
+      {
+        campaign: {
+          startsAt: '2026-10-20T08:00:00.000Z',
+          endsAt: '2026-10-20T16:00:00.000Z',
+          status: 'OPEN',
+        },
+        window: {
+          status: 'ACTIVE' as const,
+          isOpen: true,
+          opensAt: new Date('2026-10-20T07:00:00.000Z'),
+          closesAt: new Date('2026-10-20T17:00:00.000Z'),
+          message: 'Active now',
+        },
+      },
+    ];
+
+    const sorted = sortCampaignsForOperationalStation(items);
+    expect(sorted[0]?.window.status).toBe('ACTIVE');
+    expect(sorted[0]?.campaign.status).toBe('OPEN');
+    expect(sorted[1]?.window.status).toBe('UPCOMING');
+    expect(sorted[2]?.window.status).toBe('CLOSED');
+  });
+});
+
+describe('sortRegistrationsForCheckIn', () => {
+  it('always prioritizes un-checked-in donors to the top and sorts by slot and check-in time', () => {
+    const list: DonorRegistration[] = [
+      {
+        id: 'reg-1',
+        code: 'REG-00001',
+        donorId: 'd-1',
+        donorName: 'Nguyễn Văn Đã Check In Sớm',
+        donorPhone: '0901',
+        donorIdentity: null,
+        campaignId: 'camp-1',
+        campaignName: 'Chiến dịch A',
+        location: 'Trạm 1',
+        campaignStartsAt: '2026-10-20T07:00:00Z',
+        campaignEndsAt: '2026-10-20T17:00:00Z',
+        slotId: 'slot-1',
+        slotStartsAt: '2026-10-20T08:00:00Z',
+        slotEndsAt: '2026-10-20T09:00:00Z',
+        status: 'CONFIRMED',
+        healthDeclaration: null,
+        checkedInAt: '2026-10-20T08:15:00Z',
+        createdAt: '2026-10-18T10:00:00Z',
+      },
+      {
+        id: 'reg-2',
+        code: 'REG-00002',
+        donorId: 'd-2',
+        donorName: 'Trần Chưa Check In Ca Chiều',
+        donorPhone: '0902',
+        donorIdentity: null,
+        campaignId: 'camp-1',
+        campaignName: 'Chiến dịch A',
+        location: 'Trạm 1',
+        campaignStartsAt: '2026-10-20T07:00:00Z',
+        campaignEndsAt: '2026-10-20T17:00:00Z',
+        slotId: 'slot-2',
+        slotStartsAt: '2026-10-20T14:00:00Z',
+        slotEndsAt: '2026-10-20T15:00:00Z',
+        status: 'SCHEDULED',
+        healthDeclaration: null,
+        checkedInAt: null,
+        createdAt: '2026-10-18T12:00:00Z',
+      },
+      {
+        id: 'reg-3',
+        code: 'REG-00003',
+        donorId: 'd-3',
+        donorName: 'Lê Chưa Check In Ca Sáng',
+        donorPhone: '0903',
+        donorIdentity: null,
+        campaignId: 'camp-1',
+        campaignName: 'Chiến dịch A',
+        location: 'Trạm 1',
+        campaignStartsAt: '2026-10-20T07:00:00Z',
+        campaignEndsAt: '2026-10-20T17:00:00Z',
+        slotId: 'slot-1',
+        slotStartsAt: '2026-10-20T08:00:00Z',
+        slotEndsAt: '2026-10-20T09:00:00Z',
+        status: 'CONFIRMED',
+        healthDeclaration: null,
+        checkedInAt: null,
+        createdAt: '2026-10-18T11:00:00Z',
+      },
+      {
+        id: 'reg-4',
+        code: 'REG-00004',
+        donorId: 'd-4',
+        donorName: 'Phạm Đã Check In Mới Nhất',
+        donorPhone: '0904',
+        donorIdentity: null,
+        campaignId: 'camp-1',
+        campaignName: 'Chiến dịch A',
+        location: 'Trạm 1',
+        campaignStartsAt: '2026-10-20T07:00:00Z',
+        campaignEndsAt: '2026-10-20T17:00:00Z',
+        slotId: 'slot-1',
+        slotStartsAt: '2026-10-20T08:00:00Z',
+        slotEndsAt: '2026-10-20T09:00:00Z',
+        status: 'CONFIRMED',
+        healthDeclaration: null,
+        checkedInAt: '2026-10-20T08:45:00Z',
+        createdAt: '2026-10-18T10:30:00Z',
+      },
+    ];
+
+    const sorted = sortRegistrationsForCheckIn(list);
+
+    // Un-checked-in donors come first:
+    expect(sorted[0]?.id).toBe('reg-3'); // Chưa check in ca 08:00
+    expect(sorted[1]?.id).toBe('reg-2'); // Chưa check in ca 14:00
+    // Checked-in donors come later, sorted by most recently checked in first:
+    expect(sorted[2]?.id).toBe('reg-4'); // Check-in lúc 08:45
+    expect(sorted[3]?.id).toBe('reg-1'); // Check-in lúc 08:15
   });
 });

@@ -61,12 +61,9 @@ export function SettingsPage() {
   );
 
   return (
-    <AdminShell
-      title="Cấu hình hệ thống"
-      lead="Các khoá cấu hình dùng chung. Chỉ thay đổi giá trị, không thêm khoá mới."
-    >
+    <AdminShell title="Cấu hình hệ thống">
       <Feedback error={mutation.error} success={mutation.success} />
-      <QueryState {...result} />
+      <QueryState {...result} variant="table" columns={4} />
       {result.data && result.data.length === 0 && (
         <p className="admin-empty">Chưa có cấu hình nào.</p>
       )}

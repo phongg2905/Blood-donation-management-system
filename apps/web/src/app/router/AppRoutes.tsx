@@ -131,6 +131,22 @@ export function AppRoutes() {
                 </PermissionGuard>
               }
             />
+            <Route
+              path="/campaigns/:campaignId/blood-bags"
+              element={
+                <PermissionGuard requiredPermission="bloodbag.read">
+                  <BloodBagsPage />
+                </PermissionGuard>
+              }
+            />
+            <Route
+              path="/campaigns/:campaignId/blood-bags/new"
+              element={
+                <PermissionGuard requiredPermission="bloodbag.create">
+                  <NewBloodBagPage />
+                </PermissionGuard>
+              }
+            />
           </Route>
           <Route
             path="/profile"

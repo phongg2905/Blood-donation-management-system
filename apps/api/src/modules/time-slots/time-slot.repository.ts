@@ -41,6 +41,17 @@ export const timeSlotRepository = {
   listByCampaign: (campaignId: string, activeOnly: boolean) =>
     database.campaignTimeSlot.findMany({
       where: { campaignId, ...(activeOnly ? { isActive: true } : {}) },
+      include: {
+        _count: {
+          select: {
+            registrations: {
+              where: {
+                status: { notIn: ['CANCELLED', 'WAITLISTED'] },
+              },
+            },
+          },
+        },
+      },
       orderBy: { startsAt: 'asc' },
     }),
   findById: (id: string) =>

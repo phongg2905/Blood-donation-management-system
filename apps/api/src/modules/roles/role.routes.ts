@@ -9,6 +9,7 @@ const list: RequestHandler = async (_req, res) => {
   const roles = await database.role.findMany({
     include: {
       permissions: { include: { permission: { select: { code: true } } } },
+      _count: { select: { users: true } },
     },
     orderBy: { name: 'asc' },
   });
@@ -19,6 +20,7 @@ const list: RequestHandler = async (_req, res) => {
       code: r.code,
       name: r.name,
       permissions: r.permissions.map((p) => p.permission.code),
+      userCount: r._count.users,
     })),
   );
 };

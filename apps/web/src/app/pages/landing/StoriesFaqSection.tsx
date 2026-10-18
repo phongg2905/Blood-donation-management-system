@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, HeartHandshake, HelpCircle, MessageSquareQuote, Quote } from 'lucide-react';
+import { ChevronDown, HeartHandshake, HelpCircle, MessageSquareQuote, Quote, Star } from 'lucide-react';
 import { FAQ_ITEMS, HUMAN_STORIES, LANDING_ANCHORS } from './landing-content';
 
 export function StoriesFaqSection() {
@@ -29,11 +29,10 @@ export function StoriesFaqSection() {
             <HeartHandshake size={14} /> Chia sẻ & Giải đáp
           </div>
           <h2 className="medical-title" id="stories-faq-title">
-            Câu Chuyện Thực Tế & <span className="medical-title__highlight">Hỏi Đáp Y Khoa</span>
+            Câu Chuyện & <span className="medical-title__highlight">Hỏi Đáp Y Khoa</span>
           </h2>
           <p className="medical-subtitle">
-            Lắng nghe tâm sự từ những y bác sĩ nơi phòng cấp cứu, những tình nguyện viên bền bỉ
-            và giải đáp mọi thắc mắc trước khi bạn bắt đầu hành trình hiến máu.
+            Lắng nghe chia sẻ thực tế và giải đáp thắc mắc y khoa phổ biến.
           </p>
         </motion.div>
 
@@ -76,7 +75,9 @@ export function StoriesFaqSection() {
                   <div
                     style={{
                       marginTop: '0.85rem',
-                      display: 'inline-block',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
                       fontSize: '0.75rem',
                       fontWeight: 600,
                       color: '#2563eb',
@@ -85,7 +86,8 @@ export function StoriesFaqSection() {
                       borderRadius: '9999px',
                     }}
                   >
-                    ★ {story.highlight}
+                    <Star size={12} fill="currentColor" />
+                    <span>{story.highlight}</span>
                   </div>
                 </motion.div>
               ))}

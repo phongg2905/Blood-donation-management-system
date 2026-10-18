@@ -5,7 +5,7 @@ import type {
   RegistrationStatus,
   ScreeningStatus,
 } from '@blood/shared-types';
-import { ApiRequestError, apiGet, apiPatch, apiPost } from '@/services/api';
+import { ApiRequestError, apiDelete, apiGet, apiPatch, apiPost } from '@/services/api';
 import type {
   BackendBloodType,
   BloodBag,
@@ -74,6 +74,7 @@ interface BackendScreeningDto {
   diastolicBp?: number | null;
   pulse?: number | null;
   hemoglobin?: number | string | null;
+  indicatedVolumeMl?: number | null;
   checkIn?: {
     registrationId?: string;
   } | null;
@@ -89,6 +90,7 @@ interface BackendBloodBagItemDto {
   volumeMl: number;
   bloodType?: BackendBloodType | null;
   status?: BloodBagStatus;
+  storageLocation?: string | null;
   createdAt?: string;
 }
 
@@ -195,6 +197,7 @@ export function mapScreening(
     bloodGroup,
     rh,
     infectiousTest,
+    indicatedVolumeMl: dto.indicatedVolumeMl ?? null,
     reason: dto.decisionReason ?? null,
     decisionReason: dto.decisionReason ?? null,
     deferredUntil: dto.deferredUntil ?? null,
@@ -240,7 +243,12 @@ export class ApiWorkflowRepository implements WorkflowRepository {
   }
 
   async myRegistrations(): Promise<DonorRegistration[]> {
-    return [];
+    try {
+      const response = await apiGet<BackendRegistrationDto[]>('/registrations/my');
+      return (response.data ?? []).map((item) => mapRegistration(item));
+    } catch {
+      return [];
+    }
   }
 
   async findRegistrations(query: CheckInQuery): Promise<DonorRegistration[]> {
@@ -250,10 +258,22 @@ export class ApiWorkflowRepository implements WorkflowRepository {
         const item = await this.getRegistration(trimmedCode);
         return [item];
       } catch {
-        return [];
+        // Fall back to query search
       }
     }
-    return [];
+
+    const searchTerm = trimmedCode || query.identity?.trim() || query.phone?.trim();
+    const params = new URLSearchParams();
+    if (searchTerm) params.set('search', searchTerm);
+    if (query.campaignId) params.set('campaignId', query.campaignId);
+    params.set('limit', '50');
+
+    try {
+      const response = await apiGet<BackendRegistrationDto[]>(`/registrations?${params.toString()}`);
+      return (response.data ?? []).map((item) => mapRegistration(item));
+    } catch {
+      return [];
+    }
   }
 
   async checkIn(registrationId: string): Promise<DonorRegistration> {
@@ -270,8 +290,31 @@ export class ApiWorkflowRepository implements WorkflowRepository {
     return mapRegistration(response.data);
   }
 
-  async screeningQueue(_campaignId?: string): Promise<ScreeningQueueItem[]> {
-    return [];
+  async screeningQueue(campaignId?: string): Promise<ScreeningQueueItem[]> {
+    try {
+      const response = await apiGet<any[]>('/screenings/queue');
+      const list = response.data ?? [];
+      return list
+        .filter((c) => !campaignId || c.registration?.campaignId === campaignId)
+        .map((c) => ({
+          registration: mapRegistration(c.registration),
+          screening: {
+            id: '',
+            registrationId: c.registrationId ?? c.registration?.id,
+            checkInId: c.id,
+            status: 'PENDING',
+            measurements: {},
+            reason: null,
+            createdAt: c.checkedInAt,
+            reviewedAt: null,
+            bloodGroup: null,
+            rh: null,
+            infectiousTest: null,
+          },
+        }));
+    } catch {
+      return [];
+    }
   }
 
   async screeningFor(registrationId: string): Promise<ScreeningRecord | null> {
@@ -348,16 +391,19 @@ export class ApiWorkflowRepository implements WorkflowRepository {
     reason: string | null,
     deferredUntil?: string | null,
     notes?: string | null,
+    indicatedVolumeMl?: number | null,
   ): Promise<ScreeningRecord> {
     const payload: {
       status: ScreeningOutcome;
       decisionReason?: string;
       deferredUntil?: string;
       notes?: string;
+      indicatedVolumeMl?: number;
     } = {
       status: outcome,
       decisionReason: reason ?? undefined,
       notes: notes ?? undefined,
+      indicatedVolumeMl: indicatedVolumeMl ?? undefined,
     };
 
     if (outcome === 'DEFERRED') {
@@ -380,12 +426,55 @@ export class ApiWorkflowRepository implements WorkflowRepository {
     return mapScreening(response.data);
   }
 
-  async eligibleForBag(): Promise<ScreeningQueueItem[]> {
-    return [];
+  async eligibleForBag(campaignId?: string): Promise<ScreeningQueueItem[]> {
+    try {
+      const url = `/blood-bags/eligible${campaignId ? `?campaignId=${encodeURIComponent(campaignId)}` : ''}`;
+      const response = await apiGet<any[]>(url);
+      return (response.data ?? []).map((item) => {
+        const reg = mapRegistration(item.checkIn.registration);
+        const scr = mapScreening(item, item.checkIn.registration.id, item.checkIn.id);
+        return { registration: reg, screening: scr };
+      });
+    } catch {
+      return [];
+    }
   }
 
-  async bloodBags(): Promise<BloodBag[]> {
-    return [];
+  async bloodBags(campaignId?: string): Promise<BloodBag[]> {
+    try {
+      const url = `/blood-bags${campaignId ? `?campaignId=${encodeURIComponent(campaignId)}&limit=100` : '?limit=100'}`;
+      const response = await apiGet<any[]>(url);
+      return (response.data ?? []).map((bag) => {
+        const reg = bag.donation?.screening?.checkIn?.registration;
+        const bloodTypeStr = bag.bloodType ?? null;
+        let bloodGroup: string | null = null;
+        if (bloodTypeStr) {
+          if (bloodTypeStr.startsWith('A_')) bloodGroup = 'A';
+          else if (bloodTypeStr.startsWith('B_')) bloodGroup = 'B';
+          else if (bloodTypeStr.startsWith('AB_')) bloodGroup = 'AB';
+          else if (bloodTypeStr.startsWith('O_')) bloodGroup = 'O';
+        }
+        return {
+          id: bag.id,
+          code: bag.code,
+          registrationId: reg?.id ?? '',
+          donorId: reg?.donor?.id ?? '',
+          donorName: reg?.donor?.user?.fullName ?? '',
+          campaignName: reg?.campaign?.name ?? '',
+          volumeMl: bag.volumeMl,
+          bloodGroup,
+          bloodType: bloodTypeStr,
+          status: bag.status ?? 'COLLECTED',
+          storageLocation: bag.storageLocation ?? null,
+          receivedAt: bag.collectedAt ?? bag.createdAt ?? new Date().toISOString(),
+          certificateCode: bag.donation?.certificate?.code,
+          certificateId: bag.donation?.certificate?.id,
+          certificateFileUrl: bag.donation?.certificate?.fileUrl ?? null,
+        };
+      });
+    } catch {
+      return [];
+    }
   }
 
   async createBloodBag(input: BloodBagInput): Promise<BloodBag> {
@@ -424,6 +513,7 @@ export class ApiWorkflowRepository implements WorkflowRepository {
       bloodGroup: input.bloodGroup,
       bloodType: bag.bloodType ?? null,
       status: bag.status ?? 'COLLECTED',
+      storageLocation: input.storageLocation ?? null,
       receivedAt: bag.createdAt ?? new Date().toISOString(),
       certificateCode: cert?.code,
       certificateId: cert?.id,
@@ -431,12 +521,74 @@ export class ApiWorkflowRepository implements WorkflowRepository {
     };
   }
 
-  async certificates(): Promise<DonationCertificate[]> {
-    return [];
+  async updateBloodBag(
+    id: string,
+    input: Partial<BloodBagInput>,
+  ): Promise<BloodBag> {
+    const payload = {
+      volumeMl: input.volumeMl,
+      status: input.status,
+      bloodType: input.bloodType,
+      storageLocation: input.storageLocation,
+      syncDonorProfile: input.syncDonorProfile,
+    };
+    const response = await apiPatch<BackendBloodBagItemDto>(
+      `/blood-bags/${encodeURIComponent(id)}`,
+      payload,
+    );
+    const bag = response.data;
+    return {
+      id: bag.id,
+      code: bag.code,
+      donorName: input.donorName ?? '',
+      campaignName: input.campaignName ?? '',
+      volumeMl: bag.volumeMl,
+      bloodGroup: input.bloodGroup ?? null,
+      bloodType: bag.bloodType ?? null,
+      status: bag.status ?? 'COLLECTED',
+      storageLocation: bag.storageLocation ?? input.storageLocation ?? null,
+      receivedAt: bag.createdAt ?? new Date().toISOString(),
+      notes: input.notes,
+    };
   }
 
-  async certificate(): Promise<DonationCertificate> {
-    throw new ApiRequestError('ROUTE_NOT_FOUND', 'Chứng nhận không tồn tại', 404);
+  async deleteBloodBag(id: string): Promise<void> {
+    await apiDelete(`/blood-bags/${encodeURIComponent(id)}`);
+  }
+
+  async certificates(): Promise<DonationCertificate[]> {
+    try {
+      const response = await apiGet<any[]>('/certificates');
+      return (response.data ?? []).map((cert) => {
+        const reg = cert.donation?.screening?.checkIn?.registration;
+        return {
+          id: cert.id,
+          code: cert.code,
+          donationId: cert.donationId,
+          donorId: reg?.donor?.id ?? '',
+          donorName: reg?.donor?.user?.fullName ?? '',
+          campaignName: reg?.campaign?.name ?? '',
+          location: reg?.campaign?.location ?? '',
+          donationDate: cert.issuedAt,
+          volumeMl: cert.donation?.volumeMl ?? 0,
+          bloodGroup: null,
+          status: cert.status,
+          issuedAt: cert.issuedAt,
+          fileUrl: cert.fileUrl ?? null,
+        };
+      });
+    } catch {
+      return [];
+    }
+  }
+
+  async certificate(id: string): Promise<DonationCertificate> {
+    const list = await this.certificates();
+    const found = list.find((c) => c.id === id || c.code === id);
+    if (!found) {
+      throw new ApiRequestError('ROUTE_NOT_FOUND', 'Chứng nhận không tồn tại', 404);
+    }
+    return found;
   }
 
   async attachCertificateFile(id: string, fileUrl: string): Promise<DonationCertificate> {
@@ -462,22 +614,44 @@ export class ApiWorkflowRepository implements WorkflowRepository {
     };
   }
 
-  async history(): Promise<DonorHistoryEntry[]> {
-    return [];
+  async history(donorId?: string): Promise<DonorHistoryEntry[]> {
+    try {
+      const response = await apiGet<any[]>('/donors/me/history');
+      return (response.data ?? []).map((item) => {
+        const bag = item.checkIn?.screening?.donation?.bloodBags?.[0];
+        const cert = item.checkIn?.screening?.donation?.certificate;
+        const rawDate =
+          item.date ??
+          item.timeSlot?.startsAt ??
+          item.campaign?.startsAt ??
+          item.createdAt ??
+          '';
+        const dateStr =
+          typeof rawDate === 'string'
+            ? rawDate
+            : rawDate instanceof Date
+            ? rawDate.toISOString()
+            : '';
+        return {
+          id: item.id,
+          date: dateStr,
+          campaignName: item.campaignName ?? item.campaign?.name ?? '',
+          location: item.location ?? item.campaign?.location ?? '',
+          volumeMl: item.volumeMl ?? bag?.volumeMl ?? 350,
+          bloodGroup: item.bloodGroup ?? bag?.bloodType ?? null,
+          status: item.status,
+          certificateId: item.certificateId ?? cert?.id ?? null,
+        };
+      });
+    } catch {
+      return [];
+    }
   }
 }
 
-/** Mock workflow is opt-in via VITE_USE_MOCK_WORKFLOW=true; API is the source of truth */
-export const mockWorkflowEnabled =
-  import.meta.env.DEV && import.meta.env.VITE_USE_MOCK_WORKFLOW === 'true';
+export const mockWorkflowEnabled = false;
 
-let instance: WorkflowRepository = new ApiWorkflowRepository();
-if (mockWorkflowEnabled) {
-  const { MockWorkflowRepository } = await import('./mock-repository');
-  instance = new MockWorkflowRepository({
-    latency: Number(import.meta.env.VITE_WORKFLOW_MOCK_LATENCY) || 250,
-  });
-}
+const instance: WorkflowRepository = new ApiWorkflowRepository();
 
 export const WorkflowRepositoryContext =
   createContext<WorkflowRepository | null>(null);

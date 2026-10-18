@@ -64,27 +64,50 @@ export const registrationRepository = {
       ...(filter.campaignId ? { campaignId: filter.campaignId } : {}),
       ...(filter.search
         ? {
-            donor: {
-              OR: [
-                { citizenId: { contains: filter.search } },
-                { phone: { contains: filter.search } },
-                {
-                  user: {
-                    fullName: { contains: filter.search, mode: 'insensitive' },
-                  },
+            OR: [
+              ...(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(filter.search.trim())
+                ? [{ id: filter.search.trim() }]
+                : []),
+              {
+                donor: {
+                  OR: [
+                    { citizenId: { contains: filter.search } },
+                    { phone: { contains: filter.search } },
+                    {
+                      user: {
+                        fullName: { contains: filter.search, mode: 'insensitive' },
+                      },
+                    },
+                    {
+                      user: {
+                        email: { contains: filter.search, mode: 'insensitive' },
+                      },
+                    },
+                  ],
                 },
-                {
-                  user: {
-                    email: { contains: filter.search, mode: 'insensitive' },
-                  },
-                },
-              ],
-            },
+              },
+            ],
           }
         : {}),
     };
     const include = {
-      donor: { include: { user: { select: { fullName: true, email: true } } } },
+      donor: {
+        include: {
+          user: { select: { fullName: true, email: true } },
+        },
+      },
+      campaign: {
+        select: {
+          id: true,
+          name: true,
+          location: true,
+          startsAt: true,
+          endsAt: true,
+        },
+      },
+      timeSlot: true,
+      checkIn: true,
+      healthDeclaration: true,
     };
     const [items, total] = await Promise.all([
       database.registration.findMany({
@@ -104,7 +127,20 @@ export const registrationRepository = {
     const [items, total] = await Promise.all([
       database.registration.findMany({
         where,
-        include: { healthDeclaration: true, checkIn: true },
+        include: {
+          campaign: {
+            select: {
+              id: true,
+              name: true,
+              location: true,
+              startsAt: true,
+              endsAt: true,
+            },
+          },
+          timeSlot: true,
+          healthDeclaration: true,
+          checkIn: true,
+        },
         skip,
         take,
         orderBy: { createdAt: 'desc' },

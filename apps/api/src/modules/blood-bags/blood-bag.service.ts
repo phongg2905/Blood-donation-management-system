@@ -1,4 +1,3 @@
-import { randomBytes } from 'node:crypto';
 import { z } from 'zod';
 import {
   AUDIT_ACTIONS,
@@ -7,8 +6,13 @@ import {
 } from '@blood/shared-types';
 import { AppError } from '../../common/errors/app.error';
 import { parseDomain } from '../../common/helpers/domain-validation';
+import {
+  paginationMeta,
+  resolvePagination,
+} from '../../common/helpers/response';
 import type { AuditContext } from '../audit-logs/audit.service';
 import { auditLogService } from '../audit-logs/audit.service';
+import { database } from '../../config/database';
 import { notificationService } from '../notifications/notification.service';
 import { assertScreeningEligibleForDonation } from '../screenings/screening.validation';
 import { assertBagVolumesReconcile } from './blood-bag.validation';
@@ -32,9 +36,42 @@ const bagSchema = z.object({
 });
 const recordSchema = z.object({ bags: z.array(bagSchema).min(1).max(20) });
 
-function generateCertificateCode(): string {
-  return `CERT-${Date.now().toString(36).toUpperCase()}-${randomBytes(3).toString('hex').toUpperCase()}`;
-}
+const listQuerySchema = z.object({
+  campaignId: z.string().uuid().optional(),
+  status: z.string().trim().optional(),
+  search: z.string().trim().optional(),
+  page: z.coerce.number().int().positive().optional(),
+  limit: z.coerce.number().int().positive().optional(),
+});
+
+const updateBagSchema = z.object({
+  volumeMl: z.number().int().positive().optional(),
+  status: z
+    .enum([
+      'CREATED',
+      'COLLECTED',
+      'PENDING_TEST',
+      'TESTED',
+      'ACCEPTED',
+      'REJECTED',
+      'DISCARDED',
+    ])
+    .optional(),
+  bloodType: z
+    .enum([
+      'A_POSITIVE',
+      'A_NEGATIVE',
+      'B_POSITIVE',
+      'B_NEGATIVE',
+      'AB_POSITIVE',
+      'AB_NEGATIVE',
+      'O_POSITIVE',
+      'O_NEGATIVE',
+    ])
+    .nullish(),
+  storageLocation: z.string().trim().max(100).optional(),
+  syncDonorProfile: z.boolean().optional(),
+});
 
 export const bloodBagService = {
   /**
@@ -82,11 +119,6 @@ export const bloodBagService = {
         bags.map((b) => ({ ...b, donationId: donation.id })),
       );
 
-      const certificate = await repo.createCertificate(tx, {
-        donationId: donation.id,
-        code: generateCertificateCode(),
-      });
-
       await auditLogService.record(
         {
           ...ctx,
@@ -97,28 +129,121 @@ export const bloodBagService = {
         },
         tx,
       );
-      await auditLogService.record(
-        {
-          ...ctx,
-          action: AUDIT_ACTIONS.CERTIFICATE_ISSUED,
-          entityType: AUDIT_ENTITY_TYPES.CERTIFICATE,
-          entityId: certificate.id,
-        },
-        tx,
-      );
 
       const notification = await notificationService.create(tx, {
         userId: screening.checkIn.registration.donor.userId,
-        type: 'CERTIFICATE',
-        title: 'Chứng nhận hiến máu',
-        message: `Cảm ơn bạn đã hiến máu! Mã chứng nhận: ${certificate.code}.`,
+        type: 'DONATION',
+        title: 'Hoàn tất hiến máu thành công',
+        message: `Cảm ơn bạn đã tham gia hiến máu nhân đạo (${totalVolumeMl} ml)! Vui lòng nhận Giấy chứng nhận bản giấy tại bàn tiếp đón.`,
         channel: 'EMAIL',
       });
 
       // Donation stays out of the response — hidden per choice B.
-      return { bloodBags, certificate, notification };
+      return { bloodBags, notification };
     });
     void notificationService.dispatch(result.notification);
-    return { bloodBags: result.bloodBags, certificate: result.certificate };
+    return { bloodBags: result.bloodBags, certificate: null };
+  },
+
+  async list(query: unknown) {
+    const filters = parseDomain(listQuerySchema, query);
+    const pagination = resolvePagination(filters);
+    const { items, total } = await repo.list({
+      campaignId: filters.campaignId,
+      status: filters.status,
+      search: filters.search,
+      skip: pagination.skip,
+      take: pagination.take,
+    });
+    return {
+      items,
+      meta: paginationMeta(pagination.page, pagination.limit, total),
+    };
+  },
+
+  async eligibleQueue(campaignId?: string) {
+    return repo.listEligibleScreenings(campaignId);
+  },
+
+  async getById(id: string) {
+    const bag = await repo.findById(id);
+    if (!bag) throw AppError.notFound(ERROR_CODES.SCREENING_NOT_FOUND, 'Không tìm thấy túi máu');
+    return bag;
+  },
+
+  async update(id: string, input: unknown, ctx: AuditContext) {
+    const data = parseDomain(updateBagSchema, input);
+    const existing = await repo.findById(id);
+    if (!existing) throw AppError.notFound(ERROR_CODES.SCREENING_NOT_FOUND, 'Không tìm thấy túi máu');
+
+    const { syncDonorProfile = true, ...bagData } = data;
+    let notificationToDispatch: any = null;
+
+    const updated = await repo.transaction(async (tx) => {
+      const updatedBag = await tx.bloodBag.update({
+        where: { id },
+        data: bagData,
+      });
+
+      if (data.bloodType && syncDonorProfile) {
+        const donorId = existing.donation?.screening?.checkIn?.registration?.donor?.id;
+        const donorUserId = existing.donation?.screening?.checkIn?.registration?.donor?.userId;
+        const campaignName = existing.donation?.screening?.checkIn?.registration?.campaign?.name ?? 'Đợt hiến máu';
+
+        if (donorId) {
+          await tx.donorProfile.update({
+            where: { id: donorId },
+            data: { bloodType: data.bloodType },
+          });
+        }
+
+        if (donorUserId) {
+          const formatted = data.bloodType.replace('_POSITIVE', ' (Rh+)').replace('_NEGATIVE', ' (Rh−)');
+          notificationToDispatch = await notificationService.create(tx, {
+            userId: donorUserId,
+            type: 'DONATION',
+            title: 'Kết quả xét nghiệm nhóm máu',
+            message: `Kết quả xét nghiệm máu từ đợt hiến "${campaignName}": Nhóm máu khẳng định của bạn là Nhóm ${formatted}. Túi máu ${existing.code} đạt tiêu chuẩn an toàn truyền máu. Cảm ơn bạn!`,
+            channel: 'IN_APP',
+          });
+        }
+      }
+
+      return updatedBag;
+    });
+
+    if (notificationToDispatch) {
+      void notificationService.dispatch(notificationToDispatch);
+    }
+
+    await auditLogService.recordSafely(
+      {
+        ...ctx,
+        action: AUDIT_ACTIONS.DONATION_COMPLETED,
+        entityType: AUDIT_ENTITY_TYPES.BLOOD_BAG,
+        entityId: id,
+        metadata: { updatedFields: Object.keys(data) },
+      },
+      database,
+    );
+    return updated;
+  },
+
+  async delete(id: string, ctx: AuditContext) {
+    const existing = await repo.findById(id);
+    if (!existing) throw AppError.notFound(ERROR_CODES.SCREENING_NOT_FOUND, 'Không tìm thấy túi máu');
+
+    await repo.delete(id);
+    await auditLogService.recordSafely(
+      {
+        ...ctx,
+        action: AUDIT_ACTIONS.DONATION_COMPLETED,
+        entityType: AUDIT_ENTITY_TYPES.BLOOD_BAG,
+        entityId: id,
+        metadata: { deleted: true, code: existing.code },
+      },
+      database,
+    );
+    return { success: true };
   },
 };

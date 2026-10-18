@@ -49,10 +49,7 @@ export function AuditLogsPage() {
   }
 
   return (
-    <AdminShell
-      title="Nhật ký hoạt động"
-      lead="Tra cứu thao tác đã ghi nhận theo người thực hiện, hành động và đối tượng."
-    >
+    <AdminShell title="Nhật ký hoạt động">
       <form
         className="admin-filters"
         onSubmit={(event) => event.preventDefault()}
@@ -110,13 +107,13 @@ export function AuditLogsPage() {
           />
         </FormField>
         <div className="admin-filters__action">
-          <Button variant="ghost" onClick={() => setParams({})}>
+          <Button variant="secondary" onClick={() => setParams({})}>
             Xóa bộ lọc
           </Button>
         </div>
       </form>
 
-      <QueryState {...result} />
+      <QueryState {...result} variant="table" columns={6} />
       {result.data && (
         <section className="admin-card">
           {result.data.items.length === 0 ? (

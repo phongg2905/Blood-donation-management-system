@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
-import { PageLoader } from '@/components/common/PageLoader';
 import {
   Button,
   Checkbox,
@@ -53,7 +52,7 @@ export function RegisterPage() {
   const [submitting, setSubmitting] = useState(false);
 
   if (status === 'loading') {
-    return <PageLoader message="Đang tải…" />;
+    return null;
   }
   if (currentUser) {
     return <Navigate to={resolveLandingPath(currentUser)} replace />;

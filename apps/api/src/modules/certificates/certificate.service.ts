@@ -34,8 +34,13 @@ const listQuerySchema = z.object({
 });
 
 export const certificateService = {
-  /** Records where the (externally stored) certificate PDF lives; no file bytes go through this API. */
-  async attachFile(id: string, input: unknown, ctx: AuditContext) {
+  /** Records where the (externally stored) certificate PDF/photo lives. Allowed for staff with certificate.issue or the owner donor. */
+  async attachFile(
+    id: string,
+    input: unknown,
+    ctx: AuditContext,
+    donorUserId?: string,
+  ) {
     const { fileUrl } = parseDomain(fileSchema, input);
     const certificate = await repo.findById(id);
     if (!certificate)
@@ -45,6 +50,13 @@ export const certificateService = {
         ERROR_CODES.CERTIFICATE_NOT_ALLOWED,
         'Chứng nhận đã bị thu hồi',
       );
+    }
+    if (
+      donorUserId &&
+      certificate.donation.screening.checkIn.registration.donor.userId !==
+        donorUserId
+    ) {
+      throw AppError.forbidden();
     }
     const updated = await repo.setFileUrl(id, fileUrl);
     await auditLogService.recordSafely(

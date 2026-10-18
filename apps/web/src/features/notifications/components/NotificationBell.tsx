@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { Bell } from 'lucide-react';
 import { useNotifications } from '../hooks/useNotifications';
 import { NotificationPopover } from './NotificationPopover';
 
@@ -57,19 +58,7 @@ export function NotificationBell() {
         aria-expanded={isOpen}
         aria-haspopup="dialog"
       >
-        <svg
-          className="notif-bell-icon"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-          <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-        </svg>
+        <Bell className="notif-bell-icon" size={20} aria-hidden="true" />
 
         {unreadCount > 0 && (
           <span className="notif-bell-badge" aria-hidden="true">

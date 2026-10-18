@@ -68,10 +68,7 @@ export function CampaignListPage() {
     setParams(next);
   }
   return (
-    <CampaignShell
-      title="Mỗi lần sẻ chia, thêm một hy vọng."
-      lead="Tìm đợt hiến máu phù hợp với thời gian và hành trình của bạn."
-    >
+    <CampaignShell>
       <div className="campaign-toolbar">
         <h2>Đợt hiến máu</h2>
         {hasPermission('campaign.create') && (
@@ -135,8 +132,8 @@ export function CampaignListPage() {
           Xóa bộ lọc
         </Button>
       </form>
-      <QueryState {...result} />
-      {result.data && (
+      <QueryState {...result} variant="campaign-list" count={4} />
+      {!result.loading && result.data && (
         <>
           <p className="campaign-muted" role="status">
             {result.data.meta.total} đợt hiến máu · Thời gian theo{' '}
@@ -220,7 +217,7 @@ export function CampaignDetailPage() {
   );
   return (
     <CampaignShell title={result.data?.name ?? 'Chi tiết đợt hiến máu'}>
-      <QueryState {...result} />
+      <QueryState {...result} variant="campaign-detail" />
       {result.data && (
         <CampaignDetail
           key={campaignId}
@@ -490,7 +487,7 @@ export function CampaignEditPage() {
       title="Chỉnh sửa đợt hiến máu"
       back={`/campaigns/${campaignId}`}
     >
-      <QueryState {...result} />
+      <QueryState {...result} variant="form" />
       {result.data &&
         (CAMPAIGN_STATUSES_FROZEN.includes(result.data.status) ? (
           <p role="status">Đợt hiến đã hoàn tất và không thể chỉnh sửa.</p>

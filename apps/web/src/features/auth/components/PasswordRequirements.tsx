@@ -1,3 +1,4 @@
+import { Check, Circle } from 'lucide-react';
 import { PASSWORD_REQUIREMENTS } from '../validation';
 
 export interface PasswordRequirementsProps {
@@ -29,7 +30,7 @@ export function PasswordRequirements({
         return (
           <li key={requirement.id} data-met={met}>
             <span className="password-requirements__mark" aria-hidden="true">
-              {met ? '✓' : '○'}
+              {met ? <Check size={11} strokeWidth={2.5} /> : <Circle size={7} strokeWidth={2} />}
             </span>
             <span>{requirement.label}</span>
             <span className="visually-hidden">

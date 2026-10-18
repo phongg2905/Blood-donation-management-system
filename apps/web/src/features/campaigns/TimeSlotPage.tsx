@@ -32,7 +32,7 @@ export function TimeSlotPage() {
   );
   return (
     <CampaignShell title="Quản lý khung giờ" back={`/campaigns/${campaignId}`}>
-      <QueryState {...result} />
+      <QueryState {...result} variant="campaign-detail" />
       {result.data && (
         <section className="panel">
           <h2>{result.data.name}</h2>
@@ -88,7 +88,7 @@ export function TimeSlotList({
           }}
         />
       )}
-      <QueryState {...result} />
+      <QueryState {...result} variant="workflow-list" count={4} />
       {result.data &&
         (result.data.length ? (
           <ul className="campaign-slot-list">
@@ -100,7 +100,8 @@ export function TimeSlotList({
                     {formatDate(slot.startsAt)} – {formatDate(slot.endsAt)}
                   </p>
                   <span>
-                    {slot.capacity.toLocaleString('vi-VN')} chỗ ·{' '}
+                    Sức chứa: {slot.capacity.toLocaleString('vi-VN')} chỗ
+                    {typeof slot.occupied === 'number' && ` · Đã đăng ký: ${slot.occupied} · Còn: ${Math.max(slot.capacity - slot.occupied, 0)}`} ·{' '}
                     {slot.isActive ? 'Đang hoạt động' : 'Đã ngừng hoạt động'}
                   </span>
                 </div>

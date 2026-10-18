@@ -201,13 +201,7 @@ function ProfileContent({ user }: { user: CurrentUser }) {
   return (
     <div className="profile-page">
       <header className="page-header profile-header">
-        <div>
-          <p className="eyebrow">Tài khoản của bạn</p>
-          <h1 className="page-header__title">Thông tin cá nhân</h1>
-          <p className="page-header__lead">
-            Một chút thông tin để kết nối và đồng hành cùng bạn.
-          </p>
-        </div>
+        <h1 className="page-header__title">Thông tin cá nhân</h1>
         {canEdit && !editing ? (
           <Button
             ref={editRef}

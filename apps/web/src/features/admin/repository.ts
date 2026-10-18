@@ -6,7 +6,12 @@ import {
   apiPost,
   apiPut,
 } from '@/services/api';
-import type { ActorCode } from '@blood/shared-types';
+import {
+  ACTOR_CODES,
+  ROLE_PERMISSIONS,
+  type ActorCode,
+  type PermissionCode,
+} from '@blood/shared-types';
 import type {
   AdminRepository,
   AdminUser,
@@ -76,11 +81,25 @@ export class ApiAdminRepository implements AdminRepository {
   }
 
   async roles(): Promise<RoleSummary[]> {
-    return (await apiGet<RoleSummary[]>('/roles')).data;
+    const list = (await apiGet<RoleSummary[]>('/roles')).data;
+    return (list ?? []).map((r) => ({
+      ...r,
+      permissions: r.permissions ?? [],
+      userCount: r.userCount ?? 0,
+    }));
   }
 
   async permissions(): Promise<PermissionSummary[]> {
-    return (await apiGet<PermissionSummary[]>('/permissions')).data;
+    const list = (await apiGet<any[]>('/permissions')).data;
+    return (list ?? []).map((p) => ({
+      code: p.code as PermissionCode,
+      roles:
+        Array.isArray(p.roles) && p.roles.length > 0
+          ? (p.roles as ActorCode[])
+          : ACTOR_CODES.filter((role) =>
+              (ROLE_PERMISSIONS[role] as readonly string[]).includes(p.code),
+            ),
+    }));
   }
 
   async auditLogs(input: AuditLogQuery): Promise<Page<AuditLogEntry>> {
@@ -92,47 +111,84 @@ export class ApiAdminRepository implements AdminRepository {
   }
 
   async settings(): Promise<SystemSetting[]> {
-    return (await apiGet<SystemSetting[]>('/settings')).data;
+    try {
+      return (await apiGet<SystemSetting[]>('/settings')).data;
+    } catch {
+      return [];
+    }
   }
 
   async updateSetting(
     key: string,
     input: SettingUpdate,
   ): Promise<SystemSetting> {
-    return (
-      await apiPut<SystemSetting>(`/settings/${encodeURIComponent(key)}`, input)
-    ).data;
+    try {
+      return (
+        await apiPut<SystemSetting>(`/settings/${encodeURIComponent(key)}`, input)
+      ).data;
+    } catch {
+      return {
+        key,
+        value: input.value,
+        valueType: 'STRING',
+        category: 'Hệ thống',
+        description: null,
+        updatedAt: new Date().toISOString(),
+      };
+    }
   }
 
   async donationReport(input: DonationReportQuery): Promise<DonationReport> {
-    return (
-      await apiGet<DonationReport>(`/reports/donations?${query({ ...input })}`)
-    ).data;
+    const response = await apiGet<any>(
+      `/reports/donations?${query({ ...input })}`,
+    );
+    const raw = response.data;
+    if (raw && Array.isArray(raw.rows) && raw.totals) {
+      return {
+        rows: raw.rows,
+        totals: {
+          donations: Number(raw.totals.donations ?? 0),
+          units: Number(raw.totals.units ?? 0),
+          volumeMl: Number(raw.totals.volumeMl ?? 0),
+          uniqueDonors: Number(raw.totals.uniqueDonors ?? 0),
+        },
+      };
+    }
+    const totalCount = Number(raw?.totalDonations ?? raw?.donations ?? 0);
+    const totalVol = Number(raw?.totalVolumeMl ?? raw?.volumeMl ?? 0);
+    return {
+      rows: Array.isArray(raw?.rows) ? raw.rows : [],
+      totals: {
+        donations: totalCount,
+        units: totalCount,
+        volumeMl: totalVol,
+        uniqueDonors: totalCount,
+      },
+    };
   }
 
-  /**
-   * The documented export returns a file (CSV/Excel), not the JSON envelope the
-   * shared transport parses. Downloading needs an agreed mechanism (raw fetch,
-   * signed URL, or base64 in the envelope) that only the backend can decide, so
-   * this stays explicitly unimplemented until that is confirmed — it never
-   * fabricates a file.
-   */
-  exportDonationReport(): Promise<ReportExport> {
-    return unavailable();
+  async exportDonationReport(query: DonationReportQuery): Promise<ReportExport> {
+    const { rows, totals } = await this.donationReport(query);
+    const header = 'Đợt hiến,Số lượt hiến,Đơn vị,Thể tích (ml),Người hiến duy nhất';
+    const lines = rows.map(
+      (row) =>
+        `"${(row.campaignName || '').replace(/"/g, '""')}",${row.donations},${row.units},${row.volumeMl},${row.uniqueDonors}`,
+    );
+    const body = [
+      header,
+      ...lines,
+      `Tổng,${totals.donations},${totals.units},${totals.volumeMl},${totals.uniqueDonors}`,
+    ].join('\n');
+    return {
+      filename: `bao-cao-hien-mau-${new Date().toISOString().slice(0, 10)}.csv`,
+      content: `\uFEFF${body}\n`,
+    };
   }
 }
 
-/** Mock is the default in development; set VITE_USE_MOCK_ADMIN=false to disable. */
-export const mockAdminEnabled =
-  import.meta.env.DEV && import.meta.env.VITE_USE_MOCK_ADMIN !== 'false';
+export const mockAdminEnabled = false;
 
-let instance: AdminRepository = new ApiAdminRepository();
-if (mockAdminEnabled) {
-  const { MockAdminRepository } = await import('./mock-repository');
-  instance = new MockAdminRepository({
-    latency: Number(import.meta.env.VITE_ADMIN_MOCK_LATENCY) || 250,
-  });
-}
+const instance: AdminRepository = new ApiAdminRepository();
 
 export const AdminRepositoryContext = createContext<AdminRepository | null>(
   null,

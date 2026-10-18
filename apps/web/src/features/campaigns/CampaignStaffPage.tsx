@@ -21,7 +21,7 @@ export function CampaignStaffPage() {
   );
   return (
     <CampaignShell title="Nhân sự đợt hiến" back={`/campaigns/${campaignId}`}>
-      <QueryState {...result} />
+      <QueryState {...result} variant="campaign-detail" />
       {result.data && (
         <StaffContent
           key={campaignId}
@@ -74,7 +74,7 @@ function StaffContent({
           error={!remove ? mutation.error : null}
           success={mutation.success}
         />
-        <QueryState {...result} />
+        <QueryState {...result} variant="workflow-list" count={3} />
         {result.data &&
           (result.data.length ? (
             <ul className="campaign-slot-list">
@@ -153,7 +153,7 @@ function StaffContent({
                   }}
                 />
               </FormField>
-              <QueryState {...candidates} />
+              <QueryState {...candidates} variant="list" count={2} />
               {candidates.data &&
                 (candidates.data.length ? (
                   <FormField

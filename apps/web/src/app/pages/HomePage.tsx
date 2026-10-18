@@ -1,40 +1,30 @@
 import { LandingHero } from './landing/LandingHero';
 import { CampaignSection } from './landing/CampaignSection';
-import { ImpactSection } from './landing/ImpactSection';
 import { DonationJourneySection } from './landing/DonationJourneySection';
-import { StoriesFaqSection } from './landing/StoriesFaqSection';
 import { LandingFooter } from './landing/LandingFooter';
 
 /**
- * Clean Modern Medical Portal - Landing Page
+ * Modern Clean Medical Portal — Landing Page
  *
- * Implements a high-trust, accessible, modern healthcare experience:
- * 1. Hero with interactive quick-booking widget and floating medical badges
- * 2. Active open campaigns with capacity progress indicators
- * 3. Real-time blood supply levels and verified impact metrics (Bento grid)
- * 4. 4-step digitalized donation journey
- * 5. Medical testimonials and interactive FAQ accordion
- * 6. Standard healthcare regulatory footer
+ * Designed to match the visual-first mockup:
+ * 1. Cinematic Hero with Floating Glass Interactive Blood Dock & 24/7 Dispatch Radar
+ * 2. Current Hospital Demands (Deep Navy full-bleed band with 3 key hospital hubs)
+ * 3. Your Journey: Easy 3-Step Process (Connected horizontal timeline)
+ * 4. Minimal Regulatory Footer
  */
 export function HomePage() {
   return (
-    <div className="medical-landing">
-      {/* 1. Hero Section */}
+    <div className="sketch-landing">
+      {/* 1. Hero with Floating Interactive Blood Dock */}
       <LandingHero />
 
-      {/* 2. Active Campaigns Section */}
+      {/* 2. Current Hospital Demands (Deep Navy Band) */}
       <CampaignSection />
 
-      {/* 3. Impact & Real-time Blood Needs (Bento Grid) */}
-      <ImpactSection />
-
-      {/* 4. 4-Step Digital Donation Journey */}
+      {/* 3. Your Journey: Easy 3-Step Process */}
       <DonationJourneySection />
 
-      {/* 5. Stories & Medical FAQ Accordion */}
-      <StoriesFaqSection />
-
-      {/* 6. Medical Portal Footer */}
+      {/* 4. Minimal Modern Footer */}
       <LandingFooter />
     </div>
   );

@@ -9,7 +9,10 @@ import { auditContextFrom } from '../audit-logs/audit.service';
 import { campaignService } from './campaign.service';
 
 export const list: RequestHandler = async (req, res) => {
-  const { items, meta } = await campaignService.list(req.query);
+  const canViewDraft = Boolean(
+    req.auth?.permissions?.includes('campaign.create'),
+  );
+  const { items, meta } = await campaignService.list(req.query, canViewDraft);
   sendList(res, items, meta.page, meta.limit, meta.total);
 };
 

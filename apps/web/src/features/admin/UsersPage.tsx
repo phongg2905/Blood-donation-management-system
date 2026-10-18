@@ -106,10 +106,7 @@ export function UsersPage() {
   }
 
   return (
-    <AdminShell
-      title="Người dùng"
-      lead="Quản lý tài khoản, trạng thái hoạt động và vai trò được cấp."
-    >
+    <AdminShell title="Người dùng">
       <form
         className="admin-filters"
         onSubmit={(event) => event.preventDefault()}
@@ -150,7 +147,7 @@ export function UsersPage() {
           </select>
         </FormField>
         <div className="admin-filters__action">
-          <Button variant="ghost" onClick={() => setParams({})}>
+          <Button variant="secondary" onClick={() => setParams({})}>
             Xóa bộ lọc
           </Button>
         </div>
@@ -162,7 +159,7 @@ export function UsersPage() {
         error={null}
         success={editMutation.success || rolesMutation.success}
       />
-      <QueryState {...result} />
+      <QueryState {...result} variant="table" columns={5} />
       {result.data && (
         <section className="admin-card">
           {result.data.items.length === 0 ? (

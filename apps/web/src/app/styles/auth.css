@@ -24,6 +24,7 @@
   background: #322054;
   font-family: var(--font-sans);
 }
+
 .auth-layout::before {
   content: '';
   position: fixed;
@@ -34,6 +35,7 @@
     url('/images/auth-blood-donation.png') center / cover no-repeat;
   pointer-events: none;
 }
+
 .auth-scene-header {
   position: sticky;
   top: 0;
@@ -46,62 +48,72 @@
   color: #fceafa;
   background: transparent;
 }
+
 .auth-scene-header__message {
   font-size: var(--text-sm);
 }
+
 .auth-form-panel__content {
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px;
 }
+
 .auth-form-panel {
   width: min(100%, 448px);
   min-width: 0;
   padding: 36px 32px;
   border: 1px solid rgb(255 255 255 / 55%);
   border-radius: 18px;
-  background: linear-gradient(
-    140deg,
-    rgb(255 230 246 / 67%),
-    rgb(238 208 242 / 66%)
-  );
+  background: linear-gradient(140deg,
+      rgb(255 230 246 / 67%),
+      rgb(238 208 242 / 66%));
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 30%),
     0 20px 64px rgb(28 12 49 / 22%);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
 }
+
 .auth-form-container {
   width: 100%;
 }
+
 .auth-form-panel__foot {
   padding: 24px;
   color: #eadbec;
   text-align: center;
   font-size: var(--text-xs);
 }
+
 .auth-layout--register .auth-form-panel__content {
   align-items: flex-start;
 }
+
 .auth-layout--register .auth-form-panel {
   width: min(100%, 496px);
 }
+
 .auth-form-panel .auth-card__header {
   text-align: center;
 }
+
 .auth-form-panel .auth-card__eyebrow {
   display: none;
 }
+
 .auth-form-panel .auth-card__title {
   font-size: clamp(1.5rem, 3vw, 1.75rem);
   font-weight: var(--weight-bold);
 }
+
 .auth-card__note {
   color: var(--color-ink-500);
   font-size: var(--text-xs);
   text-align: center;
 }
+
 /* Shared form rhythm and controls. */
 
 .auth-card {
@@ -162,19 +174,23 @@
   flex-wrap: wrap;
   gap: 8px;
 }
+
 .auth-form-panel .field-heading a {
   font-size: var(--text-xs);
   font-weight: var(--weight-medium);
   color: var(--color-ink-500);
   text-decoration: none;
 }
+
 .auth-form-panel .field-heading a:hover {
   color: var(--color-brand-600);
   text-decoration: underline;
 }
+
 .auth-card__footer {
   margin: 0;
 }
+
 .auth-card__links {
   display: flex;
   align-items: center;
@@ -255,11 +271,9 @@
   height: 52px;
   min-height: 52px;
   border-radius: var(--radius-lg);
-  background: linear-gradient(
-    135deg,
-    var(--color-brand-500) 0%,
-    var(--color-brand-600) 100%
-  );
+  background: linear-gradient(135deg,
+      var(--color-brand-500) 0%,
+      var(--color-brand-600) 100%);
   color: #ffffff;
   border-top: 1px solid rgb(255 255 255 / 28%);
   font-size: var(--text-sm);
@@ -273,11 +287,9 @@
 }
 
 .auth-form-panel .btn--primary:hover:not(:disabled) {
-  background: linear-gradient(
-    135deg,
-    var(--color-brand-600) 0%,
-    var(--color-brand-700) 100%
-  );
+  background: linear-gradient(135deg,
+      var(--color-brand-600) 0%,
+      var(--color-brand-700) 100%);
   box-shadow: 0 3px 8px rgb(59 23 74 / 0.22);
 }
 
@@ -358,11 +370,13 @@
   background: #fff;
   text-align: center;
 }
+
 .error-illustration {
   display: block;
   width: min(100%, 900px);
   margin: clamp(22px, 6vh, 72px) auto 0;
 }
+
 .error-page__numeral {
   font-size: clamp(4.75rem, 10vw, 6.5rem);
   font-weight: 800;
@@ -371,6 +385,7 @@
   color: var(--error-ink);
   margin: 0;
 }
+
 .error-page__content {
   display: flex;
   flex-direction: column;
@@ -380,6 +395,7 @@
   width: min(100% - 40px, 620px);
   margin: 0 auto;
 }
+
 .error-page__title {
   font-size: clamp(1.45rem, 2.3vw, 1.95rem);
   font-weight: 800;
@@ -387,6 +403,7 @@
   color: var(--error-ink);
   margin: 0;
 }
+
 .error-page__message {
   max-width: 600px;
   color: var(--error-muted);
@@ -403,19 +420,23 @@
   width: 100%;
   margin-top: 14px;
 }
+
 .error-page__actions .btn,
 .error-page__actions .btn--primary {
   flex: 0 1 auto;
   min-width: 132px;
   border-radius: 10px;
 }
+
 .error-page--403 .error-illustration--door {
   width: min(100%, 720px);
   margin-top: clamp(36px, 10vh, 100px);
 }
+
 .error-page--403 .error-page__content {
   gap: 10px;
 }
+
 .error-page--403 .error-page__title {
   color: #35335c;
 }
@@ -424,6 +445,7 @@
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr);
 }
+
 .error-page--404 .error-illustration--canyon {
   grid-column: 1;
   grid-row: 1;
@@ -433,6 +455,7 @@
   margin: 0;
   pointer-events: none;
 }
+
 .error-page--404 .error-page__content {
   grid-column: 1;
   grid-row: 1;
@@ -447,32 +470,41 @@
       center,
       82% center;
   }
+
   .auth-scene-header {
     padding: 24px;
   }
+
   .auth-scene-header__message {
     display: none;
   }
+
   .auth-form-panel__content {
     padding: 16px 24px;
   }
+
   .auth-form-panel {
     padding: 28px 24px;
   }
+
   .auth-card__links {
     font-size: var(--text-xs);
   }
+
   .password-requirements {
     grid-template-columns: 1fr;
   }
+
   .error-page__actions {
     flex-direction: column;
     width: 100%;
   }
+
   .error-page__actions .btn {
     width: 100%;
   }
 }
+
 @media (prefers-reduced-transparency: reduce) {
   .auth-form-panel {
     background: #ead3e9;
@@ -484,16 +516,20 @@
 .error-page__content {
   padding-bottom: var(--space-8);
 }
+
 .auth-scene-header {
   position: relative;
 }
+
 @media (max-width: 480px) {
   .auth-form-panel__content {
     padding: var(--space-4);
   }
+
   .auth-form-panel {
     padding: var(--space-6) var(--space-5);
   }
+
   .auth-form-panel .input {
     font-size: var(--text-base);
   }

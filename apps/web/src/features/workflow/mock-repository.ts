@@ -1,5 +1,5 @@
 import { ApiRequestError } from '@/services/api';
-import { validateBloodBag } from './domain';
+import { sortRegistrationsForCheckIn, validateBloodBag } from './domain';
 import type {
   BloodBag,
   BloodBagInput,
@@ -57,14 +57,12 @@ export class MockWorkflowRepository implements WorkflowRepository {
   private sequence = 0;
 
   constructor(options: MockWorkflowOptions = {}) {
-    this.latency = options.latency ?? 300;
+    this.latency = 0;
     this.seed();
   }
 
   private wait(): Promise<void> {
-    return this.latency <= 0
-      ? Promise.resolve()
-      : new Promise((resolve) => setTimeout(resolve, this.latency));
+    return Promise.resolve();
   }
 
   private nextCode(prefix: string): string {
@@ -202,6 +200,7 @@ export class MockWorkflowRepository implements WorkflowRepository {
           registrationId: registration.id,
           donorId: registration.donorId,
           donorName: registration.donorName,
+          campaignId: registration.campaignId,
           campaignName: registration.campaignName,
           volumeMl: seed.bag.volumeMl,
           bloodGroup: seed.bag.bloodGroup,
@@ -383,9 +382,7 @@ export class MockWorkflowRepository implements WorkflowRepository {
     if (campaignId) {
       matches = matches.filter((item) => item.campaignId === campaignId);
     }
-    return structuredClone(
-      matches.sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)),
-    );
+    return structuredClone(sortRegistrationsForCheckIn(matches));
   }
 
   async checkIn(registrationId: string): Promise<DonorRegistration> {
@@ -510,17 +507,28 @@ export class MockWorkflowRepository implements WorkflowRepository {
     return structuredClone(screening);
   }
 
-  async eligibleForBag(): Promise<ScreeningQueueItem[]> {
+  async eligibleForBag(campaignId?: string): Promise<ScreeningQueueItem[]> {
     await this.wait();
     return structuredClone(
-      this.queueItems().filter((item) => item.screening.status === 'ELIGIBLE'),
+      this.queueItems().filter(
+        (item) =>
+          item.screening.status === 'ELIGIBLE' &&
+          (!campaignId ||
+            item.registration.campaignId === campaignId ||
+            item.registration.campaignName === campaignId),
+      ),
     );
   }
 
-  async bloodBags(): Promise<BloodBag[]> {
+  async bloodBags(campaignId?: string): Promise<BloodBag[]> {
     await this.wait();
+    const list = campaignId
+      ? this.bags.filter(
+          (b) => b.campaignId === campaignId || b.campaignName === campaignId,
+        )
+      : this.bags;
     return structuredClone(
-      [...this.bags].sort(
+      [...list].sort(
         (a, b) => Date.parse(b.receivedAt) - Date.parse(a.receivedAt),
       ),
     );
@@ -531,33 +539,103 @@ export class MockWorkflowRepository implements WorkflowRepository {
     const errors = validateBloodBag(input);
     if (Object.keys(errors).length > 0)
       throw new ApiRequestError('VALIDATION_ERROR', '', 400, errors);
-    const registration = this.registration(input.registrationId);
-    const screening = this.screeningOf(registration.id);
-    if (!screening || screening.status !== 'ELIGIBLE')
-      throw new ApiRequestError('SCREENING_NOT_ELIGIBLE', '', 409);
     if (this.bags.some((bag) => bag.code === input.code.trim()))
       throw new ApiRequestError('REQUEST_INVALID', '', 409, {
         code: 'Mã túi máu đã tồn tại.',
       });
+
+    let donorId = '';
+    let donorName = input.donorName?.trim() || '';
+    let campaignId = input.campaignId;
+    let campaignName = input.campaignName || '';
+
+    let registration: DonorRegistration | undefined;
+    if (input.registrationId) {
+      registration = this.registration(input.registrationId);
+      const screening = this.screeningOf(registration.id);
+      if (!screening || screening.status !== 'ELIGIBLE') {
+        throw new ApiRequestError('SCREENING_NOT_ELIGIBLE', '', 409);
+      }
+      donorId = registration.donorId;
+      donorName = registration.donorName;
+      campaignId = campaignId || registration.campaignId;
+      campaignName = campaignName || registration.campaignName;
+    }
+
     const bag: BloodBag = {
       id: crypto.randomUUID(),
       code: input.code.trim(),
-      registrationId: registration.id,
-      donorId: registration.donorId,
-      donorName: registration.donorName,
-      campaignName: registration.campaignName,
+      registrationId: registration?.id,
+      donorId: donorId || crypto.randomUUID(),
+      donorName: donorName || 'Người hiến',
+      campaignId: campaignId,
+      campaignName: campaignName,
       volumeMl: input.volumeMl,
       bloodGroup: input.bloodGroup,
-      status: 'COLLECTED',
+      bloodType: input.bloodType,
+      status: input.status || 'COLLECTED',
       receivedAt: new Date().toISOString(),
+      notes: input.notes,
     };
     this.bags.push(bag);
-    registration.status = 'COMPLETED';
-    const cert = this.issueCertificate(registration, bag);
-    bag.certificateCode = cert.code;
-    bag.certificateId = cert.id;
-    bag.certificateFileUrl = cert.fileUrl ?? null;
+
+    if (registration) {
+      registration.status = 'COMPLETED';
+      const cert = this.issueCertificate(registration, bag);
+      bag.certificateCode = cert.code;
+      bag.certificateId = cert.id;
+      bag.certificateFileUrl = cert.fileUrl ?? null;
+    }
+
     return structuredClone(bag);
+  }
+
+  async updateBloodBag(
+    id: string,
+    input: Partial<BloodBagInput>,
+  ): Promise<BloodBag> {
+    await this.wait();
+    const index = this.bags.findIndex((b) => b.id === id);
+    if (index === -1) {
+      throw new ApiRequestError('NOT_FOUND', 'Không tìm thấy túi máu.', 404);
+    }
+    const current = this.bags[index]!;
+    if (input.code && input.code.trim() !== current.code) {
+      const codeExists = this.bags.some(
+        (b) => b.id !== id && b.code === input.code!.trim(),
+      );
+      if (codeExists) {
+        throw new ApiRequestError('REQUEST_INVALID', '', 409, {
+          code: 'Mã túi máu đã tồn tại.',
+        });
+      }
+      current.code = input.code.trim();
+    }
+    if (input.volumeMl !== undefined) {
+      if (!Number.isInteger(input.volumeMl) || input.volumeMl <= 0) {
+        throw new ApiRequestError('VALIDATION_ERROR', '', 400, {
+          volumeMl: 'Thể tích phải là số nguyên lớn hơn 0 (ml).',
+        });
+      }
+      current.volumeMl = input.volumeMl;
+    }
+    if (input.bloodGroup !== undefined) current.bloodGroup = input.bloodGroup;
+    if (input.bloodType !== undefined) current.bloodType = input.bloodType;
+    if (input.status !== undefined) current.status = input.status;
+    if (input.storageLocation !== undefined) current.storageLocation = input.storageLocation;
+    if (input.donorName !== undefined) current.donorName = input.donorName;
+    if (input.notes !== undefined) current.notes = input.notes;
+
+    return structuredClone(current);
+  }
+
+  async deleteBloodBag(id: string): Promise<void> {
+    await this.wait();
+    const index = this.bags.findIndex((b) => b.id === id);
+    if (index === -1) {
+      throw new ApiRequestError('NOT_FOUND', 'Không tìm thấy túi máu.', 404);
+    }
+    this.bags.splice(index, 1);
   }
 
   /** A recorded bag is what makes a (mock) certificate available to the donor. */
@@ -648,7 +726,7 @@ export class MockWorkflowRepository implements WorkflowRepository {
         campaignName: registration.campaignName,
         location: registration.location,
         volumeMl: bag.volumeMl,
-        bloodGroup: bag.bloodGroup,
+        bloodGroup: bag.bloodType ?? bag.bloodGroup,
         status: 'COMPLETED',
         certificateId: null,
       });
@@ -658,7 +736,7 @@ export class MockWorkflowRepository implements WorkflowRepository {
         campaignName: registration.campaignName,
         location: registration.location,
         volumeMl: bag.volumeMl,
-        bloodGroup: bag.bloodGroup,
+        bloodGroup: bag.bloodType ?? bag.bloodGroup,
         status: 'COMPLETED',
         certificateId: certificate.id,
       });

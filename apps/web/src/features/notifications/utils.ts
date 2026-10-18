@@ -1,4 +1,6 @@
 import type { NotificationType } from '@blood/shared-types';
+import type { LucideIcon } from 'lucide-react';
+import { Calendar, Droplet, Award, Megaphone, Settings, Info } from 'lucide-react';
 
 export function formatRelativeTime(dateString: string): string {
   const date = new Date(dateString);
@@ -31,20 +33,21 @@ export function formatRelativeTime(dateString: string): string {
   }).format(date);
 }
 
-export function getNotificationBadge(type: NotificationType): { label: string; icon: string; className: string } {
+export function getNotificationBadge(type: NotificationType): { label: string; icon: LucideIcon; className: string } {
   switch (type) {
     case 'REGISTRATION':
-      return { label: 'Đăng ký', icon: '📅', className: 'notif-badge--reg' };
+      return { label: 'Đăng ký', icon: Calendar, className: 'notif-badge--reg' };
     case 'DONATION':
-      return { label: 'Hiến máu', icon: '🩸', className: 'notif-badge--donation' };
+      return { label: 'Hiến máu', icon: Droplet, className: 'notif-badge--donation' };
     case 'CERTIFICATE':
-      return { label: 'Chứng nhận', icon: '🏆', className: 'notif-badge--cert' };
+      return { label: 'Chứng nhận', icon: Award, className: 'notif-badge--cert' };
     case 'CAMPAIGN':
-      return { label: 'Chiến dịch', icon: '📢', className: 'notif-badge--campaign' };
+      return { label: 'Chiến dịch', icon: Megaphone, className: 'notif-badge--campaign' };
     case 'SYSTEM':
-      return { label: 'Hệ thống', icon: '⚙️', className: 'notif-badge--system' };
+      return { label: 'Hệ thống', icon: Settings, className: 'notif-badge--system' };
     case 'GENERAL':
     default:
-      return { label: 'Thông báo', icon: 'ℹ️', className: 'notif-badge--general' };
+      return { label: 'Thông báo', icon: Info, className: 'notif-badge--general' };
   }
 }
+

@@ -9,12 +9,15 @@ import { auditContextFrom } from '../audit-logs/audit.service';
 import { certificateService } from './certificate.service';
 
 const attachFile: RequestHandler = async (req, res) => {
+  if (!req.auth) throw AppError.unauthorized();
+  const staffLike = req.auth.roles.some((r) => r !== 'DONOR');
   sendSuccess(
     res,
     await certificateService.attachFile(
       paramId(req),
       req.body,
       auditContextFrom(req),
+      staffLike ? undefined : req.auth.userId,
     ),
   );
 };
@@ -51,7 +54,6 @@ certificateRoutes.get(
 certificateRoutes.post(
   '/:id/file',
   requireAuth,
-  requirePermission('certificate.issue'),
   attachFile,
 );
 certificateRoutes.post(

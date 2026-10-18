@@ -15,14 +15,10 @@ export function RolesPage() {
   );
 
   return (
-    <AdminShell
-      eyebrow="Quản trị hệ thống"
-      title="Vai trò & quyền"
-      lead="Bốn vai trò của hệ thống cùng tập quyền tương ứng. Ma trận quyền do backend quy định."
-    >
+    <AdminShell title="Vai trò & quyền">
       <section className="admin-card" aria-labelledby="admin-roles-heading">
         <h2 id="admin-roles-heading">Vai trò</h2>
-        <QueryState {...roles} />
+        <QueryState {...roles} variant="role-grid" count={4} />
         <div className="admin-role-grid">
           {roles.data?.map((role) => (
             <article className="admin-role-card" key={role.code}>
@@ -31,10 +27,10 @@ export function RolesPage() {
                 <code>{role.code}</code>
               </header>
               <p className="admin-muted">
-                {role.userCount} tài khoản · {role.permissions.length} quyền
+                {role.userCount ?? 0} tài khoản · {(role.permissions ?? []).length} quyền
               </p>
               <ul className="admin-permission-list">
-                {role.permissions.map((permission) => (
+                {(role.permissions ?? []).map((permission) => (
                   <li key={permission}>
                     <code>{permission}</code>
                   </li>
@@ -55,7 +51,7 @@ export function RolesPage() {
           aria-labelledby="admin-permissions-heading"
         >
           <h2 id="admin-permissions-heading">Danh mục quyền</h2>
-          <QueryState {...permissions} />
+          <QueryState {...permissions} variant="table" columns={2} />
           {permissions.data && (
             <div className="admin-table-wrap">
               <table className="admin-table">
@@ -76,14 +72,14 @@ export function RolesPage() {
                       </td>
                       <td>
                         <span className="admin-roles">
-                          {permission.roles.length === 0 ? (
+                          {!permission.roles || permission.roles.length === 0 ? (
                             <span className="admin-muted">
                               Không vai trò nào
                             </span>
                           ) : (
-                            permission.roles.map((role) => (
+                            (permission.roles ?? []).map((role) => (
                               <AdminBadge key={role} tone="neutral">
-                                {ROLE_NAMES[role]}
+                                {ROLE_NAMES[role] ?? role}
                               </AdminBadge>
                             ))
                           )}

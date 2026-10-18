@@ -447,7 +447,7 @@ export const MEASUREMENT_UNITS = {
   systolicBp: 'mmHg',
   diastolicBp: 'mmHg',
   pulse: 'bpm',
-  hemoglobin: 'g/dL',
+  hemoglobin: 'g/L',
 } as const;
 
 export interface ScreeningTestDefinition {
