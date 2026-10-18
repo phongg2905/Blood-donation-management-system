@@ -71,6 +71,8 @@ export const screeningService = {
         registration: {
           include: {
             donor: { include: { user: { select: { fullName: true } } } },
+            campaign: { select: { id: true, name: true, location: true, startsAt: true, endsAt: true } },
+            timeSlot: true,
           },
         },
       },
@@ -95,6 +97,7 @@ export const screeningService = {
         status: review.status,
         decisionReason: review.decisionReason,
         deferredUntil: review.deferredUntil,
+        indicatedVolumeMl: review.indicatedVolumeMl,
         notes: review.notes,
       });
       await auditLogService.record(

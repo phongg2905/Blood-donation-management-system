@@ -52,11 +52,15 @@ async function transition(
 }
 
 export const campaignService = {
-  async list(query: unknown) {
+  async list(query: unknown, canViewDraft: boolean = true) {
     const filters = validateCampaignListQuery(query);
     const pagination = resolvePagination(filters);
+    const effectiveStatus = canViewDraft
+      ? filters.status
+      : (filters.status === 'DRAFT' ? undefined : filters.status);
     const { items, total } = await repo.list({
-      status: filters.status,
+      status: effectiveStatus,
+      excludeDraft: !canViewDraft && !effectiveStatus,
       from: filters.from,
       to: filters.to,
       skip: pagination.skip,

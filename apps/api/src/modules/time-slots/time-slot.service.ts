@@ -135,7 +135,11 @@ export const timeSlotService = {
   },
 
   async list(campaignId: string, activeOnly: boolean) {
-    return repository.listByCampaign(campaignId, activeOnly);
+    const slots = await repository.listByCampaign(campaignId, activeOnly);
+    return slots.map((s) => ({
+      ...s,
+      occupied: (s as any)._count?.registrations ?? 0,
+    }));
   },
 
   async getById(id: string) {

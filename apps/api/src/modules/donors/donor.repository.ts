@@ -6,9 +6,21 @@ export const donorRepository = {
 
   history: (donorId: string) =>
     database.registration.findMany({
-      where: { donorId },
+      where: {
+        donorId,
+        status: 'COMPLETED',
+      },
       include: {
-        campaign: { select: { id: true, name: true, startsAt: true } },
+        campaign: {
+          select: {
+            id: true,
+            name: true,
+            location: true,
+            startsAt: true,
+            endsAt: true,
+          },
+        },
+        timeSlot: true,
         checkIn: {
           include: {
             screening: {

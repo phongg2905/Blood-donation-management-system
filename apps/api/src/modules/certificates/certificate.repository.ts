@@ -2,7 +2,29 @@ import type { CertificateStatus, Prisma } from '@prisma/client';
 import { database } from '../../config/database';
 
 export const certificateRepository = {
-  findById: (id: string) => database.certificate.findUnique({ where: { id } }),
+  findById: (id: string) =>
+    database.certificate.findUnique({
+      where: { id },
+      include: {
+        donation: {
+          include: {
+            screening: {
+              include: {
+                checkIn: {
+                  include: {
+                    registration: {
+                      include: {
+                        donor: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    }),
   setFileUrl: (id: string, fileUrl: string) =>
     database.certificate.update({ where: { id }, data: { fileUrl } }),
 
@@ -36,9 +58,31 @@ export const certificateRepository = {
           }
         : {}),
     };
+    const include = {
+      donation: {
+        include: {
+          screening: {
+            include: {
+              checkIn: {
+                include: {
+                  registration: {
+                    include: {
+                      campaign: true,
+                      donor: { include: { user: true } },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    };
+
     const [items, total] = await Promise.all([
       database.certificate.findMany({
         where,
+        include,
         skip: filter.skip,
         take: filter.take,
         orderBy: { issuedAt: 'desc' },

@@ -4,6 +4,7 @@ import { database } from '../../config/database';
 
 export interface CampaignListFilter {
   status?: CampaignStatus | undefined;
+  excludeDraft?: boolean | undefined;
   from?: Date | undefined;
   to?: Date | undefined;
   skip: number;
@@ -11,10 +12,14 @@ export interface CampaignListFilter {
 }
 
 function whereFromFilter(
-  filter: Pick<CampaignListFilter, 'status' | 'from' | 'to'>,
+  filter: Pick<CampaignListFilter, 'status' | 'excludeDraft' | 'from' | 'to'>,
 ): Prisma.DonationCampaignWhereInput {
   return {
-    ...(filter.status ? { status: filter.status } : {}),
+    ...(filter.status
+      ? { status: filter.status }
+      : filter.excludeDraft
+        ? { status: { not: 'DRAFT' } }
+        : {}),
     ...(filter.from || filter.to
       ? {
           startsAt: {
@@ -33,15 +38,61 @@ export const campaignRepository = {
 
   async list(filter: CampaignListFilter) {
     const where = whereFromFilter(filter);
-    const [items, total] = await Promise.all([
-      database.donationCampaign.findMany({
-        where,
-        skip: filter.skip,
-        take: filter.take,
-        orderBy: { startsAt: 'desc' },
+
+    if (filter.status) {
+      const [items, total] = await Promise.all([
+        database.donationCampaign.findMany({
+          where,
+          skip: filter.skip,
+          take: filter.take,
+          orderBy: { startsAt: 'asc' },
+        }),
+        database.donationCampaign.count({ where }),
+      ]);
+      return { items, total };
+    }
+
+    const [openCount, otherCount] = await Promise.all([
+      database.donationCampaign.count({
+        where: { ...where, status: 'OPEN' },
       }),
-      database.donationCampaign.count({ where }),
+      database.donationCampaign.count({
+        where: { ...where, status: { not: 'OPEN' } },
+      }),
     ]);
+    const total = openCount + otherCount;
+
+    let items: any[] = [];
+    if (filter.skip < openCount) {
+      const openTake = Math.min(filter.take, openCount - filter.skip);
+      const openItems = await database.donationCampaign.findMany({
+        where: { ...where, status: 'OPEN' },
+        skip: filter.skip,
+        take: openTake,
+        orderBy: { startsAt: 'asc' },
+      });
+      items.push(...openItems);
+
+      const remainingTake = filter.take - items.length;
+      if (remainingTake > 0) {
+        const otherItems = await database.donationCampaign.findMany({
+          where: { ...where, status: { not: 'OPEN' } },
+          skip: 0,
+          take: remainingTake,
+          orderBy: { startsAt: 'asc' },
+        });
+        items.push(...otherItems);
+      }
+    } else {
+      const otherSkip = filter.skip - openCount;
+      items = await database.donationCampaign.findMany({
+        where: { ...where, status: { not: 'OPEN' } },
+        skip: otherSkip,
+        take: filter.take,
+        orderBy: { startsAt: 'asc' },
+      });
+    }
+
     return { items, total };
   },
 

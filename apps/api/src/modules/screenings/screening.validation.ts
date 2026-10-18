@@ -21,14 +21,34 @@ import { assertTransition } from '../../common/helpers/state-machine';
  */
 export const SCREENING_UNITS = MEASUREMENT_UNITS;
 
-export const screeningMeasurementsSchema = z.object({
-  weightKg: z.number().gt(0).max(500).nullish(),
-  temperatureC: z.number().gt(0).max(60).nullish(),
-  systolicBp: z.number().int().gt(0).max(400).nullish(),
-  diastolicBp: z.number().int().gt(0).max(300).nullish(),
-  pulse: z.number().int().gt(0).max(300).nullish(),
-  hemoglobin: z.number().gt(0).max(30).nullish(),
-});
+export const screeningMeasurementsSchema = z
+  .object({
+    weightKg: z.number().min(30).max(250).nullish(),
+    temperatureC: z.number().min(34.0).max(43.0).nullish(),
+    systolicBp: z.number().int().min(60).max(260).nullish(),
+    diastolicBp: z.number().int().min(40).max(160).nullish(),
+    pulse: z.number().int().min(40).max(200).nullish(),
+    hemoglobin: z
+      .preprocess((val) => {
+        if (typeof val === 'number' && val > 0 && val <= 30) {
+          return Math.round(val * 10 * 10) / 10;
+        }
+        return val;
+      }, z.number().min(30).max(250).nullish()),
+    indicatedVolumeMl: z.number().int().positive().nullish(),
+  })
+  .refine(
+    (data) => {
+      if (data.systolicBp && data.diastolicBp) {
+        return data.systolicBp > data.diastolicBp;
+      }
+      return true;
+    },
+    {
+      message: 'Huyết áp tâm thu phải lớn hơn huyết áp tâm trương',
+      path: ['systolicBp'],
+    },
+  );
 
 export const screeningTestSchema = z.object({
   code: z.string().min(1).max(64),
@@ -74,7 +94,11 @@ export function validateScreeningTests(input: unknown) {
 export const screeningReviewSchema = z.object({
   status: z.enum(['WAITING_REVIEW', 'ELIGIBLE', 'INELIGIBLE', 'DEFERRED']),
   decisionReason: z.string().trim().max(1000).nullish(),
-  deferredUntil: z.date().nullish(),
+  deferredUntil: z.preprocess(
+    (val) => (typeof val === 'string' && val.trim() ? new Date(val) : val),
+    z.date().nullish(),
+  ),
+  indicatedVolumeMl: z.number().int().positive().nullish(),
   notes: z.string().trim().max(2000).nullish(),
 });
 

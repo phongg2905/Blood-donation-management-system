@@ -13,6 +13,7 @@ import {
 } from '../modules/time-slots/time-slot.routes';
 import { userRoutes } from '../modules/users/user.routes';
 import { roleRoutes } from '../modules/roles/role.routes';
+import { permissionRoutes } from '../modules/permissions/permission.routes';
 import { auditLogRoutes } from '../modules/audit-logs/audit.routes';
 import { reportRoutes } from '../modules/reports/report.routes';
 import { donorRoutes } from '../modules/donors/donor.routes';
@@ -31,6 +32,7 @@ apiRoutes.use('/campaigns', campaignTimeSlotRoutes);
 apiRoutes.use('/time-slots', timeSlotRoutes);
 apiRoutes.use('/users', userRoutes);
 apiRoutes.use('/roles', roleRoutes);
+apiRoutes.use('/permissions', permissionRoutes);
 apiRoutes.use('/audit-logs', auditLogRoutes);
 apiRoutes.use('/reports', reportRoutes);
 apiRoutes.use('/donors', donorRoutes);
