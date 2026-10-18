@@ -3,6 +3,13 @@
  * profile page, and system status screen.
  */
 
+/* ============================================================= Global base == */
+
+html {
+  scrollbar-gutter: stable;
+  overflow-y: scroll;
+}
+
 /* ============================================================= App shell == */
 
 .app-shell {
@@ -18,17 +25,15 @@
   position: sticky;
   top: 0;
   z-index: var(--z-sticky);
-  background: var(--color-surface);
-  border-bottom: 1px solid var(--color-border);
-  box-shadow: var(--shadow-xs);
-  /* `useHeaderAutoHide` slides the bar out on the way down and back on the way
-     up. Only `transform` moves, so the bar keeps its place and height and the
-     page never shifts. */
-  transition: transform var(--transition-slow);
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
 }
 
 html[data-header-hidden] .app-header {
-  transform: translateY(-100%);
+  transform: none !important;
 }
 
 .app-header__inner {
@@ -38,8 +43,12 @@ html[data-header-hidden] .app-header {
   gap: var(--space-6);
   max-width: var(--layout-max-width);
   margin: 0 auto;
-  padding: var(--space-3) var(--space-6);
+  padding: 0 var(--space-6);
   height: var(--header-height);
+}
+
+.app-header .brand {
+  flex-shrink: 0;
 }
 
 /* ── Navigation ───────────────────────────────────────────────────── */
@@ -49,7 +58,10 @@ html[data-header-hidden] .app-header {
   align-items: center;
   gap: var(--space-1);
   min-width: 0;
+  margin-left: var(--space-6);
+  margin-right: auto;
   overflow-x: auto;
+  flex-shrink: 0;
 }
 
 .app-nav__link {
@@ -59,7 +71,7 @@ html[data-header-hidden] .app-header {
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-md);
   font-size: var(--text-sm);
-  font-weight: var(--weight-medium);
+  font-weight: var(--weight-semibold);
   color: var(--color-ink-600);
   white-space: nowrap;
   transition:
@@ -85,6 +97,46 @@ html[data-header-hidden] .app-header {
   display: flex;
   align-items: center;
   gap: var(--space-3);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* ── Header quick CTA button ──────────────────────────────────────── */
+
+.header-quick-btn,
+a.header-quick-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 38px;
+  padding: 0 16px;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(135deg, var(--color-brand-600) 0%, var(--color-brand-700) 100%);
+  color: #ffffff !important;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  text-decoration: none;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px -1px rgba(168, 25, 46, 0.35);
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.header-quick-btn:hover,
+a.header-quick-btn:hover {
+  background: linear-gradient(135deg, var(--color-brand-500) 0%, var(--color-brand-600) 100%);
+  color: #ffffff !important;
+  text-decoration: none;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px -2px rgba(168, 25, 46, 0.45);
+}
+
+.header-quick-btn:active {
+  transform: translateY(0);
+}
+
+.header-quick-btn svg {
+  flex-shrink: 0;
 }
 
 .session__user {
@@ -117,7 +169,7 @@ html[data-header-hidden] .app-header {
   width: 100%;
   max-width: var(--layout-max-width);
   margin: 0 auto;
-  padding: var(--space-8) var(--space-6) var(--space-12);
+  padding: 14px 20px 28px;
 }
 
 /* ── Page header ──────────────────────────────────────────────────── */
@@ -125,12 +177,15 @@ html[data-header-hidden] .app-header {
 .page-header {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  margin-bottom: var(--space-8);
+  gap: var(--space-1);
+  margin-bottom: var(--space-3);
 }
 
 .page-header__title {
-  font-size: var(--text-2xl-responsive);
+  font-size: clamp(1.35rem, 2vw, 1.75rem);
+  font-weight: 800;
+  margin: 0;
+  color: var(--color-ink-900);
 }
 
 .page-header__lead {
@@ -230,13 +285,11 @@ html[data-header-hidden] .app-header {
   flex-direction: row;
   justify-content: space-between;
   align-items: center;
-  gap: var(--space-6);
-}
-.profile-header .eyebrow {
+  gap: var(--space-4);
   margin-bottom: var(--space-3);
 }
 .profile-header h1 {
-  margin-bottom: var(--space-2);
+  margin: 0;
 }
 .profile-header > .btn {
   flex: none;

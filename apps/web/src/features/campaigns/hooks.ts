@@ -13,7 +13,33 @@ export function useUnsavedWarning(dirty: boolean) {
   }, [dirty]);
 }
 
-/** Request keys + session identity prevent late responses replacing a new route/user. */
+interface CampaignCacheEntry<T> {
+  data: T;
+  timestamp: number;
+}
+
+const campaignQueryCache = new Map<string, CampaignCacheEntry<unknown>>();
+const campaignInFlight = new Map<string, Promise<unknown>>();
+
+export function clearCampaignQueryCache(keyPrefix?: string) {
+  if (!keyPrefix) {
+    campaignQueryCache.clear();
+    campaignInFlight.clear();
+    return;
+  }
+  for (const key of campaignQueryCache.keys()) {
+    if (key.includes(keyPrefix)) {
+      campaignQueryCache.delete(key);
+    }
+  }
+  for (const key of campaignInFlight.keys()) {
+    if (key.includes(keyPrefix)) {
+      campaignInFlight.delete(key);
+    }
+  }
+}
+
+/** Request keys + session identity prevent late responses replacing a new route/user with SWR caching. */
 export function useCampaignQuery<T>(
   key: string,
   fetcher: () => Promise<T>,
@@ -24,24 +50,50 @@ export function useCampaignQuery<T>(
   const latest = useRef(fetcher);
   latest.current = fetcher;
   const [revision, setRevision] = useState(0);
+
+  const cached = enabled
+    ? (campaignQueryCache.get(identity) as CampaignCacheEntry<T> | undefined)
+    : undefined;
+
   const [state, setState] = useState<{
     key: string;
     data?: T;
     error?: unknown;
     loading: boolean;
-  }>({ key: identity, loading: true });
+  }>(() => ({
+    key: identity,
+    data: cached?.data,
+    loading: enabled && cached?.data === undefined,
+  }));
+
   useEffect(() => {
     let active = true;
     if (!enabled) return;
-    setState((previous) => ({
-      key: identity,
-      ...(previous.key === identity && previous.data !== undefined
-        ? { data: previous.data }
-        : {}),
-      loading: true,
-    }));
-    void latest.current().then(
+
+    const currentCached = campaignQueryCache.get(identity) as
+      | CampaignCacheEntry<T>
+      | undefined;
+    const hasData = currentCached?.data !== undefined;
+
+    if (!hasData) {
+      setState((previous) => ({
+        key: identity,
+        data: previous.key === identity ? previous.data : undefined,
+        loading: true,
+      }));
+    }
+
+    let inFlight = campaignInFlight.get(identity) as Promise<T> | undefined;
+    if (!inFlight) {
+      inFlight = latest.current().finally(() => {
+        campaignInFlight.delete(identity);
+      });
+      campaignInFlight.set(identity, inFlight);
+    }
+
+    void inFlight.then(
       (data) => {
+        campaignQueryCache.set(identity, { data, timestamp: Date.now() });
         if (active) setState({ key: identity, data, loading: false });
       },
       (error) => {
@@ -52,11 +104,16 @@ export function useCampaignQuery<T>(
       active = false;
     };
   }, [identity, revision, enabled]);
+
   return {
     data: state.key === identity ? state.data : undefined,
     error: state.key === identity ? state.error : undefined,
     loading: enabled && (state.key !== identity || state.loading),
-    retry: useCallback(() => setRevision((n) => n + 1), []),
+    retry: useCallback(() => {
+      campaignQueryCache.delete(identity);
+      campaignInFlight.delete(identity);
+      setRevision((n) => n + 1);
+    }, [identity]),
   };
 }
 export function useCampaignMutation() {

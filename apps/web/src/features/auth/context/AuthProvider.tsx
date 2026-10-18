@@ -23,20 +23,53 @@ export interface AuthProviderProps {
   service?: AuthService;
 }
 
+const CACHED_USER_KEY = 'bd.auth.cached_user';
+
+function readCachedUser(): CurrentUser | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(CACHED_USER_KEY);
+    return raw ? (JSON.parse(raw) as CurrentUser) : null;
+  } catch {
+    return null;
+  }
+}
+
 export function AuthProvider({ children, service }: AuthProviderProps) {
   const authService = useMemo(() => service ?? getAuthService(), [service]);
-  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
-  const [status, setStatus] = useState<AuthStatus>('loading');
+
+  // Synchronously hydrate cached user on frame 0 to eliminate blank white screen on F5.
+  // In tests where an explicit mock service is injected, let the mock service dictate initial lifecycle.
+  const cachedUser = useMemo(() => (!service ? readCachedUser() : null), [service]);
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(() => cachedUser);
+  const [status, setStatus] = useState<AuthStatus>(() =>
+    cachedUser ? 'authenticated' : 'loading',
+  );
 
   const applyUser = useCallback((user: CurrentUser | null) => {
     setCurrentUser(user);
     setStatus(user ? 'authenticated' : 'anonymous');
+    if (typeof window !== 'undefined') {
+      try {
+        if (user) {
+          window.localStorage.setItem(CACHED_USER_KEY, JSON.stringify(user));
+        } else {
+          window.localStorage.removeItem(CACHED_USER_KEY);
+        }
+      } catch {
+        /* storage disabled */
+      }
+    }
   }, []);
 
-  // Restore the session once per service instance.
+  // Restore or revalidate the session once per service instance.
   useEffect(() => {
     let cancelled = false;
-    setStatus('loading');
+    // Only mark status as 'loading' if we didn't already have an initial authenticated user.
+    // If we have a cached user, keep the page visible while revalidating in background.
+    if (!cachedUser) {
+      setStatus('loading');
+    }
     void authService
       .getCurrentUser()
       .then((user) => {
@@ -49,7 +82,7 @@ export function AuthProvider({ children, service }: AuthProviderProps) {
     return () => {
       cancelled = true;
     };
-  }, [authService, applyUser]);
+  }, [authService, applyUser, cachedUser]);
 
   const login = useCallback(
     async (input: LoginInput) => {

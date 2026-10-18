@@ -211,21 +211,27 @@
 
 .notif-badge--reg {
   background-color: #e0f2fe;
+  color: #0284c7;
 }
 .notif-badge--donation {
   background-color: #fee2e2;
+  color: #e11d48;
 }
 .notif-badge--cert {
   background-color: #fef3c7;
+  color: #d97706;
 }
 .notif-badge--campaign {
   background-color: #f3e8ff;
+  color: #7c3aed;
 }
 .notif-badge--system {
   background-color: #e5e7eb;
+  color: #4b5563;
 }
 .notif-badge--general {
   background-color: #e0e7ff;
+  color: #4f46e5;
 }
 
 .notif-item__body {

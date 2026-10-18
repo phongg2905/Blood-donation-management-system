@@ -48,6 +48,15 @@ export function ReportsPage() {
   );
   const mutation = useAdminMutation();
 
+  const rows = result.data?.rows ?? [];
+  const totals = result.data?.totals ?? {
+    donations: 0,
+    units: 0,
+    volumeMl: 0,
+    uniqueDonors: 0,
+  };
+  const campaignOptions = options.data?.rows ?? [];
+
   function change(name: string, value: string) {
     const next = new URLSearchParams(params);
     if (value) next.set(name, value);
@@ -66,7 +75,17 @@ export function ReportsPage() {
   return (
     <AdminShell
       title="Báo cáo hiến máu"
-      lead="Tổng hợp số lượt hiến, đơn vị máu và thể tích theo đợt hiến và khoảng thời gian."
+      actions={
+        hasPermission('report.export') && (
+          <Button
+            variant="secondary"
+            onClick={exportCsv}
+            disabled={mutation.pending}
+          >
+            Xuất báo cáo
+          </Button>
+        )
+      }
     >
       <form
         className="admin-filters"
@@ -80,7 +99,7 @@ export function ReportsPage() {
             onChange={(event) => change('campaignId', event.target.value)}
           >
             <option value="">Tất cả đợt hiến</option>
-            {options.data?.rows.map((row) => (
+            {campaignOptions.map((row) => (
               <option key={row.campaignId} value={row.campaignId}>
                 {row.campaignName}
               </option>
@@ -103,7 +122,7 @@ export function ReportsPage() {
           />
         </FormField>
         <div className="admin-filters__action">
-          <Button variant="ghost" onClick={() => setParams({})}>
+          <Button variant="secondary" onClick={() => setParams({})}>
             Xóa bộ lọc
           </Button>
           {hasPermission('report.export') && (
@@ -119,9 +138,9 @@ export function ReportsPage() {
       </form>
 
       <Feedback error={mutation.error} success={mutation.success} />
-      <QueryState {...result} />
+      <QueryState {...result} variant="table" columns={5} />
       {result.data &&
-        (result.data.rows.length === 0 ? (
+        (rows.length === 0 ? (
           <p className="admin-empty">
             Không có lượt hiến nào trong khoảng đã chọn.
           </p>
@@ -142,7 +161,7 @@ export function ReportsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {result.data.rows.map((row) => (
+                  {rows.map((row) => (
                     <tr key={row.campaignId}>
                       <td>{row.campaignName}</td>
                       <td>{formatNumber(row.donations)}</td>
@@ -155,10 +174,10 @@ export function ReportsPage() {
                 <tfoot>
                   <tr>
                     <th scope="row">Tổng</th>
-                    <td>{formatNumber(result.data.totals.donations)}</td>
-                    <td>{formatNumber(result.data.totals.units)}</td>
-                    <td>{formatNumber(result.data.totals.volumeMl)}</td>
-                    <td>{formatNumber(result.data.totals.uniqueDonors)}</td>
+                    <td>{formatNumber(totals.donations)}</td>
+                    <td>{formatNumber(totals.units)}</td>
+                    <td>{formatNumber(totals.volumeMl)}</td>
+                    <td>{formatNumber(totals.uniqueDonors)}</td>
                   </tr>
                 </tfoot>
               </table>

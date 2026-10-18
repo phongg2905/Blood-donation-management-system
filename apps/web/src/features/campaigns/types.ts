@@ -32,6 +32,7 @@ export interface TimeSlot extends SlotInput {
   id: string;
   campaignId: string;
   isActive: boolean;
+  occupied?: number;
 }
 // Prisma CampaignAssignment; not currently exported by shared-types.
 export const ASSIGNMENTS = {

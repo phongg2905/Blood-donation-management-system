@@ -18,7 +18,6 @@ import { useWorkflowMutation, useWorkflowQuery } from './hooks';
 import { useWorkflowRepository } from './repository';
 import {
   DetailList,
-  MockNote,
   QrPlaceholder,
   Stepper,
   type StepDefinition,
@@ -63,7 +62,12 @@ export function DonorRegistrationPage() {
           counts: {} as Record<string, number>,
         };
       const slots = await campaignRepository.slots(campaign.id);
-      const counts = await workflow.availability(slots.map((item) => item.id));
+      const counts: Record<string, number> = {};
+      for (const s of slots) {
+        if (typeof s.occupied === 'number') {
+          counts[s.id] = s.occupied;
+        }
+      }
       return { slots, counts };
     },
     Boolean(campaign),
@@ -140,20 +144,16 @@ export function DonorRegistrationPage() {
   return (
     <div className="workflow-page">
       <header className="workflow-heading">
-        <p className="workflow-eyebrow">Đăng ký hiến máu</p>
-        <h1>Đặt lịch hiến máu của bạn</h1>
-        <p className="workflow-lead">
-          Chọn đợt hiến, khung giờ và khai báo sức khỏe. Bạn sẽ nhận mã đăng ký
-          để dùng tại quầy tiếp nhận.
-        </p>
+        <div className="workflow-heading__row">
+          <h1>Đặt lịch hiến máu của bạn</h1>
+        </div>
       </header>
-      <MockNote />
       <Stepper steps={STEPS} current={step} />
 
       {step === 0 && (
         <section className="workflow-card" aria-labelledby="step-campaign">
           <h2 id="step-campaign">Bước 1 · Chọn đợt hiến máu</h2>
-          <QueryState {...campaigns} />
+          <QueryState {...campaigns} variant="list" count={3} />
           {preselectMissing && (
             <p className="workflow-empty" role="status">
               Đợt hiến máu bạn chọn hiện không mở đăng ký. Hãy chọn một đợt khác
@@ -195,7 +195,7 @@ export function DonorRegistrationPage() {
           <p className="workflow-muted">
             {campaign.name} · {campaign.location}
           </p>
-          <QueryState {...slotData} />
+          <QueryState {...slotData} variant="list" count={3} />
           {slotData.data && slotData.data.slots.length === 0 && (
             <p className="workflow-empty">
               Đợt hiến này chưa có khung giờ khả dụng.
@@ -205,7 +205,7 @@ export function DonorRegistrationPage() {
             {slotData.data?.slots
               .filter((item) => item.isActive)
               .map((item) => {
-                const registered = slotData.data?.counts[item.id] ?? 0;
+                const registered = item.occupied ?? slotData.data?.counts[item.id] ?? 0;
                 const remaining = Math.max(item.capacity - registered, 0);
                 const full = remaining === 0;
                 return (

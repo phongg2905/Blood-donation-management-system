@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Inbox } from 'lucide-react';
 import type { NotificationItem } from '../types';
 import { formatRelativeTime, getNotificationBadge } from '../utils';
 
@@ -60,12 +61,10 @@ export function NotificationPopover({
       </div>
 
       <div className="notif-popover__content">
-        {isLoading && items.length === 0 ? (
-          <div className="notif-popover__loading">Đang tải thông báo…</div>
-        ) : items.length === 0 ? (
+        {items.length === 0 ? (
           <div className="notif-popover__empty">
             <span className="notif-popover__empty-icon" aria-hidden="true">
-              📭
+              <Inbox size={36} strokeWidth={1.5} />
             </span>
             <p>Hiện bạn không có thông báo nào.</p>
           </div>
@@ -73,6 +72,7 @@ export function NotificationPopover({
           <ul className="notif-list" role="list">
             {items.map((item) => {
               const badge = getNotificationBadge(item.type);
+              const BadgeIcon = badge.icon;
               const isUnread = !item.readAt;
 
               return (
@@ -91,7 +91,7 @@ export function NotificationPopover({
                   aria-label={`${item.title} - ${isUnread ? 'chưa đọc' : 'đã đọc'}`}
                 >
                   <div className={`notif-item__icon ${badge.className}`} aria-hidden="true">
-                    {badge.icon}
+                    <BadgeIcon size={18} />
                   </div>
                   <div className="notif-item__body">
                     <div className="notif-item__header-row">

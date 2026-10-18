@@ -251,8 +251,7 @@ export class MockAdminRepository implements AdminRepository {
   }
 
   private async wait(): Promise<void> {
-    if (this.latency <= 0) return;
-    await new Promise((resolve) => setTimeout(resolve, this.latency));
+    return Promise.resolve();
   }
 
   async users(query: AdminUserQuery): Promise<Page<AdminUser>> {

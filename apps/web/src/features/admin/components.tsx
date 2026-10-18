@@ -1,32 +1,30 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { Button } from '@/components/ui';
 import { Feedback } from '@/features/campaigns/components';
-import { mockAdminEnabled } from './repository';
 
 export function AdminShell({
-  eyebrow = 'Quản trị hệ thống',
+  eyebrow,
   title,
   lead,
+  actions,
   children,
 }: {
   eyebrow?: string;
   title: string;
   lead?: string;
+  actions?: ReactNode;
   children: ReactNode;
 }) {
   return (
     <div className="admin-page">
       <header className="admin-heading">
-        <p className="admin-eyebrow">{eyebrow}</p>
-        <h1>{title}</h1>
+        {eyebrow && <p className="admin-eyebrow">{eyebrow}</p>}
+        <div className="admin-heading__row">
+          <h1>{title}</h1>
+          {actions}
+        </div>
         {lead && <p className="admin-lead">{lead}</p>}
       </header>
-      {mockAdminEnabled && (
-        <p className="admin-demo" role="note">
-          Dữ liệu quản trị minh họa cho phát triển, không phải dữ liệu hệ thống
-          thật. Thay đổi sẽ được đặt lại khi tải lại trang.
-        </p>
-      )}
       {children}
     </div>
   );

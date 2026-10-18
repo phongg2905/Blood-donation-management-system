@@ -1,12 +1,13 @@
 import type { ReactNode } from 'react';
+import { AlertCircle, AlertTriangle, Check, Info } from 'lucide-react';
 
 export type StatusTone = 'error' | 'success' | 'warning' | 'info';
 
-const ICONS: Record<StatusTone, string> = {
-  error: '✕',
-  success: '✓',
-  warning: '!',
-  info: 'i',
+const ICONS: Record<StatusTone, ReactNode> = {
+  error: <AlertCircle size={13} strokeWidth={2.5} />,
+  success: <Check size={13} strokeWidth={2.5} />,
+  warning: <AlertTriangle size={12} strokeWidth={2.5} />,
+  info: <Info size={13} strokeWidth={2.5} />,
 };
 
 export interface StatusMessageProps {

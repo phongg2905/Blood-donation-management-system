@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { MapPin, Clock, Check, Lock, X } from 'lucide-react';
 import { Button, FormField, Input } from '@/components/ui';
 import { Feedback, QueryState } from '@/features/campaigns/components';
 import { useCampaignRepository } from '@/features/campaigns/repository';
@@ -10,10 +11,12 @@ import {
   formatDate,
   formatSlotRange,
   getOperationalWindow,
+  sortCampaignsForOperationalStation,
+  sortRegistrationsForCheckIn,
 } from './domain';
 import { useWorkflowMutation, useWorkflowQuery } from './hooks';
 import { useWorkflowRepository } from './repository';
-import { DetailList, StatusPill, WorkflowShell } from './components';
+import { DetailList, StationCompactHeader, StatusPill, WorkflowShell } from './components';
 import type { CheckInQuery, DonorRegistration } from './types';
 
 const statusTone = (registration: DonorRegistration) => {
@@ -96,17 +99,17 @@ function CheckInModal({
         <h2 id="checkin-modal-title" style={{ margin: 0, fontSize: '1.25rem' }}>
           Xác nhận Check-in người hiến
         </h2>
-        <Button variant="secondary" onClick={onClose} style={{ padding: '4px 10px', fontSize: '0.85rem' }}>
-          ✕
+        <Button variant="secondary" onClick={onClose} style={{ padding: '4px 10px', fontSize: '0.85rem' }} aria-label="Đóng">
+          <X size={16} />
         </Button>
       </div>
 
       <DetailList
         items={[
-          { label: 'Người hiến', value: selected.donorName },
+          { label: 'Người hiến', value: <strong>{selected.donorName}</strong> },
           { label: 'Mã đăng ký', value: selected.code },
           { label: 'CCCD', value: selected.donorIdentity ?? '—' },
-          { label: 'Đợt hiến', value: selected.campaignName },
+          { label: 'Số điện thoại', value: selected.donorPhone ?? '—' },
           {
             label: 'Khung giờ',
             value: formatSlotRange(selected.slotStartsAt, selected.slotEndsAt),
@@ -116,7 +119,7 @@ function CheckInModal({
             value: REGISTRATION_STATUS_LABELS[selected.status],
           },
           {
-            label: 'Check-in',
+            label: 'Thời điểm check-in',
             value: selected.checkedInAt
               ? new Date(selected.checkedInAt).toLocaleTimeString('vi-VN')
               : 'Chưa check-in',
@@ -194,6 +197,7 @@ export function CheckInPage() {
   );
   const [selected, setSelected] = useState<DonorRegistration | null>(null);
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'UPCOMING' | 'CLOSED'>('ALL');
+  const [deskFilter, setDeskFilter] = useState<'ALL' | 'WAITING' | 'CHECKED_IN'>('ALL');
   const isTestEnv = import.meta.env.MODE === 'test';
 
   useEffect(() => {
@@ -202,11 +206,27 @@ export function CheckInPage() {
     }
   }, [campaignId]);
 
-  const results = useWorkflowQuery(
-    `checkin:${JSON.stringify(search)}`,
-    () => workflow.findRegistrations(search ?? {}),
-    search !== null,
+  const isKeywordSearch = Boolean(
+    (search?.code && search.code.trim() !== '') ||
+    (search?.identity && search.identity.trim() !== '') ||
+    (search?.phone && search.phone.trim() !== '')
   );
+
+  // Single unified campaign registrations query
+  const campaignRegistrations = useWorkflowQuery(
+    `checkin-registrations:${campaignId ?? 'all'}`,
+    () => workflow.findRegistrations({ campaignId }),
+    Boolean(campaignId),
+  );
+
+  // Fallback server query only when searching across all campaigns or when requested
+  const globalSearchQuery = useWorkflowQuery(
+    `checkin-search:${JSON.stringify(search)}`,
+    () => workflow.findRegistrations(search ?? {}),
+    !campaignId && search !== null && isKeywordSearch,
+  );
+
+  const results = campaignId ? campaignRegistrations : globalSearchQuery;
 
   const operationalWindow = campaignQuery.data
     ? getOperationalWindow(campaignQuery.data.startsAt, campaignQuery.data.endsAt)
@@ -218,6 +238,56 @@ export function CheckInPage() {
     selected !== null &&
     selected.checkedInAt === null &&
     (selected.status === 'SCHEDULED' || selected.status === 'CONFIRMED');
+
+  // Real-time KPI Stats directly from the single campaign data stream
+  const stats = useMemo(() => {
+    const list = campaignRegistrations.data ?? [];
+    const total = list.length;
+    const checkedIn = list.filter((r) => r.checkedInAt !== null).length;
+    const waiting = total - checkedIn;
+    return { total, checkedIn, waiting };
+  }, [campaignRegistrations.data]);
+
+  // Instant in-memory filtering + desk filter: 0ms search response for staff
+  const displayedResults = useMemo(() => {
+    const rawList = campaignId ? (campaignRegistrations.data ?? []) : (globalSearchQuery.data ?? []);
+    
+    // In-memory keyword filter when scoped to a campaign
+    let list = rawList;
+    if (campaignId && isKeywordSearch) {
+      const code = search?.code?.trim().toLowerCase();
+      const identity = search?.identity?.trim().toLowerCase();
+      const phone = search?.phone?.trim().toLowerCase();
+      list = rawList.filter((r) => {
+        if (code && !r.code.toLowerCase().includes(code) && !r.id.toLowerCase().includes(code)) {
+          return false;
+        }
+        if (identity && (!r.donorIdentity || !r.donorIdentity.toLowerCase().includes(identity))) {
+          return false;
+        }
+        if (phone && (!r.donorPhone || !r.donorPhone.toLowerCase().includes(phone))) {
+          return false;
+        }
+        return true;
+      });
+    }
+
+    const filtered = (() => {
+      if (deskFilter === 'WAITING') {
+        return list.filter(
+          (r) =>
+            r.checkedInAt === null &&
+            r.status !== 'NO_SHOW' &&
+            r.status !== 'CANCELLED',
+        );
+      }
+      if (deskFilter === 'CHECKED_IN') {
+        return list.filter((r) => r.checkedInAt !== null);
+      }
+      return list;
+    })();
+    return sortRegistrationsForCheckIn(filtered);
+  }, [campaignId, campaignRegistrations.data, globalSearchQuery.data, isKeywordSearch, search, deskFilter]);
 
   function submitSearch() {
     setSelected(null);
@@ -233,9 +303,19 @@ export function CheckInPage() {
       () => workflow.checkIn(selected.id),
       (registration) => {
         setSelected(registration);
-        results.retry();
+        campaignRegistrations.retry();
       },
       'Check-in thành công. Người hiến đã được đưa vào hàng chờ sàng lọc.',
+    );
+  }
+
+  function quickCheckIn(reg: DonorRegistration) {
+    void mutation.run(
+      () => workflow.checkIn(reg.id),
+      () => {
+        campaignRegistrations.retry();
+      },
+      `Đã check-in thành công cho ${reg.donorName}.`,
     );
   }
 
@@ -245,19 +325,20 @@ export function CheckInPage() {
       () => workflow.markNoShow!(selected.id),
       (registration) => {
         setSelected(registration);
-        results.retry();
+        campaignRegistrations.retry();
       },
       'Đã ghi nhận người hiến vắng mặt (No-show).',
     );
   }
 
   // 1. If accessed without a campaignId (via /clinic/check-in):
-  // Display the list of campaigns with the 3 status filter tabs!
   if (!campaignId) {
-    const campaignsWithWindow = (campaignsListQuery.data?.items ?? []).map((campaign) => ({
+    const rawCampaignsWithWindow = (campaignsListQuery.data?.items ?? []).map((campaign) => ({
       campaign,
       window: getOperationalWindow(campaign.startsAt, campaign.endsAt),
     }));
+
+    const campaignsWithWindow = sortCampaignsForOperationalStation(rawCampaignsWithWindow);
 
     const totalCount = campaignsWithWindow.length;
     const activeCount = campaignsWithWindow.filter((c) => c.window.status === 'ACTIVE').length;
@@ -270,61 +351,62 @@ export function CheckInPage() {
     });
 
     return (
-      <WorkflowShell
-        eyebrow="Quầy tiếp nhận"
-        title="Chọn đợt hiến máu để tiếp nhận"
-        lead="Vui lòng chọn đợt hiến máu đang mở tác nghiệp để vào quầy tiếp nhận và check-in cho người hiến."
-      >
-        <QueryState {...campaignsListQuery} />
+      <WorkflowShell title="Chọn đợt hiến máu để tiếp nhận">
+        <QueryState {...campaignsListQuery} variant="workflow-list" count={3} />
 
-        <div className="station-filter-bar" role="tablist" aria-label="Bộ lọc trạng thái đợt hiến">
-          <button
-            type="button"
-            className={`station-filter-btn ${statusFilter === 'ALL' ? 'station-filter-btn--active' : ''}`}
-            onClick={() => setStatusFilter('ALL')}
-          >
-            Tất cả <span className="station-filter-btn__count">{totalCount}</span>
-          </button>
-          <button
-            type="button"
-            className={`station-filter-btn ${statusFilter === 'ACTIVE' ? 'station-filter-btn--active' : ''}`}
-            onClick={() => setStatusFilter('ACTIVE')}
-          >
-            Mở <span className="station-filter-btn__count">{activeCount}</span>
-          </button>
-          <button
-            type="button"
-            className={`station-filter-btn ${statusFilter === 'UPCOMING' ? 'station-filter-btn--active' : ''}`}
-            onClick={() => setStatusFilter('UPCOMING')}
-          >
-            Chưa mở <span className="station-filter-btn__count">{upcomingCount}</span>
-          </button>
-          <button
-            type="button"
-            className={`station-filter-btn ${statusFilter === 'CLOSED' ? 'station-filter-btn--active' : ''}`}
-            onClick={() => setStatusFilter('CLOSED')}
-          >
-            Đã đóng <span className="station-filter-btn__count">{closedCount}</span>
-          </button>
-        </div>
+        {!campaignsListQuery.loading && campaignsListQuery.data && (
+          <>
+            <div className="station-filter-bar" role="tablist" aria-label="Bộ lọc trạng thái đợt hiến">
+              <button
+                type="button"
+                className={`station-filter-btn ${statusFilter === 'ALL' ? 'station-filter-btn--active' : ''}`}
+                onClick={() => setStatusFilter('ALL')}
+              >
+                Tất cả <span className="station-filter-btn__count">{totalCount}</span>
+              </button>
+              <button
+                type="button"
+                className={`station-filter-btn ${statusFilter === 'ACTIVE' ? 'station-filter-btn--active' : ''}`}
+                onClick={() => setStatusFilter('ACTIVE')}
+              >
+                Mở <span className="station-filter-btn__count">{activeCount}</span>
+              </button>
+              <button
+                type="button"
+                className={`station-filter-btn ${statusFilter === 'UPCOMING' ? 'station-filter-btn--active' : ''}`}
+                onClick={() => setStatusFilter('UPCOMING')}
+              >
+                Chưa mở <span className="station-filter-btn__count">{upcomingCount}</span>
+              </button>
+              <button
+                type="button"
+                className={`station-filter-btn ${statusFilter === 'CLOSED' ? 'station-filter-btn--active' : ''}`}
+                onClick={() => setStatusFilter('CLOSED')}
+              >
+                Đã đóng <span className="station-filter-btn__count">{closedCount}</span>
+              </button>
+            </div>
 
-        {filteredCampaigns.length === 0 && (
-          <p className="workflow-empty">
-            {statusFilter === 'ACTIVE'
-              ? 'Hiện không có đợt hiến máu nào đang trong giờ mở quầy.'
-              : statusFilter === 'UPCOMING'
-                ? 'Không có đợt hiến nào chưa mở.'
-                : statusFilter === 'CLOSED'
-                  ? 'Không có đợt hiến nào đã đóng.'
-                  : 'Hiện không có đợt hiến máu nào.'}
-          </p>
-        )}
+            {filteredCampaigns.length === 0 && (
+              <p className="workflow-empty">
+                {statusFilter === 'ACTIVE'
+                  ? 'Hiện không có đợt hiến máu nào đang trong giờ mở quầy.'
+                  : statusFilter === 'UPCOMING'
+                    ? 'Không có đợt hiến nào chưa mở.'
+                    : statusFilter === 'CLOSED'
+                      ? 'Không có đợt hiến nào đã đóng.'
+                      : 'Hiện không có đợt hiến máu nào.'}
+              </p>
+            )}
 
-        <ul className="workflow-list">
+            <ul className="workflow-list">
           {filteredCampaigns.map(({ campaign, window }) => {
             const isOpen = isTestEnv || window.status === 'ACTIVE';
             return (
-              <li key={campaign.id} className="workflow-list__item">
+              <li
+                key={campaign.id}
+                className={`workflow-list__item ${window.status === 'ACTIVE' ? 'workflow-list__item--active' : ''}`}
+              >
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                     <h3 style={{ margin: 0 }}>{campaign.name}</h3>
@@ -340,17 +422,20 @@ export function CheckInPage() {
                       {OPERATIONAL_STATUS_SHORT_LABELS[window.status]}
                     </span>
                   </div>
-                  <p className="workflow-muted">
-                    📍 {campaign.location} · ⏰ {formatDate(campaign.startsAt)}
+                  <p className="workflow-muted" style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                      <MapPin size={14} style={{ flexShrink: 0, opacity: 0.75 }} />
+                      {campaign.location}
+                    </span>
+                    <span>·</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                      <Clock size={14} style={{ flexShrink: 0, opacity: 0.75 }} />
+                      {formatDate(campaign.startsAt)}
+                    </span>
                   </p>
                   <p className="workflow-muted" style={{ fontSize: '0.8rem' }}>
                     {window.message}
                   </p>
-                  {campaign.targetDonors && (
-                    <p className="workflow-muted">
-                      Chỉ tiêu: {campaign.targetDonors.toLocaleString('vi-VN')} người hiến
-                    </p>
-                  )}
                 </div>
                 <div className="workflow-list__side">
                   <StatusPill tone={campaign.status === 'OPEN' ? 'success' : 'neutral'}>
@@ -376,7 +461,9 @@ export function CheckInPage() {
               </li>
             );
           })}
-        </ul>
+            </ul>
+          </>
+        )}
       </WorkflowShell>
     );
   }
@@ -385,13 +472,14 @@ export function CheckInPage() {
   if (isClosedOrUpcoming && operationalWindow) {
     return (
       <WorkflowShell
-        eyebrow="Quầy tiếp nhận"
         title="Quầy tiếp nhận tạm khóa"
         back="/clinic/check-in"
         backLabel="Chọn đợt hiến khác"
       >
         <div className="station-blocked">
-          <div className="station-blocked__icon">🔒</div>
+          <div className="station-blocked__icon">
+            <Lock size={48} color="#64748b" />
+          </div>
           <span
             className={`station-badge-live station-badge-live--${
               operationalWindow.status === 'UPCOMING' ? 'upcoming' : 'closed'
@@ -405,11 +493,6 @@ export function CheckInPage() {
           <p className="station-blocked__desc">
             {operationalWindow.message}
           </p>
-          {campaignQuery.data && (
-            <p className="workflow-muted" style={{ fontSize: '0.85rem' }}>
-              📍 {campaignQuery.data.location} · ⏰ {formatDate(campaignQuery.data.startsAt)}
-            </p>
-          )}
           <div className="station-blocked__actions">
             <Link className="btn btn--primary" to="/clinic/check-in">
               Chọn đợt hiến đang mở
@@ -426,82 +509,45 @@ export function CheckInPage() {
   // 3. Render active check-in desk workspace
   return (
     <WorkflowShell
-      eyebrow={campaignQuery.data ? `Quầy tiếp nhận · ${campaignQuery.data.name}` : 'Quầy tiếp nhận'}
       title="Check-in người hiến"
-      lead={
-        campaignQuery.data
-          ? `Điểm hiến: ${campaignQuery.data.location}. Xác nhận người hiến đã có mặt tại đợt hiến này.`
-          : 'Tìm người hiến theo mã đăng ký, số CCCD hoặc số điện thoại, rồi xác nhận đã đến.'
-      }
-      back={`/campaigns/${campaignId}`}
-      backLabel="Quay lại đợt hiến"
+      back="/clinic/check-in"
+      backLabel="← Chọn đợt hiến khác"
     >
+      {/* Compact Station Workstation Header */}
       {campaignQuery.data && (
-        <section className="station-hero" aria-label="Thông tin đợt tác nghiệp">
-          <div className="station-hero__header">
-            <div className="station-hero__title-wrap">
-              <h2 className="station-hero__title">
-                {campaignQuery.data.name}
-                {operationalWindow && (
-                  <span
-                    className={`station-badge-live station-badge-live--${
-                      operationalWindow.status === 'ACTIVE'
-                        ? 'active'
-                        : operationalWindow.status === 'UPCOMING'
-                          ? 'upcoming'
-                          : 'closed'
-                    }`}
-                  >
-                    {OPERATIONAL_STATUS_SHORT_LABELS[operationalWindow.status]}
-                  </span>
-                )}
-              </h2>
-              <div className="station-hero__meta">
-                <span className="station-hero__meta-item">
-                  📍 {campaignQuery.data.location}
-                </span>
-                <span className="station-hero__meta-item">
-                  ⏰ {formatDate(campaignQuery.data.startsAt)} (
-                  {new Date(campaignQuery.data.startsAt).toLocaleTimeString('vi-VN', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}{' '}
-                  –{' '}
-                  {new Date(campaignQuery.data.endsAt).toLocaleTimeString('vi-VN', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                  )
-                </span>
-              </div>
-            </div>
-          </div>
-          <nav className="station-hero__nav" aria-label="Điều hướng tác nghiệp tại điểm hiến">
-            <Link
-              className="station-nav-link station-nav-link--active"
-              to={`/campaigns/${campaignId}/check-in`}
-            >
-              Quầy tiếp nhận
-            </Link>
-            <Link
-              className="station-nav-link"
-              to={`/campaigns/${campaignId}/screening`}
-            >
-              Hàng chờ sàng lọc
-            </Link>
-            <Link
-              className="station-nav-link"
-              to={`/campaigns/${campaignId}`}
-            >
-              Chi tiết đợt hiến
-            </Link>
-          </nav>
-        </section>
+        <StationCompactHeader
+          campaign={campaignQuery.data}
+          activeStation="checkin"
+          operationalWindow={operationalWindow}
+        />
       )}
 
+      {/* KPI Stats Bar */}
+      <section className="workflow-kpi-bar" aria-label="Thống kê tiếp nhận người hiến">
+        <div className="workflow-kpi-card workflow-kpi-card--primary">
+          <span className="workflow-kpi-card__label">Tổng đăng ký</span>
+          <span className="workflow-kpi-card__value">
+            {stats.total} <span className="workflow-kpi-card__unit">người</span>
+          </span>
+        </div>
+        <div className="workflow-kpi-card workflow-kpi-card--success">
+          <span className="workflow-kpi-card__label">Đã có mặt (Check-in)</span>
+          <span className="workflow-kpi-card__value">
+            {stats.checkedIn} <span className="workflow-kpi-card__unit">người</span>
+          </span>
+        </div>
+        <div className="workflow-kpi-card workflow-kpi-card--info">
+          <span className="workflow-kpi-card__label">Chưa đến</span>
+          <span className="workflow-kpi-card__value">
+            {stats.waiting} <span className="workflow-kpi-card__unit">người</span>
+          </span>
+        </div>
+      </section>
+
+      {/* Search & Lookup Form */}
       <section className="workflow-card" aria-labelledby="checkin-search">
-        <h2 id="checkin-search">
-          {campaignId ? 'Tìm kiếm trong đợt này' : 'Tra cứu người hiến'}
+        <h2 id="checkin-search" style={{ fontSize: '1.05rem', margin: 0 }}>
+          {campaignId ? 'Tìm kiếm người hiến trong đợt này' : 'Tra cứu người hiến'}
         </h2>
         <form
           className="station-search-box"
@@ -573,64 +619,118 @@ export function CheckInPage() {
         </form>
       </section>
 
+      {/* Results and Desk Queue */}
       {search !== null && (
         <section className="workflow-card" aria-labelledby="checkin-results">
-          <h2 id="checkin-results">
-            {campaignId ? 'Danh sách người hiến trong đợt' : 'Kết quả'}
-          </h2>
-          <QueryState {...results} />
-          {results.data && results.data.length === 0 && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+            <h2 id="checkin-results" style={{ margin: 0, fontSize: '1.05rem' }}>
+              {campaignId ? 'Danh sách người hiến' : 'Kết quả'}
+            </h2>
+
+            {/* Quick Status Filter Chips */}
+            <div className="smart-filter-chips" role="tablist">
+              <button
+                type="button"
+                className={`smart-filter-chip ${deskFilter === 'ALL' ? 'smart-filter-chip--active' : ''}`}
+                onClick={() => setDeskFilter('ALL')}
+              >
+                Tất cả <span className="smart-filter-chip__count">{results.data?.length ?? 0}</span>
+              </button>
+              <button
+                type="button"
+                className={`smart-filter-chip ${deskFilter === 'WAITING' ? 'smart-filter-chip--active' : ''}`}
+                onClick={() => setDeskFilter('WAITING')}
+              >
+                Chờ check-in <span className="smart-filter-chip__count">{stats.waiting}</span>
+              </button>
+              <button
+                type="button"
+                className={`smart-filter-chip ${deskFilter === 'CHECKED_IN' ? 'smart-filter-chip--active' : ''}`}
+                onClick={() => setDeskFilter('CHECKED_IN')}
+              >
+                Đã check-in <span className="smart-filter-chip__count">{stats.checkedIn}</span>
+              </button>
+            </div>
+          </div>
+
+          <QueryState {...results} variant="workflow-list" count={3} />
+
+          {!results.loading && results.data && displayedResults.length === 0 && (
             <p className="workflow-empty">
               {campaignId
-                ? 'Chưa có người đăng ký nào trong đợt hiến này khớp với thông tin tìm kiếm.'
+                ? 'Không tìm thấy người đăng ký nào khớp với bộ lọc.'
                 : 'Không tìm thấy đăng ký phù hợp. Kiểm tra lại mã, CCCD hoặc số điện thoại.'}
             </p>
           )}
-          <ul className="workflow-list">
-            {results.data?.map((registration) => (
-              <li
-                key={registration.id}
-                className="workflow-list__item"
-                style={{ cursor: 'pointer' }}
-                onClick={(e) => {
-                  if ((e.target as HTMLElement).tagName !== 'BUTTON') {
-                    setSelected(registration);
-                  }
-                }}
-              >
-                <div>
-                  <h3 style={{ color: 'var(--color-primary, #0284c7)', marginBottom: '4px' }}>
-                    {registration.donorName}
-                  </h3>
-                  <p className="workflow-muted">
-                    {registration.code} · {registration.campaignName}
-                  </p>
-                  <p className="workflow-muted">
-                    {formatSlotRange(
-                      registration.slotStartsAt,
-                      registration.slotEndsAt,
-                    )}
-                  </p>
-                </div>
-                <div className="workflow-list__side">
-                  <StatusPill tone={statusTone(registration)}>
-                    {registration.checkedInAt
-                      ? 'Đã check-in'
-                      : REGISTRATION_STATUS_LABELS[registration.status]}
-                  </StatusPill>
-                  <Button
-                    variant="secondary"
-                    onClick={(e) => {
-                      e.stopPropagation();
+
+          {!results.loading && results.data && displayedResults.length > 0 && (
+            <ul className="workflow-list">
+            {displayedResults.map((registration) => {
+              const isCheckedIn = Boolean(registration.checkedInAt);
+              const canQuickCheckIn =
+                !isCheckedIn &&
+                (registration.status === 'SCHEDULED' || registration.status === 'CONFIRMED');
+
+              return (
+                <li
+                  key={registration.id}
+                  className={`workflow-list__item ${isCheckedIn ? 'workflow-list__item--active' : ''}`}
+                  onClick={(e) => {
+                    if ((e.target as HTMLElement).tagName !== 'BUTTON') {
                       setSelected(registration);
-                    }}
-                  >
-                    Chọn
-                  </Button>
-                </div>
-              </li>
-            ))}
-          </ul>
+                    }
+                  }}
+                >
+                  <div>
+                    <h3 style={{ color: 'var(--color-primary, #0284c7)', marginBottom: '4px' }}>
+                      {registration.donorName}
+                    </h3>
+                    <p className="workflow-muted">
+                      Mã: <strong>{registration.code}</strong> {registration.donorIdentity && `· CCCD: ${registration.donorIdentity}`} {registration.donorPhone && `· SĐT: ${registration.donorPhone}`}
+                    </p>
+                    <p className="workflow-muted" style={{ fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <Clock size={13} style={{ flexShrink: 0, opacity: 0.75 }} />
+                      <span>{formatSlotRange(registration.slotStartsAt, registration.slotEndsAt)}</span>
+                    </p>
+                    {isCheckedIn && (
+                      <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: '#059669', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Check size={14} strokeWidth={2.5} />
+                        <span>Đã check-in lúc {new Date(registration.checkedInAt!).toLocaleTimeString('vi-VN')}</span>
+                      </p>
+                    )}
+                  </div>
+                  <div className="workflow-list__side">
+                    <StatusPill tone={statusTone(registration)}>
+                      {isCheckedIn ? 'Đã check-in' : REGISTRATION_STATUS_LABELS[registration.status]}
+                    </StatusPill>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      {canQuickCheckIn && (
+                        <Button
+                          disabled={mutation.pending}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            quickCheckIn(registration);
+                          }}
+                        >
+                          Check-in nhanh
+                        </Button>
+                      )}
+                      <Button
+                        variant="secondary"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelected(registration);
+                        }}
+                      >
+                        Chọn
+                      </Button>
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+            </ul>
+          )}
         </section>
       )}
 

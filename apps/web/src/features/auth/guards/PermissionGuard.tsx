@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import type { PermissionCode } from '@blood/shared-types';
-import { PageLoader } from '@/components/common/PageLoader';
 import { useAuth } from '../hooks/useAuth';
 import { AUTH_ROUTES } from '../routing';
 
@@ -35,7 +34,7 @@ export function PermissionGuard({
     useAuth();
 
   if (status === 'loading') {
-    return <PageLoader message="Đang tải…" />;
+    return null;
   }
   if (status === 'anonymous') {
     return <Navigate to={AUTH_ROUTES.login} replace />;

@@ -9,7 +9,6 @@ export default function DemoAccountPicker({
   disabled: boolean;
   onSelect: (credentials: { email: string; password: string }) => void;
 }) {
-  const mock = import.meta.env.VITE_USE_MOCK_API === 'true';
   return (
     <details className="demo-login">
       <summary>Tài khoản demo</summary>
@@ -24,8 +23,8 @@ export default function DemoAccountPicker({
             disabled={disabled}
             onClick={() =>
               onSelect({
-                email: mock ? account.mockEmail : account.email,
-                password: mock ? 'Blood@123' : DEMO_LOGIN_PASSWORD,
+                email: account.email,
+                password: DEMO_LOGIN_PASSWORD,
               })
             }
           >

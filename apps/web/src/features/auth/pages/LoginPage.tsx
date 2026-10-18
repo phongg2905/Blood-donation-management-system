@@ -1,7 +1,6 @@
 import { lazy, Suspense, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { PageLoader } from '@/components/common/PageLoader';
 import {
   Button,
   FormError,
@@ -59,7 +58,7 @@ export function LoginPage() {
     );
   }
   if (status === 'loading') {
-    return <PageLoader message="Đang tải…" />;
+    return null;
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
