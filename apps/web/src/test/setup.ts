@@ -2,6 +2,9 @@ import '@testing-library/jest-dom/vitest';
 import { cleanup, configure } from '@testing-library/react';
 import { afterEach, beforeEach } from 'vitest';
 
+import { clearCampaignQueryCache } from '@/features/campaigns/hooks';
+import { clearWorkflowQueryCache } from '@/features/workflow/hooks';
+
 // jsdom environments start slowly on some machines; the default 1s window for
 // `findBy*` queries is too tight when several suites run in parallel.
 configure({ asyncUtilTimeout: 5000 });
@@ -10,6 +13,8 @@ configure({ asyncUtilTimeout: 5000 });
 // must start from a clean storage state.
 beforeEach(() => {
   window.localStorage.clear();
+  clearWorkflowQueryCache();
+  clearCampaignQueryCache();
 });
 
 // React Testing Library only auto-cleans when globals are enabled; we import

@@ -211,7 +211,7 @@ describe('Campaign forms and actions', () => {
       within(dialog).getByRole('button', { name: 'Bỏ thay đổi' }),
     );
     expect(
-      await screen.findByRole('heading', { name: /Mỗi lần sẻ chia/ }),
+      await screen.findByRole('heading', { name: 'Đợt hiến máu' }),
     ).toBeInTheDocument();
   });
   it('confirms lifecycle close and refreshes available actions', async () => {

@@ -141,4 +141,26 @@ describe('AuthProvider', () => {
       expect(screen.getByTestId('fullname')).toHaveTextContent('Tên Đã Đổi'),
     );
   });
+
+  it('hydrates cached user synchronously to prevent white screens on reload', () => {
+    const cachedUser = {
+      id: 'cached-staff-1',
+      email: 'staff@example.local',
+      fullName: 'Bác Sĩ Test',
+      roles: ['DONATION_STAFF' as const],
+      permissions: ['donation.start' as const],
+    };
+    window.localStorage.setItem('bd.auth.cached_user', JSON.stringify(cachedUser));
+
+    render(
+      <AuthProvider>
+        <Probe />
+      </AuthProvider>,
+    );
+
+    // Synchronously authenticated on frame 0
+    expect(screen.getByTestId('status')).toHaveTextContent('authenticated');
+    expect(screen.getByTestId('is-authenticated')).toHaveTextContent('true');
+    expect(screen.getByTestId('fullname')).toHaveTextContent('Bác Sĩ Test');
+  });
 });
