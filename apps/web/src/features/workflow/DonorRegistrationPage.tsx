@@ -384,6 +384,16 @@ export function DonorRegistrationPage() {
             </div>
             <QrPlaceholder code={created.code} />
           </div>
+          <div className="status status--info" style={{ marginTop: '1.25rem', marginBottom: '1.5rem' }}>
+            <span className="status__icon" aria-hidden="true">ℹ</span>
+            <div className="status__body">
+              <strong>Cần thay đổi hoặc hủy lịch hẹn?</strong>
+              <span className="status__detail">
+                Nếu có việc bận không thể tham gia, bạn có thể dễ dàng quản lý và <strong>hủy lịch hẹn</strong> tại mục{' '}
+                <Link to="/donor/history" style={{ textDecoration: 'underline', fontWeight: 600 }}>Lịch hẹn của tôi</Link>.
+              </span>
+            </div>
+          </div>
           <div className="workflow-actions">
             <Link className="btn btn--secondary" to="/donor/history">
               Xem lịch sử hiến máu

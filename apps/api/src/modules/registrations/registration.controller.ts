@@ -62,6 +62,7 @@ export const cancel: RequestHandler = async (req, res) => {
       paramId(req),
       reason,
       auditContextFrom(req),
+      req.auth,
     ),
   );
 };

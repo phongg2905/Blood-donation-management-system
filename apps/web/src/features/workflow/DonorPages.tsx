@@ -12,6 +12,7 @@ import {
   RefreshCw,
   TestTube2,
   Trash2,
+  X,
   ZoomIn,
 } from 'lucide-react';
 import { Button } from '@/components/ui';
@@ -74,6 +75,7 @@ function add84Days(dateStr?: string | null): string {
 
 export interface UnifiedAppointment {
   id: string;
+  registrationId?: string;
   code: string;
   campaignName: string;
   location: string;
@@ -86,6 +88,119 @@ export interface UnifiedAppointment {
   bloodGroup?: string | null;
   rh?: string | null;
   testDate?: string;
+}
+
+function CancelAppointmentModal({
+  appointment,
+  onClose,
+  onConfirm,
+  isPending,
+  error,
+}: {
+  appointment: UnifiedAppointment;
+  onClose: () => void;
+  onConfirm: (reason: string) => Promise<void>;
+  isPending: boolean;
+  error: string | null;
+}) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const [reason, setReason] = useState('');
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (dialog && !dialog.open) {
+      if (typeof dialog.showModal === 'function') dialog.showModal();
+      else dialog.setAttribute('open', '');
+    }
+    return () => {
+      if (dialog?.open) {
+        if (typeof dialog.close === 'function') dialog.close();
+        else dialog.removeAttribute('open');
+      }
+    };
+  }, []);
+
+  return (
+    <dialog
+      ref={dialogRef}
+      className="campaign-dialog cancel-appointment-dialog"
+      aria-labelledby="cancel-appointment-title"
+      onCancel={(e) => {
+        e.preventDefault();
+        if (!isPending) onClose();
+      }}
+    >
+      <div className="cancel-appointment-header">
+        <h2 id="cancel-appointment-title" style={{ margin: 0, fontSize: '1.25rem', color: '#b91c1c' }}>
+          Hủy lịch hẹn hiến máu
+        </h2>
+        <Button variant="secondary" onClick={onClose} disabled={isPending} style={{ padding: '4px 8px' }} aria-label="Đóng cửa sổ hủy lịch">
+          <X size={16} />
+        </Button>
+      </div>
+
+      <p style={{ marginTop: '12px', color: 'var(--color-ink-700)', fontSize: '0.95rem', lineHeight: 1.5 }}>
+        Bạn có chắc chắn muốn hủy lịch hẹn hiến máu này không?
+      </p>
+
+      <div
+        style={{
+          background: 'var(--color-surface-sunken, #f8fafc)',
+          border: '1px solid var(--color-border, #e2e8f0)',
+          borderRadius: '10px',
+          padding: '12px 14px',
+          margin: '12px 0 16px',
+        }}
+      >
+        <div style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--color-ink-900)', marginBottom: '4px' }}>
+          {appointment.campaignName}
+        </div>
+        <div style={{ fontSize: '0.85rem', color: 'var(--color-ink-600)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <Building2 size={14} style={{ opacity: 0.75 }} />
+          <span>{appointment.location}</span>
+        </div>
+        <div style={{ fontSize: '0.85rem', color: 'var(--color-ink-600)', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '3px' }}>
+          <Clock size={14} style={{ opacity: 0.75 }} />
+          <span>{formatSlotRangeTime(appointment.startsAt, appointment.endsAt)}</span>
+        </div>
+      </div>
+
+      <div style={{ marginBottom: '16px' }}>
+        <label htmlFor="cancel-reason-input" style={{ display: 'block', fontWeight: 600, fontSize: '0.85rem', marginBottom: '6px', color: 'var(--color-ink-800)' }}>
+          Lý do hủy lịch hẹn (không bắt buộc)
+        </label>
+        <textarea
+          id="cancel-reason-input"
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder="VD: Bận việc đột xuất, sức khỏe không đảm bảo, chuyển ngày khác..."
+          rows={3}
+          className="input"
+          style={{ width: '100%', resize: 'vertical' }}
+          disabled={isPending}
+        />
+      </div>
+
+      {error && (
+        <div style={{ color: '#b91c1c', fontSize: '0.85rem', marginBottom: '14px', padding: '8px 12px', background: '#fef2f2', borderRadius: '6px', border: '1px solid #fecaca' }}>
+          {error}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+        <Button variant="secondary" onClick={onClose} disabled={isPending}>
+          Giữ lịch hẹn
+        </Button>
+        <Button
+          variant="danger"
+          isLoading={isPending}
+          onClick={() => void onConfirm(reason)}
+        >
+          Xác nhận hủy
+        </Button>
+      </div>
+    </dialog>
+  );
 }
 
 /* ==========================================================================
@@ -111,6 +226,29 @@ export function DonorHistoryPage() {
   const [activeTab, setActiveTab] = useState<'UPCOMING' | 'COMPLETED' | 'CANCELLED'>('UPCOMING');
   const [selectedAppointment, setSelectedAppointment] = useState<UnifiedAppointment | null>(null);
   const [showTestResultModal, setShowTestResultModal] = useState<boolean>(false);
+  const [cancellingAppointment, setCancellingAppointment] = useState<UnifiedAppointment | null>(null);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+
+  async function handleConfirmCancel(reason: string) {
+    if (!cancellingAppointment?.registrationId) return;
+    try {
+      setIsCancelling(true);
+      setCancelError(null);
+      if (workflow.cancel) {
+        await workflow.cancel(cancellingAppointment.registrationId, reason.trim() || undefined);
+      }
+      setCancellingAppointment(null);
+      registrations.retry();
+      if (selectedAppointment?.id === cancellingAppointment.id) {
+        setSelectedAppointment(null);
+      }
+    } catch (err) {
+      setCancelError(err instanceof Error ? err.message : 'Không thể hủy lịch hẹn.');
+    } finally {
+      setIsCancelling(false);
+    }
+  }
 
   // Build unified appointment list
   const appointmentList: UnifiedAppointment[] = [];
@@ -168,6 +306,7 @@ export function DonorHistoryPage() {
 
     appointmentList.push({
       id: `reg-${reg.id}`,
+      registrationId: reg.id,
       code: reg.code,
       campaignName: reg.campaignName || 'Điểm hiến máu',
       location: reg.location || 'Địa điểm hiến máu',
@@ -300,8 +439,8 @@ export function DonorHistoryPage() {
             )}
           </div>
 
-          {/* Centered Return Button */}
-          <div className="history-footer-actions">
+          {/* Centered Return & Cancel Action */}
+          <div className="history-footer-actions" style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
             <button
               type="button"
               className="btn-back-outline"
@@ -309,8 +448,32 @@ export function DonorHistoryPage() {
             >
               Quay về
             </button>
+            {(selectedAppointment.status === 'CONFIRMED' ||
+              selectedAppointment.status === 'SCHEDULED' ||
+              selectedAppointment.status === 'PENDING') && Boolean(selectedAppointment.registrationId) && (
+              <button
+                type="button"
+                className="btn btn--danger"
+                onClick={() => setCancellingAppointment(selectedAppointment)}
+              >
+                Hủy lịch hẹn này
+              </button>
+            )}
           </div>
         </div>
+
+        {cancellingAppointment && (
+          <CancelAppointmentModal
+            appointment={cancellingAppointment}
+            onClose={() => {
+              setCancellingAppointment(null);
+              setCancelError(null);
+            }}
+            onConfirm={handleConfirmCancel}
+            isPending={isCancelling}
+            error={cancelError}
+          />
+        )}
 
         {/* Modal: Kết quả hiến máu (Image 3) */}
         {showTestResultModal && (
@@ -477,7 +640,7 @@ export function DonorHistoryPage() {
                 </div>
               </div>
 
-              {/* Right side: Status badge & Detail action */}
+              {/* Right side: Status badge & Actions */}
               <div className="appointment-card__right">
                 <span
                   className={`appointment-pill ${
@@ -493,18 +656,45 @@ export function DonorHistoryPage() {
                   {item.statusLabel}
                 </span>
 
-                <button
-                  type="button"
-                  className="appointment-detail-btn"
-                  onClick={() => setSelectedAppointment(item)}
-                >
-                  <FileText size={15} />
-                  <span>Xem chi tiết</span>
-                </button>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                  {(item.status === 'CONFIRMED' ||
+                    item.status === 'SCHEDULED' ||
+                    item.status === 'PENDING') && Boolean(item.registrationId) && (
+                    <button
+                      type="button"
+                      className="appointment-cancel-btn"
+                      onClick={() => setCancellingAppointment(item)}
+                      title="Hủy lịch hẹn"
+                    >
+                      <span>Hủy lịch</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="appointment-detail-btn"
+                    onClick={() => setSelectedAppointment(item)}
+                  >
+                    <FileText size={15} />
+                    <span>Xem chi tiết</span>
+                  </button>
+                </div>
               </div>
             </article>
           ))}
         </div>
+      )}
+
+      {cancellingAppointment && (
+        <CancelAppointmentModal
+          appointment={cancellingAppointment}
+          onClose={() => {
+            setCancellingAppointment(null);
+            setCancelError(null);
+          }}
+          onConfirm={handleConfirmCancel}
+          isPending={isCancelling}
+          error={cancelError}
+        />
       )}
     </WorkflowShell>
   );
