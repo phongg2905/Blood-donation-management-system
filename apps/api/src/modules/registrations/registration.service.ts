@@ -163,11 +163,24 @@ export const registrationService = {
   reschedule: (registrationId: string, timeSlotId: string, ctx: AuditContext) =>
     timeSlotService.schedule({ registrationId, timeSlotId }, ctx),
 
-  async cancel(id: string, reason: string | undefined, ctx: AuditContext) {
+  async cancel(
+    id: string,
+    reason: string | undefined,
+    ctx: AuditContext,
+    auth?: { userId: string; roles: readonly string[] },
+  ) {
     return repo.transaction(async (tx) => {
       const existing = await repo.findByIdTx(tx, id);
       if (!existing)
         throw AppError.notFound(ERROR_CODES.REGISTRATION_NOT_FOUND);
+
+      if (auth) {
+        const staffLike = auth.roles.some((r) => r !== 'DONOR');
+        if (!staffLike && existing.donor?.userId !== auth.userId) {
+          throw AppError.forbidden();
+        }
+      }
+
       assertRegistrationTransition(existing.status, 'CANCELLED');
 
       const updated = await repo.update(tx, id, {

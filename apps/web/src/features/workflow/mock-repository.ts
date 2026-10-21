@@ -345,7 +345,7 @@ export class MockWorkflowRepository implements WorkflowRepository {
     return structuredClone(registration);
   }
 
-  async cancel(id: string): Promise<DonorRegistration> {
+  async cancel(id: string, _reason?: string): Promise<DonorRegistration> {
     await this.wait();
     const registration = this.registration(id);
     if (registration.status === 'COMPLETED' || registration.status === 'CANCELLED') {
