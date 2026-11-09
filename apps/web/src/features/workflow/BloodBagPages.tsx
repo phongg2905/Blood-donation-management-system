@@ -14,13 +14,14 @@ import {
   formatBloodTypeDisplay,
   formatDate,
   formatDateTime,
+  generateStandardBloodBagCode,
   getOperationalWindow,
   parseBackendBloodType,
   sortCampaignsForOperationalStation,
   toBackendBloodType,
   type FieldErrors,
 } from './domain';
-import { useWorkflowMutation, useWorkflowQuery } from './hooks';
+import { useWorkflowMutation, useWorkflowQuery, usePageTransition } from './hooks';
 import { useWorkflowRepository } from './repository';
 import {
   DetailList,
@@ -60,7 +61,9 @@ function QuickCollectModal({
   const mutation = useWorkflowMutation();
   const dialogRef = useRef<HTMLDialogElement>(null);
 
-  const [code, setCode] = useState('');
+  const [code, setCode] = useState(() =>
+    generateStandardBloodBagCode(campaignName ?? item.registration.campaignName),
+  );
   const [volume, setVolume] = useState(() => String(item.screening.indicatedVolumeMl || 350));
   const [notes, setNotes] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -185,11 +188,29 @@ function QuickCollectModal({
       </div>
 
       <form className="workflow-form workflow-form--inline" onSubmit={handleSave}>
-        <FormField id="collect-bag-code" label="Mã barcode túi máu" error={error ?? undefined} required>
+        <FormField
+          id="collect-bag-code"
+          label="Mã barcode túi máu"
+          labelAction={
+            <button
+              type="button"
+              className="btn btn--sm btn--secondary"
+              style={{ padding: '2px 8px', fontSize: '0.78rem' }}
+              onClick={() => {
+                setCode(generateStandardBloodBagCode(campaignName ?? item.registration.campaignName));
+                if (error) setError(null);
+              }}
+            >
+              Cấp mã mới
+            </button>
+          }
+          error={error ?? undefined}
+          required
+        >
           <Input
             autoFocus
             value={code}
-            placeholder="Quét hoặc gõ mã túi (VD: BAG-00123...)"
+            placeholder="Quét hoặc nhập mã chuẩn (VD: NIHBT-2026-WB-00125)"
             onChange={(e) => {
               setCode(e.target.value);
               if (error) setError(null);
@@ -368,7 +389,7 @@ function BloodBagDetailModal({
             <div className="blood-bag-detail-field">
               <span className="blood-bag-detail-field__label">Vị trí lưu kho:</span>
               <span className="blood-bag-detail-field__value" style={{ fontWeight: 600 }}>
-                {bag.storageLocation ? `📍 ${bag.storageLocation}` : '— Chưa xếp vị trí —'}
+                {bag.storageLocation ? bag.storageLocation : '— Chưa xếp vị trí —'}
               </span>
             </div>
             <div className="blood-bag-detail-field">
@@ -595,7 +616,7 @@ function EditBloodBagModal({
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', flexWrap: 'wrap', gap: '6px' }}>
             <span style={{ fontWeight: 700, color: status === 'TESTED' || status === 'ACCEPTED' ? '#166534' : 'var(--color-ink-900)', fontSize: '0.92rem' }}>
-              🔬 Kết quả xét nghiệm khẳng định (Phòng Lab)
+              Kết quả xét nghiệm khẳng định (Phòng Lab)
             </span>
             {(status === 'TESTED' || status === 'ACCEPTED') && (
               <span
@@ -749,7 +770,7 @@ export function BloodBagsPage() {
 
   const campaignsListQuery = useCampaignQuery(
     'blood-bag-campaigns-list',
-    () => campaignRepo.list({ page: 1, limit: 30, sort: 'desc' }),
+    () => campaignRepo.list({ page: 1, limit: 50, sort: 'desc' }),
     !campaignId,
   );
 
@@ -766,7 +787,9 @@ export function BloodBagsPage() {
   );
 
   const operationalWindow = campaignQuery.data
-    ? getOperationalWindow(campaignQuery.data.startsAt, campaignQuery.data.endsAt)
+    ? getOperationalWindow(campaignQuery.data.startsAt, campaignQuery.data.endsAt, {
+        campaignStatus: campaignQuery.data.status,
+      })
     : null;
 
   // Filter state for "all blood bags" view
@@ -848,27 +871,39 @@ export function BloodBagsPage() {
   }, [bags.data]);
 
   // Pagination & detail view for blood bag lists
-  const PAGE_SIZE = 6;
+  const PAGE_SIZE = 12;
+  const CAMPAIGN_PAGE_SIZE = 12;
+  const QUEUE_PAGE_SIZE = 10;
   const [viewingBag, setViewingBag] = useState<BloodBag | null>(null);
-  const [allPage, setAllPage] = useState(1);
-  const [collectedPage, setCollectedPage] = useState(1);
+  const allPagination = usePageTransition(1);
+  const campaignPagination = usePageTransition(1);
+  const queuePagination = usePageTransition(1);
+  const collectedPagination = usePageTransition(1);
 
   useEffect(() => {
-    setAllPage(1);
-  }, [search, processTab, bloodGroupFilter]);
+    allPagination.resetPage();
+  }, [search, processTab, bloodGroupFilter, allPagination.resetPage]);
 
   useEffect(() => {
-    setCollectedPage(1);
-  }, [search]);
+    campaignPagination.resetPage();
+  }, [statusFilter, campaignPagination.resetPage]);
+
+  useEffect(() => {
+    queuePagination.resetPage();
+  }, [campaignId, activeTab, queuePagination.resetPage]);
+
+  useEffect(() => {
+    collectedPagination.resetPage();
+  }, [search, campaignId, collectedPagination.resetPage]);
 
   const allTotalPages = Math.max(1, Math.ceil(filteredBags.length / PAGE_SIZE));
-  const safeAllPage = Math.min(Math.max(1, allPage), allTotalPages);
+  const safeAllPage = Math.min(Math.max(1, allPagination.page), allTotalPages);
   const paginatedAllBags = useMemo(() => {
     return filteredBags.slice((safeAllPage - 1) * PAGE_SIZE, safeAllPage * PAGE_SIZE);
   }, [filteredBags, safeAllPage]);
 
   const collectedTotalPages = Math.max(1, Math.ceil(filteredBags.length / PAGE_SIZE));
-  const safeCollectedPage = Math.min(Math.max(1, collectedPage), collectedTotalPages);
+  const safeCollectedPage = Math.min(Math.max(1, collectedPagination.page), collectedTotalPages);
   const paginatedCollectedBags = useMemo(() => {
     return filteredBags.slice((safeCollectedPage - 1) * PAGE_SIZE, safeCollectedPage * PAGE_SIZE);
   }, [filteredBags, safeCollectedPage]);
@@ -895,7 +930,9 @@ export function BloodBagsPage() {
   if (!campaignId) {
     const rawCampaignsWithWindow = (campaignsListQuery.data?.items ?? []).map((campaign) => ({
       campaign,
-      window: getOperationalWindow(campaign.startsAt, campaign.endsAt),
+      window: getOperationalWindow(campaign.startsAt, campaign.endsAt, {
+        campaignStatus: campaign.status,
+      }),
       bagCount: (bags.data ?? []).filter(
         (b) => b.campaignId === campaign.id || b.campaignName === campaign.name,
       ).length,
@@ -1059,198 +1096,243 @@ export function BloodBagsPage() {
             )}
             {!bags.loading && filteredBags.length > 0 && (
               <>
-                <div className="workflow-table-wrap">
-                  <table className="workflow-table">
-                    <caption className="visually-hidden">Danh sách túi máu đã tiếp nhận</caption>
-                    <thead>
-                      <tr>
-                        <th scope="col">Mã túi</th>
-                        <th scope="col">Người hiến</th>
-                        <th scope="col">Nhóm máu & Thể tích</th>
-                        <th scope="col">Trạng thái</th>
-                        <th scope="col" style={{ textAlign: 'right' }}>Thao tác</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {paginatedAllBags.map((bag) => (
-                        <tr
-                          key={bag.id}
-                          onClick={() => setViewingBag(bag)}
-                          title="Bấm để xem hồ sơ chi tiết túi máu"
-                        >
-                          <th scope="row">
-                            <button
-                              type="button"
-                              className="btn-link-detail"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setViewingBag(bag);
-                              }}
-                            >
-                              <strong>{bag.code}</strong>
-                            </button>
-                          </th>
-                          <td>{bag.donorName}</td>
-                          <td>
-                            <span className="tag-blood-group" style={{ marginRight: '6px' }}>
-                              {formatBloodTypeDisplay(bag.bloodType, bag.bloodGroup)}
-                            </span>
-                            <span style={{ fontWeight: 600 }}>{bag.volumeMl} ml</span>
-                          </td>
-                          <td>
-                            <StatusPill tone={bagTone[bag.status]}>
-                              {BLOOD_BAG_STATUS_LABELS[bag.status]}
-                            </StatusPill>
-                          </td>
-                          <td style={{ textAlign: 'right' }}>
-                            <button
-                              type="button"
-                              className="btn btn--primary btn--sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setViewingBag(bag);
-                              }}
-                            >
-                              Chi tiết
-                            </button>
-                          </td>
+                {allPagination.pageTransitioning ? (
+                  <QueryState
+                    loading={true}
+                    error={null}
+                    retry={bags.retry}
+                    variant="table"
+                    columns={5}
+                    count={4}
+                  />
+                ) : (
+                  <div className="workflow-table-wrap workflow-page-enter" key={safeAllPage}>
+                    <table className="workflow-table">
+                      <caption className="visually-hidden">Danh sách túi máu đã tiếp nhận</caption>
+                      <thead>
+                        <tr>
+                          <th scope="col">Mã túi</th>
+                          <th scope="col">Người hiến</th>
+                          <th scope="col">Nhóm máu & Thể tích</th>
+                          <th scope="col">Trạng thái</th>
+                          <th scope="col" style={{ textAlign: 'right' }}>Thao tác</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody>
+                        {paginatedAllBags.map((bag) => (
+                          <tr
+                            key={bag.id}
+                            onClick={() => setViewingBag(bag)}
+                            title="Bấm để xem hồ sơ chi tiết túi máu"
+                          >
+                            <th scope="row">
+                              <button
+                                type="button"
+                                className="btn-link-detail"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setViewingBag(bag);
+                                }}
+                              >
+                                <strong>{bag.code}</strong>
+                              </button>
+                            </th>
+                            <td>{bag.donorName}</td>
+                            <td>
+                              <span className="tag-blood-group" style={{ marginRight: '6px' }}>
+                                {formatBloodTypeDisplay(bag.bloodType, bag.bloodGroup)}
+                              </span>
+                              <span style={{ fontWeight: 600 }}>{bag.volumeMl} ml</span>
+                            </td>
+                            <td>
+                              <StatusPill tone={bagTone[bag.status]}>
+                                {BLOOD_BAG_STATUS_LABELS[bag.status]}
+                              </StatusPill>
+                            </td>
+                            <td style={{ textAlign: 'right' }}>
+                              <button
+                                type="button"
+                                className="btn btn--primary btn--sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setViewingBag(bag);
+                                }}
+                              >
+                                Chi tiết
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               <WorkflowPagination
                 page={safeAllPage}
                 totalPages={allTotalPages}
                 total={filteredBags.length}
                 pageSize={PAGE_SIZE}
-                onChange={setAllPage}
+                onChange={allPagination.changePage}
                 itemLabel="túi máu"
               />
             </>
           )}
           </>
-        ) : (
-          <>
-            <QueryState {...campaignsListQuery} variant="station-grid" count={3} />
+        ) : (() => {
+          const campaignTotalPages = Math.max(
+            1,
+            Math.ceil(filteredCampaigns.length / CAMPAIGN_PAGE_SIZE),
+          );
+          const safeCampaignPage = Math.min(
+            Math.max(1, campaignPagination.page),
+            campaignTotalPages,
+          );
+          const paginatedCampaigns = filteredCampaigns.slice(
+            (safeCampaignPage - 1) * CAMPAIGN_PAGE_SIZE,
+            safeCampaignPage * CAMPAIGN_PAGE_SIZE,
+          );
 
-            {!campaignsListQuery.loading && campaignsListQuery.data && (
-              <>
-                <div className="station-filter-bar" role="tablist" aria-label="Bộ lọc trạng thái đợt hiến">
-                  <button
-                    type="button"
-                    className={`station-filter-btn ${statusFilter === 'ALL' ? 'station-filter-btn--active' : ''}`}
-                    onClick={() => setStatusFilter('ALL')}
-                  >
-                    Tất cả <span className="station-filter-btn__count">{totalCount}</span>
-                  </button>
-                  <button
-                    type="button"
-                    className={`station-filter-btn ${statusFilter === 'ACTIVE' ? 'station-filter-btn--active' : ''}`}
-                    onClick={() => setStatusFilter('ACTIVE')}
-                  >
-                    Mở <span className="station-filter-btn__count">{activeCount}</span>
-                  </button>
-                  <button
-                    type="button"
-                    className={`station-filter-btn ${statusFilter === 'UPCOMING' ? 'station-filter-btn--active' : ''}`}
-                    onClick={() => setStatusFilter('UPCOMING')}
-                  >
-                    Chưa mở <span className="station-filter-btn__count">{upcomingCount}</span>
-                  </button>
-                  <button
-                    type="button"
-                    className={`station-filter-btn ${statusFilter === 'CLOSED' ? 'station-filter-btn--active' : ''}`}
-                    onClick={() => setStatusFilter('CLOSED')}
-                  >
-                    Đã đóng <span className="station-filter-btn__count">{closedCount}</span>
-                  </button>
-                </div>
+          return (
+            <>
+              <QueryState {...campaignsListQuery} variant="station-grid" count={3} />
 
-                {filteredCampaigns.length === 0 && (
-                  <p className="workflow-empty">Không có đợt hiến nào trong trạng thái này.</p>
-                )}
-
-                <ul className="station-campaign-grid">
-              {filteredCampaigns.map(({ campaign, window, bagCount }) => (
-                <li
-                  key={campaign.id}
-                  className={`station-campaign-card ${window.status === 'ACTIVE' ? 'station-campaign-card--active' : ''}`}
-                >
-                  <div className="station-campaign-card__header">
-                    <div>
-                      <h3 className="station-campaign-card__title">
-                        {campaign.name}
-                      </h3>
-                      <p className="station-campaign-card__meta" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <MapPin size={14} style={{ flexShrink: 0, opacity: 0.75 }} />
-                        <span>{campaign.location}</span>
-                      </p>
-                      <p className="station-campaign-card__meta" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <Clock size={14} style={{ flexShrink: 0, opacity: 0.75 }} />
-                        <span>
-                          {formatDate(campaign.startsAt)} (
-                          {new Date(campaign.startsAt).toLocaleTimeString('vi-VN', {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}{' '}
-                          –{' '}
-                          {new Date(campaign.endsAt).toLocaleTimeString('vi-VN', {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                          )
-                        </span>
-                      </p>
-                    </div>
-                    <div className="station-campaign-card__metrics">
-                      <span
-                        className="station-metric-pill"
-                        title={
-                          window.status === 'ACTIVE'
-                            ? 'Đang mở thu nhận máu'
-                            : window.status === 'UPCOMING'
-                              ? 'Chưa mở'
-                              : 'Đã đóng'
-                        }
-                      >
-                        <span
-                          className={`station-signal-dot station-signal-dot--${
-                            window.status === 'ACTIVE'
-                              ? 'active'
-                              : window.status === 'UPCOMING'
-                                ? 'upcoming'
-                                : 'closed'
-                          }`}
-                          aria-hidden="true"
-                        />
-                        <span>{bagCount} túi máu</span>
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="station-campaign-card__footer">
-                    <span className="station-campaign-card__lead">
-                      {window.status === 'ACTIVE'
-                        ? 'Đợt hiến đang mở thu nhận máu.'
-                        : window.status === 'UPCOMING'
-                          ? 'Đợt hiến chuẩn bị diễn ra.'
-                          : 'Đợt hiến đã kết thúc.'}
-                    </span>
-                    <Link
-                      className="btn btn--primary"
-                      to={`/campaigns/${campaign.id}/blood-bags`}
+              {!campaignsListQuery.loading && campaignsListQuery.data && (
+                <>
+                  <div className="station-filter-bar" role="tablist" aria-label="Bộ lọc trạng thái đợt hiến">
+                    <button
+                      type="button"
+                      className={`station-filter-btn ${statusFilter === 'ALL' ? 'station-filter-btn--active' : ''}`}
+                      onClick={() => setStatusFilter('ALL')}
                     >
-                      Vào quản lý túi máu
-                    </Link>
+                      Tất cả <span className="station-filter-btn__count">{totalCount}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={`station-filter-btn ${statusFilter === 'ACTIVE' ? 'station-filter-btn--active' : ''}`}
+                      onClick={() => setStatusFilter('ACTIVE')}
+                    >
+                      Mở <span className="station-filter-btn__count">{activeCount}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={`station-filter-btn ${statusFilter === 'UPCOMING' ? 'station-filter-btn--active' : ''}`}
+                      onClick={() => setStatusFilter('UPCOMING')}
+                    >
+                      Chưa mở <span className="station-filter-btn__count">{upcomingCount}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={`station-filter-btn ${statusFilter === 'CLOSED' ? 'station-filter-btn--active' : ''}`}
+                      onClick={() => setStatusFilter('CLOSED')}
+                    >
+                      Đã đóng <span className="station-filter-btn__count">{closedCount}</span>
+                    </button>
                   </div>
-                </li>
-              ))}
-            </ul>
-              </>
-            )}
-          </>
-        )}
+
+                  {filteredCampaigns.length === 0 && (
+                    <p className="workflow-empty">Không có đợt hiến nào trong trạng thái này.</p>
+                  )}
+
+                  {campaignPagination.pageTransitioning ? (
+                    <QueryState
+                      loading={true}
+                      error={null}
+                      retry={campaignsListQuery.retry}
+                      variant="station-grid"
+                      count={3}
+                    />
+                  ) : (
+                    <ul className="station-campaign-grid workflow-page-enter" key={safeCampaignPage}>
+                      {paginatedCampaigns.map(({ campaign, window, bagCount }) => (
+                        <li
+                          key={campaign.id}
+                          className={`station-campaign-card ${window.status === 'ACTIVE' ? 'station-campaign-card--active' : ''}`}
+                        >
+                          <div className="station-campaign-card__header">
+                            <div>
+                              <h3 className="station-campaign-card__title">
+                                {campaign.name}
+                              </h3>
+                              <p className="station-campaign-card__meta" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <MapPin size={14} style={{ flexShrink: 0, opacity: 0.75 }} />
+                                <span>{campaign.location}</span>
+                              </p>
+                              <p className="station-campaign-card__meta" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <Clock size={14} style={{ flexShrink: 0, opacity: 0.75 }} />
+                                <span>
+                                  {formatDate(campaign.startsAt)} (
+                                  {new Date(campaign.startsAt).toLocaleTimeString('vi-VN', {
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  })}{' '}
+                                  –{' '}
+                                  {new Date(campaign.endsAt).toLocaleTimeString('vi-VN', {
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  })}
+                                  )
+                                </span>
+                              </p>
+                            </div>
+                            <div className="station-campaign-card__metrics">
+                              <span
+                                className="station-metric-pill"
+                                title={
+                                  window.status === 'ACTIVE'
+                                    ? 'Đang mở thu nhận máu'
+                                    : window.status === 'UPCOMING'
+                                      ? 'Chưa mở'
+                                      : 'Đã đóng'
+                                }
+                              >
+                                <span
+                                  className={`station-signal-dot station-signal-dot--${
+                                    window.status === 'ACTIVE'
+                                      ? 'active'
+                                      : window.status === 'UPCOMING'
+                                        ? 'upcoming'
+                                        : 'closed'
+                                  }`}
+                                  aria-hidden="true"
+                                />
+                                <span>{bagCount} túi máu</span>
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="station-campaign-card__footer">
+                            <span className="station-campaign-card__lead">
+                              {window.status === 'ACTIVE'
+                                ? 'Đợt hiến đang mở thu nhận máu.'
+                                : window.status === 'UPCOMING'
+                                  ? 'Đợt hiến chuẩn bị diễn ra.'
+                                  : 'Đợt hiến đã kết thúc.'}
+                            </span>
+                            <Link
+                              className="btn btn--primary"
+                              to={`/campaigns/${campaign.id}/blood-bags`}
+                            >
+                              Vào quản lý túi máu
+                            </Link>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  <WorkflowPagination
+                    page={safeCampaignPage}
+                    totalPages={campaignTotalPages}
+                    total={filteredCampaigns.length}
+                    pageSize={CAMPAIGN_PAGE_SIZE}
+                    onChange={campaignPagination.changePage}
+                    itemLabel="đợt hiến"
+                  />
+                </>
+              )}
+            </>
+          );
+        })()}
       </WorkflowShell>
     );
   }
@@ -1355,42 +1437,83 @@ export function BloodBagsPage() {
             </div>
           )}
 
-          {!readyQueue.loading && readyQueue.data && readyQueue.data.length > 0 && (
-            <div style={{ display: 'grid', gap: '12px' }}>
-              {readyQueue.data.map((item) => (
-                <div key={item.registration.id} className="ready-donor-card">
-                  <div className="ready-donor-card__info">
-                    <h3 className="ready-donor-card__name">
-                      {item.registration.donorName}
-                      <span className="tag-blood-group">
-                        {item.screening.bloodGroup
-                          ? `Nhóm ${item.screening.bloodGroup} ${item.screening.rh === 'POSITIVE' ? '(Rh+)' : item.screening.rh === 'NEGATIVE' ? '(Rh−)' : ''}`
-                          : 'Nhóm máu: Chưa rõ'}
-                      </span>
-                    </h3>
-                    <div className="ready-donor-card__tags">
-                      <span>Mã: <strong>{item.registration.code}</strong></span>
-                      <span>·</span>
-                      <span>CCCD: {item.registration.donorIdentity ?? '—'}</span>
-                      <span>·</span>
-                      <span>
-                        Chỉ định: <strong style={{ color: 'var(--color-primary-700, #059669)' }}>{item.screening.indicatedVolumeMl ?? 350} ml</strong>
-                      </span>
-                      <span>·</span>
-                      <span>Kết luận sàng lọc: <strong>Đủ điều kiện</strong></span>
-                    </div>
+          {!readyQueue.loading && readyQueue.data && readyQueue.data.length > 0 && (() => {
+            const readyItems = readyQueue.data;
+            const queueTotalPages = Math.max(
+              1,
+              Math.ceil(readyItems.length / QUEUE_PAGE_SIZE),
+            );
+            const safeQueuePage = Math.min(
+              Math.max(1, queuePagination.page),
+              queueTotalPages,
+            );
+            const paginatedReadyQueue = readyItems.slice(
+              (safeQueuePage - 1) * QUEUE_PAGE_SIZE,
+              safeQueuePage * QUEUE_PAGE_SIZE,
+            );
+
+            return (
+              <>
+                {queuePagination.pageTransitioning ? (
+                  <QueryState
+                    loading={true}
+                    error={null}
+                    retry={readyQueue.retry}
+                    variant="ready-queue"
+                    count={3}
+                  />
+                ) : (
+                  <div
+                    className="workflow-page-enter"
+                    key={safeQueuePage}
+                    style={{ display: 'grid', gap: '12px' }}
+                  >
+                    {paginatedReadyQueue.map((item) => (
+                      <div key={item.registration.id} className="ready-donor-card">
+                        <div className="ready-donor-card__info">
+                          <h3 className="ready-donor-card__name">
+                            {item.registration.donorName}
+                            <span className="tag-blood-group">
+                              {item.screening.bloodGroup
+                                ? `Nhóm ${item.screening.bloodGroup} ${item.screening.rh === 'POSITIVE' ? '(Rh+)' : item.screening.rh === 'NEGATIVE' ? '(Rh−)' : ''}`
+                                : 'Nhóm máu: Chưa rõ'}
+                            </span>
+                          </h3>
+                          <div className="ready-donor-card__tags">
+                            <span>Mã: <strong>{item.registration.code}</strong></span>
+                            <span>·</span>
+                            <span>CCCD: {item.registration.donorIdentity ?? '—'}</span>
+                            <span>·</span>
+                            <span>
+                              Chỉ định: <strong style={{ color: 'var(--color-primary-700, #059669)' }}>{item.screening.indicatedVolumeMl ?? 350} ml</strong>
+                            </span>
+                            <span>·</span>
+                            <span>Kết luận sàng lọc: <strong>Đủ điều kiện</strong></span>
+                          </div>
+                        </div>
+                        <div>
+                          <Button
+                            onClick={() => setCollectingItem(item)}
+                          >
+                            Lấy máu & Gán túi
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  <div>
-                    <Button
-                      onClick={() => setCollectingItem(item)}
-                    >
-                      Lấy máu & Gán túi
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+                )}
+
+                <WorkflowPagination
+                  page={safeQueuePage}
+                  totalPages={queueTotalPages}
+                  total={readyItems.length}
+                  pageSize={QUEUE_PAGE_SIZE}
+                  onChange={queuePagination.changePage}
+                  itemLabel="người hiến"
+                />
+              </>
+            );
+          })()}
         </section>
       )}
 
@@ -1425,72 +1548,83 @@ export function BloodBagsPage() {
 
           {!bags.loading && filteredBags.length > 0 && (
             <>
-              <div className="workflow-table-wrap">
-                <table className="workflow-table">
-                  <caption className="visually-hidden">Danh sách túi máu đã thu nhận</caption>
-                  <thead>
-                    <tr>
-                      <th scope="col">Mã túi</th>
-                      <th scope="col">Người hiến</th>
-                      <th scope="col">Nhóm máu & Thể tích</th>
-                      <th scope="col">Trạng thái</th>
-                      <th scope="col" style={{ textAlign: 'right' }}>Thao tác</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {paginatedCollectedBags.map((bag) => (
-                      <tr
-                        key={bag.id}
-                        onClick={() => setViewingBag(bag)}
-                        title="Bấm để xem hồ sơ chi tiết túi máu"
-                      >
-                        <th scope="row">
-                          <button
-                            type="button"
-                            className="btn-link-detail"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setViewingBag(bag);
-                            }}
-                          >
-                            <strong>{bag.code}</strong>
-                          </button>
-                        </th>
-                        <td>{bag.donorName}</td>
-                        <td>
-                          <span className="tag-blood-group" style={{ marginRight: '6px' }}>
-                            {formatBloodTypeDisplay(bag.bloodType, bag.bloodGroup)}
-                          </span>
-                          <span style={{ fontWeight: 600 }}>{bag.volumeMl} ml</span>
-                        </td>
-                        <td>
-                          <StatusPill tone={bagTone[bag.status]}>
-                            {BLOOD_BAG_STATUS_LABELS[bag.status]}
-                          </StatusPill>
-                        </td>
-                        <td style={{ textAlign: 'right' }}>
-                          <button
-                            type="button"
-                            className="btn btn--primary btn--sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setViewingBag(bag);
-                            }}
-                          >
-                            Chi tiết
-                          </button>
-                        </td>
+              {collectedPagination.pageTransitioning ? (
+                <QueryState
+                  loading={true}
+                  error={null}
+                  retry={bags.retry}
+                  variant="table"
+                  columns={5}
+                  count={4}
+                />
+              ) : (
+                <div className="workflow-table-wrap workflow-page-enter" key={safeCollectedPage}>
+                  <table className="workflow-table">
+                    <caption className="visually-hidden">Danh sách túi máu đã thu nhận</caption>
+                    <thead>
+                      <tr>
+                        <th scope="col">Mã túi</th>
+                        <th scope="col">Người hiến</th>
+                        <th scope="col">Nhóm máu & Thể tích</th>
+                        <th scope="col">Trạng thái</th>
+                        <th scope="col" style={{ textAlign: 'right' }}>Thao tác</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {paginatedCollectedBags.map((bag) => (
+                        <tr
+                          key={bag.id}
+                          onClick={() => setViewingBag(bag)}
+                          title="Bấm để xem hồ sơ chi tiết túi máu"
+                        >
+                          <th scope="row">
+                            <button
+                              type="button"
+                              className="btn-link-detail"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setViewingBag(bag);
+                              }}
+                            >
+                              <strong>{bag.code}</strong>
+                            </button>
+                          </th>
+                          <td>{bag.donorName}</td>
+                          <td>
+                            <span className="tag-blood-group" style={{ marginRight: '6px' }}>
+                              {formatBloodTypeDisplay(bag.bloodType, bag.bloodGroup)}
+                            </span>
+                            <span style={{ fontWeight: 600 }}>{bag.volumeMl} ml</span>
+                          </td>
+                          <td>
+                            <StatusPill tone={bagTone[bag.status]}>
+                              {BLOOD_BAG_STATUS_LABELS[bag.status]}
+                            </StatusPill>
+                          </td>
+                          <td style={{ textAlign: 'right' }}>
+                            <button
+                              type="button"
+                              className="btn btn--primary btn--sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setViewingBag(bag);
+                              }}
+                            >
+                              Chi tiết
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             <WorkflowPagination
               page={safeCollectedPage}
               totalPages={collectedTotalPages}
               total={filteredBags.length}
               pageSize={PAGE_SIZE}
-              onChange={setCollectedPage}
+              onChange={collectedPagination.changePage}
               itemLabel="túi máu"
             />
           </>
@@ -1573,7 +1707,9 @@ export function NewBloodBagPage() {
     Boolean(campaignId),
   );
 
-  const [code, setCode] = useState('');
+  const [code, setCode] = useState(() =>
+    generateStandardBloodBagCode(campaignQuery.data?.name),
+  );
   const [selectedRegistrationId, setSelectedRegistrationId] = useState('');
   const [customDonorName, setCustomDonorName] = useState('');
   const [volume, setVolume] = useState('350');
@@ -1582,6 +1718,13 @@ export function NewBloodBagPage() {
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<FieldErrors>({});
   const [created, setCreated] = useState<BloodBag | null>(null);
+
+  useEffect(() => {
+    if (campaignQuery.data?.name && code.startsWith('RC-')) {
+      setCode(generateStandardBloodBagCode(campaignQuery.data.name));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [campaignQuery.data?.name]);
 
   const backUrl = campaignId ? `/campaigns/${campaignId}/blood-bags` : '/clinic/blood-bags';
   const backLabel = campaignId ? 'Danh sách túi máu đợt này' : 'Danh sách túi máu';
@@ -1660,7 +1803,7 @@ export function NewBloodBagPage() {
                 label: 'Nhóm máu & Rh',
                 value: created.bloodGroup
                   ? `${created.bloodGroup}${created.bloodType ? ` (${created.bloodType})` : ''}`
-                  : 'Chưa rõ (Chờ xét nghiệm)',
+                  : 'Chưa rõ',
               },
               {
                 label: 'Trạng thái',
@@ -1677,7 +1820,7 @@ export function NewBloodBagPage() {
             <Button
               onClick={() => {
                 setCreated(null);
-                setCode('');
+                setCode(generateStandardBloodBagCode(campaignQuery.data?.name));
                 setSelectedRegistrationId('');
                 setCustomDonorName('');
                 setVolume('350');
@@ -1720,12 +1863,24 @@ export function NewBloodBagPage() {
               <FormField
                 id="bag-code"
                 label="Mã túi máu (Barcode)"
+                labelAction={
+                  <button
+                    type="button"
+                    className="btn btn--sm btn--secondary"
+                    style={{ padding: '2px 8px', fontSize: '0.78rem' }}
+                    onClick={() =>
+                      setCode(generateStandardBloodBagCode(campaignQuery.data?.name))
+                    }
+                  >
+                    Cấp mã mới
+                  </button>
+                }
                 error={errors.code}
                 required
               >
                 <Input
                   value={code}
-                  placeholder="VD: BAG-00042, BAG-20261010-01..."
+                  placeholder="VD: NIHBT-2026-WB-00125"
                   onChange={(e) => setCode(e.target.value)}
                 />
               </FormField>

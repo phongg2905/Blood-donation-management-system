@@ -70,11 +70,11 @@ export function CampaignSection() {
           transition={{ duration: 0.5 }}
         >
           <span className="sketch-section-pill">
-            <Building2 size={14} color="#60a5fa" />
+            <Building2 size={14} color="#fb7185" />
             ĐIỂM HIẾN MÁU MỞ
           </span>
           <h2 className="sketch-section-title" id="campaigns-title">
-            Điểm Tiếp Nhận & <span className="sketch-title-highlight">Lịch Hiến Máu</span>
+            Điểm Tiếp Nhận & <span className="sketch-title-highlight-ruby">Lịch Hiến Máu</span>
           </h2>
           <p className="sketch-section-sub">
             Theo dõi nhu cầu cấp thiết và đặt lịch tại các điểm tiếp nhận đang mở.
@@ -82,94 +82,85 @@ export function CampaignSection() {
         </motion.div>
 
         {displayItems.length === 0 ? (
-          <div
-            style={{
-              textAlign: 'center',
-              padding: '3rem 1.5rem',
-              color: 'rgba(255, 255, 255, 0.7)',
-              background: 'rgba(255, 255, 255, 0.03)',
-              borderRadius: '1rem',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              marginTop: '1.5rem',
-            }}
-          >
-            <p style={{ margin: 0, fontSize: '1rem', fontWeight: 500 }}>
+          <div className="sketch-demands-empty">
+            <Building2 size={36} className="sketch-demands-empty__icon" />
+            <p>
               Hiện chưa có đợt hiến máu nào đang mở tiếp nhận. Vui lòng theo dõi các thông báo mới nhất.
             </p>
           </div>
         ) : (
           <div className="sketch-demands-grid">
-          {displayItems.slice(0, 3).map((item, idx) => {
-            const percent = Math.min(
-              100,
-              Math.round((item.registeredDonors / (item.targetDonors || 1)) * 100),
-            );
+            {displayItems.slice(0, 3).map((item, idx) => {
+              const percent = Math.min(
+                100,
+                Math.round((item.registeredDonors / (item.targetDonors || 1)) * 100),
+              );
 
-            return (
-              <motion.article
-                key={item.id}
-                className="sketch-demand-card"
-                initial={{ opacity: 0, y: 25 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: '-30px' }}
-                transition={{ duration: 0.5, delay: idx * 0.1 }}
-                whileHover={{ y: -5 }}
-              >
-                <div className="sketch-demand-card__head">
-                  <div className="sketch-demand-card__hospital-name">
-                    <span className="sketch-demand-card__num">{idx + 1}.</span>
-                    <h3>{item.name}</h3>
-                  </div>
-                  <span
-                    className={`sketch-status-badge sketch-status-badge--${item.statusBadge.toLowerCase().replace(/\s+/g, '-')}`}
-                  >
-                    {item.statusBadge}
-                  </span>
-                </div>
-
-                <div className="sketch-demand-card__need-row">
-                  <span className="sketch-demand-card__need-label">{item.needDescription}</span>
-                  <span className="sketch-demand-card__need-percent">{percent}%</span>
-                </div>
-
-                <div className="sketch-demand-progress-track">
-                  <div
-                    className={`sketch-demand-progress-bar sketch-demand-progress-bar--${item.statusBadge.toLowerCase().replace(/\s+/g, '-')}`}
-                    style={{ width: `${percent}%` }}
-                  />
-                </div>
-
-                <div className="sketch-demand-card__meta">
-                  <div className="sketch-meta-line">
-                    <Calendar size={14} color="#94a3b8" />
-                    <span>{formatDate(item.startsAt)}</span>
-                  </div>
-                  <div className="sketch-meta-line">
-                    <MapPin size={14} color="#94a3b8" />
-                    <span title={item.location}>{item.location}</span>
-                  </div>
-                </div>
-
-                <Link
-                  to={`/campaigns/${item.id}`}
-                  className="sketch-demand-card__link"
+              return (
+                <motion.article
+                  key={item.id}
+                  className="sketch-demand-card"
+                  initial={{ opacity: 0, y: 25 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, margin: '-30px' }}
+                  transition={{ duration: 0.5, delay: idx * 0.1 }}
+                  whileHover={{ y: -5 }}
                 >
-                  <span>Xem chi tiết & Đặt chỗ</span>
-                  <ChevronRight size={16} />
-                </Link>
-              </motion.article>
-            );
-          })}
-        </div>
-      )}
+                  <div className="sketch-demand-card__head">
+                    <div className="sketch-demand-card__hospital-name">
+                      <span className="sketch-demand-card__num">{idx + 1}.</span>
+                      <h3>{item.name}</h3>
+                    </div>
+                    <span
+                      className={`sketch-status-badge sketch-status-badge--${item.statusBadge.toLowerCase().replace(/\s+/g, '-')}`}
+                    >
+                      {item.statusBadge}
+                    </span>
+                  </div>
+
+                  <div className="sketch-demand-card__need-row">
+                    <span className="sketch-demand-card__need-label">{item.needDescription}</span>
+                    <span className="sketch-demand-card__need-percent">{percent}%</span>
+                  </div>
+
+                  <div className="sketch-demand-progress-track">
+                    <div
+                      className={`sketch-demand-progress-bar sketch-demand-progress-bar--${item.statusBadge.toLowerCase().replace(/\s+/g, '-')}`}
+                      style={{ width: `${percent}%` }}
+                    />
+                  </div>
+
+                  <div className="sketch-demand-card__meta">
+                    <div className="sketch-meta-line">
+                      <Calendar size={14} color="#94a3b8" />
+                      <span>{formatDate(item.startsAt)}</span>
+                    </div>
+                    <div className="sketch-meta-line">
+                      <MapPin size={14} color="#94a3b8" />
+                      <span title={item.location}>{item.location}</span>
+                    </div>
+                  </div>
+
+                  <Link
+                    to={`/campaigns/${item.id}`}
+                    className="btn sketch-demand-card__link"
+                  >
+                    <span>Xem chi tiết & Đặt chỗ</span>
+                    <ChevronRight size={16} />
+                  </Link>
+                </motion.article>
+              );
+            })}
+          </div>
+        )}
 
         {/* View All Button */}
-        <div style={{ textAlign: 'center', marginTop: '2.5rem' }}>
+        <div className="sketch-demands-action">
           <Link
             to="/campaigns"
-            className="sketch-btn-outline-glow"
+            className="btn sketch-btn-outline-glow"
           >
-            Tra cứu tất cả điểm hiến máu trên toàn quốc
+            <span>Tra cứu tất cả điểm hiến máu trên toàn quốc</span>
             <ChevronRight size={16} />
           </Link>
         </div>

@@ -3,7 +3,7 @@ import type { CampaignStatus } from '@blood/shared-types';
 import { database } from '../../config/database';
 
 export interface CampaignListFilter {
-  status?: CampaignStatus | undefined;
+  status?: CampaignStatus | 'UPCOMING' | undefined;
   excludeDraft?: boolean | undefined;
   from?: Date | undefined;
   to?: Date | undefined;
@@ -13,19 +13,49 @@ export interface CampaignListFilter {
 
 function whereFromFilter(
   filter: Pick<CampaignListFilter, 'status' | 'excludeDraft' | 'from' | 'to'>,
+  now: Date = new Date(),
 ): Prisma.DonationCampaignWhereInput {
+  let statusCondition: Prisma.DonationCampaignWhereInput = {};
+
+  if (filter.status === 'UPCOMING') {
+    statusCondition = {
+      status: 'OPEN',
+      registrationOpensAt: { gt: now },
+    };
+  } else if (filter.status === 'OPEN') {
+    statusCondition = {
+      status: 'OPEN',
+      AND: [
+        {
+          OR: [
+            { registrationOpensAt: null },
+            { registrationOpensAt: { lte: now } },
+          ],
+        },
+        {
+          OR: [
+            { registrationClosesAt: null },
+            { registrationClosesAt: { gt: now } },
+          ],
+        },
+      ],
+    };
+  } else if (filter.status) {
+    statusCondition = { status: filter.status };
+  } else if (filter.excludeDraft) {
+    statusCondition = { status: { not: 'DRAFT' } };
+  }
+
   return {
-    ...(filter.status
-      ? { status: filter.status }
-      : filter.excludeDraft
-        ? { status: { not: 'DRAFT' } }
-        : {}),
-    ...(filter.from || filter.to
+    ...statusCondition,
+    ...(filter.from
       ? {
-          startsAt: {
-            ...(filter.from ? { gte: filter.from } : {}),
-            ...(filter.to ? { lte: filter.to } : {}),
-          },
+          endsAt: { gte: filter.from },
+        }
+      : {}),
+    ...(filter.to
+      ? {
+          startsAt: { lte: filter.to },
         }
       : {}),
   };
@@ -112,4 +142,16 @@ export const campaignRepository = {
     id: string,
     data: Prisma.DonationCampaignUncheckedUpdateInput,
   ) => tx.donationCampaign.update({ where: { id }, data }),
+
+  async syncExpiredCampaigns(now: Date = new Date()): Promise<void> {
+    await database.donationCampaign.updateMany({
+      where: {
+        status: 'OPEN',
+        registrationClosesAt: { lte: now },
+      },
+      data: {
+        status: 'CLOSED',
+      },
+    });
+  },
 };

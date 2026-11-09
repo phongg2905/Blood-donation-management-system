@@ -17,6 +17,7 @@ import {
   validateProfile,
 } from '@/features/auth/validation';
 import type { FieldErrors, ProfileField } from '@/features/auth/validation';
+import './profile.css';
 
 const PROFILE_FIELDS = ['fullName', 'phone', 'address'] as const;
 
@@ -30,8 +31,6 @@ function ProfileEditor({
   onSaved: () => void;
 }) {
   const { updateProfile } = useAuth();
-  // Contact fields belong to DonorProfile; other accounts must not send them.
-  const editContacts = user.roles.includes('DONOR');
   const [fullName, setFullName] = useState(user.fullName);
   const [phone, setPhone] = useState(user.phone ?? '');
   const [address, setAddress] = useState(user.address ?? '');
@@ -56,7 +55,8 @@ function ProfileEditor({
     if (submitting) return;
     const values = {
       fullName: fullName.trim(),
-      ...(editContacts ? { phone: phone.trim(), address: address.trim() } : {}),
+      phone: phone.trim(),
+      address: address.trim(),
     };
     const nextErrors = validateProfile(values);
     setErrors(nextErrors);
@@ -76,8 +76,8 @@ function ProfileEditor({
   }
 
   return (
-    <section className="panel" aria-labelledby="profile-edit-heading">
-      <h2 className="panel__title" id="profile-edit-heading">
+    <section className="profile-detail-card" aria-labelledby="profile-edit-heading">
+      <h2 className="profile-detail-card__heading" id="profile-edit-heading">
         Chỉnh sửa thông tin
       </h2>
       <form
@@ -111,42 +111,49 @@ function ProfileEditor({
         >
           <Input name="email" type="email" value={user.email} readOnly />
         </FormField>
-        {editContacts ? (
-          <>
-            <FormField
-              id="profile-phone"
-              label="Số điện thoại"
-              required
-              error={errors.phone}
-            >
-              <Input
-                name="phone"
-                type="tel"
-                autoComplete="tel"
-                maxLength={20}
-                value={phone}
-                onChange={(event) => setPhone(event.target.value)}
-                disabled={submitting}
-              />
-            </FormField>
-            <FormField
-              id="profile-address"
-              label="Địa chỉ"
-              required
-              error={errors.address}
-            >
-              <Input
-                name="address"
-                autoComplete="street-address"
-                maxLength={500}
-                value={address}
-                onChange={(event) => setAddress(event.target.value)}
-                disabled={submitting}
-              />
-            </FormField>
-          </>
-        ) : null}
-        <div className="panel__actions">
+        <FormField
+          id="profile-citizenid"
+          label="Số CCCD"
+          hint="Số CCCD định danh không thể thay đổi sau khi đăng ký."
+        >
+          <Input
+            name="citizenId"
+            value={user.citizenId ?? 'Chưa cập nhật'}
+            readOnly
+          />
+        </FormField>
+        <FormField
+          id="profile-phone"
+          label="Số điện thoại"
+          required
+          error={errors.phone}
+        >
+          <Input
+            name="phone"
+            type="tel"
+            autoComplete="tel"
+            maxLength={20}
+            value={phone}
+            onChange={(event) => setPhone(event.target.value)}
+            disabled={submitting}
+          />
+        </FormField>
+        <FormField
+          id="profile-address"
+          label="Địa chỉ"
+          required
+          error={errors.address}
+        >
+          <Input
+            name="address"
+            autoComplete="street-address"
+            maxLength={500}
+            value={address}
+            onChange={(event) => setAddress(event.target.value)}
+            disabled={submitting}
+          />
+        </FormField>
+        <div className="panel__actions" style={{ marginTop: '20px' }}>
           <Button type="submit" isLoading={submitting} loadingLabel="Đang lưu…">
             Lưu thay đổi
           </Button>
@@ -180,16 +187,6 @@ function ProfileContent({ user }: { user: CurrentUser }) {
     setSaved(success);
   }
 
-  const details = [
-    ['Họ và tên', user.fullName],
-    ['Email', user.email],
-    ...(user.roles.includes('DONOR')
-      ? [
-          ['Số điện thoại', user.phone || 'Chưa cập nhật'],
-          ['Địa chỉ', user.address || 'Chưa cập nhật'],
-        ]
-      : []),
-  ];
   const initials = user.fullName
     .trim()
     .split(/\s+/)
@@ -198,10 +195,20 @@ function ProfileContent({ user }: { user: CurrentUser }) {
     .join('')
     .toUpperCase();
 
+  const isDonor = user.roles.includes('DONOR');
+  const primaryRoleLabel = user.roles.map((role) => ROLE_NAMES[role]).join(', ');
+
   return (
-    <div className="profile-page">
-      <header className="page-header profile-header">
-        <h1 className="page-header__title">Thông tin cá nhân</h1>
+    <div className="profile-page-container">
+      <header className="profile-desktop-header">
+        <div className="profile-desktop-header__text">
+          <h1 className="profile-desktop-header__title">
+            Thông tin cá nhân
+          </h1>
+          <p className="profile-desktop-header__subtitle">
+            Xin chào, {user.fullName}! Quản lý thông tin tài khoản cá nhân & thông tin người hiến máu
+          </p>
+        </div>
         {canEdit && !editing ? (
           <Button
             ref={editRef}
@@ -215,50 +222,116 @@ function ProfileContent({ user }: { user: CurrentUser }) {
           </Button>
         ) : null}
       </header>
-      <div className="profile-layout">
-        {saved ? (
-          <StatusMessage tone="success">
-            Thông tin cá nhân đã được cập nhật.
-          </StatusMessage>
-        ) : null}
-        <section className="profile-summary" aria-label="Thông tin tổng quan">
-          <div className="profile-avatar" aria-hidden="true">
-            {initials}
+
+      {saved ? (
+        <StatusMessage tone="success">
+          Thông tin cá nhân đã được cập nhật.
+        </StatusMessage>
+      ) : null}
+
+      {/* Hero Banner Card - Linda aesthetic */}
+      <section className="profile-hero-card" aria-label="Thông tin tổng quan">
+        <div className="profile-hero-card__content">
+          <div className="profile-hero-card__badge-row">
+            {user.roles.map((role) => (
+              <span className="profile-role-pill" key={role}>
+                {ROLE_NAMES[role]}
+              </span>
+            ))}
           </div>
-          <div className="profile-summary__info">
-            <h2 className="profile-summary__name">{user.fullName}</h2>
-            <p className="profile-summary__email">{user.email}</p>
-            <div className="profile-summary__roles">
-              {user.roles.map((role) => (
-                <span className="chip chip--brand" key={role}>
-                  {ROLE_NAMES[role]}
-                </span>
-              ))}
+          <h2 className="profile-hero-card__name">{user.fullName}</h2>
+          <p className="profile-hero-card__email">{user.email}</p>
+          <div className="profile-hero-card__status">
+            <span className="profile-hero-card__status-dot" aria-hidden="true" />
+            <span>Tài khoản đang hoạt động</span>
+          </div>
+        </div>
+
+        {/* Concentric Halo Avatar */}
+        <div className="profile-avatar-halo-wrap" aria-hidden="true">
+          <div className="profile-avatar-halo-outer" />
+          <div className="profile-avatar-halo-middle" />
+          <div className="profile-avatar-inner">{initials}</div>
+        </div>
+      </section>
+
+      {/* Quick Summary Cards (3 cards row) */}
+      <section className="profile-quick-grid" aria-label="Tóm tắt nhanh">
+        <div className="profile-quick-card">
+          <span className="profile-quick-card__label">Vai trò</span>
+          <span className="profile-quick-card__value" title={primaryRoleLabel}>
+            {primaryRoleLabel}
+          </span>
+        </div>
+        <div className="profile-quick-card">
+          <span className="profile-quick-card__label">Số CCCD</span>
+          <span
+            className={`profile-quick-card__value ${
+              user.citizenId ? 'profile-quick-card__value--highlight' : ''
+            }`}
+          >
+            {user.citizenId || 'Chưa cập nhật'}
+          </span>
+        </div>
+        <div className="profile-quick-card">
+          <span className="profile-quick-card__label">Số điện thoại</span>
+          <span className="profile-quick-card__value">
+            {user.phone || 'Chưa cập nhật'}
+          </span>
+        </div>
+      </section>
+
+      {/* Main Details / Editor Card */}
+      {editing && canEdit ? (
+        <ProfileEditor
+          user={user}
+          onCancel={() => closeEditor()}
+          onSaved={() => closeEditor(true)}
+        />
+      ) : (
+        <section className="profile-detail-card" aria-labelledby="identity-heading">
+          <h2 className="profile-detail-card__heading" id="identity-heading">
+            Thông tin chi tiết
+          </h2>
+          <div className="profile-facts-grid">
+            <div className="profile-fact-item">
+              <span className="profile-fact-item__label">Họ và tên</span>
+              <span className="profile-fact-item__value">{user.fullName}</span>
+            </div>
+
+            <div className="profile-fact-item">
+              <span className="profile-fact-item__label">Số CCCD (12 chữ số)</span>
+              <span className="profile-fact-item__value profile-fact-item__value--citizen">
+                {user.citizenId || 'Chưa cập nhật'}
+              </span>
+            </div>
+
+            <div className="profile-fact-item">
+              <span className="profile-fact-item__label">Địa chỉ Email</span>
+              <span className="profile-fact-item__value">{user.email}</span>
+            </div>
+
+            <div className="profile-fact-item">
+              <span className="profile-fact-item__label">Số điện thoại</span>
+              <span className="profile-fact-item__value">
+                {user.phone || 'Chưa cập nhật'}
+              </span>
+            </div>
+
+            <div className="profile-fact-item">
+              <span className="profile-fact-item__label">Địa chỉ thường trú</span>
+              <span className="profile-fact-item__value">
+                {user.address || 'Chưa cập nhật'}
+              </span>
+            </div>
+
+            <div className="profile-fact-item">
+              <span className="profile-fact-item__label">Vai trò hệ thống</span>
+              <span className="profile-fact-item__value">{primaryRoleLabel}</span>
             </div>
           </div>
         </section>
-        {editing && canEdit ? (
-          <ProfileEditor
-            user={user}
-            onCancel={() => closeEditor()}
-            onSaved={() => closeEditor(true)}
-          />
-        ) : (
-          <section className="panel" aria-labelledby="identity-heading">
-            <h2 className="panel__title" id="identity-heading">
-              Thông tin liên hệ
-            </h2>
-            <dl className="detail-list profile-details">
-              {details.map(([label, value]) => (
-                <div className="detail-list__row" key={label}>
-                  <dt className="detail-list__label">{label}</dt>
-                  <dd className="detail-list__value">{value}</dd>
-                </div>
-              ))}
-            </dl>
-          </section>
-        )}
-      </div>
+      )}
     </div>
   );
 }

@@ -39,14 +39,13 @@ export const ASSIGNMENTS = {
   CHECK_IN: 'Tiếp nhận',
   SCREENING: 'Sàng lọc',
   COLLECTION: 'Lấy máu',
-  SUPPORT: 'Hỗ trợ',
 } as const;
 export type Assignment = keyof typeof ASSIGNMENTS;
 export interface StaffCandidate {
   id: string;
   fullName: string;
   email: string;
-  roles: RoleCode[];
+  roles?: RoleCode[];
 }
 export interface CampaignStaff {
   id: string;
@@ -57,7 +56,7 @@ export interface CampaignStaff {
 }
 export interface CampaignQuery {
   search?: string;
-  status?: CampaignStatus;
+  status?: CampaignStatus | 'UPCOMING';
   from?: string;
   to?: string;
   sort?: 'asc' | 'desc';

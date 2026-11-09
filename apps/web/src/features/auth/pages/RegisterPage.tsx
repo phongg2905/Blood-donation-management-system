@@ -27,6 +27,7 @@ import type { FieldErrors, RegisterField } from '../validation';
 const REGISTER_FIELDS = [
   'fullName',
   'email',
+  'citizenId',
   'password',
   'confirmPassword',
 ] as const;
@@ -44,6 +45,7 @@ export function RegisterPage() {
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
+  const [citizenId, setCitizenId] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [acceptTerms, setAcceptTerms] = useState(false);
@@ -65,6 +67,7 @@ export function RegisterPage() {
     const values = {
       fullName,
       email,
+      citizenId,
       password,
       confirmPassword,
       acceptTerms,
@@ -79,6 +82,7 @@ export function RegisterPage() {
       const user = await register({
         fullName: fullName.trim(),
         email: normalizeEmail(email),
+        citizenId: citizenId.trim(),
         password,
       });
       navigate(resolveLandingPath(user), { replace: true });
@@ -140,6 +144,25 @@ export function RegisterPage() {
               placeholder="ten@example.com"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
+              disabled={submitting}
+            />
+          </FormField>
+
+          <FormField
+            id="register-citizenid"
+            label="Số CCCD (12 chữ số)"
+            required
+            error={errors.citizenId}
+          >
+            <Input
+              name="citizenId"
+              autoComplete="off"
+              maxLength={12}
+              placeholder="001200012345"
+              value={citizenId}
+              onChange={(event) =>
+                setCitizenId(event.target.value.replace(/\D/g, ''))
+              }
               disabled={submitting}
             />
           </FormField>

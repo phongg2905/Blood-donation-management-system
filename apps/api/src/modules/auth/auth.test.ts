@@ -38,6 +38,7 @@ function extractCookie(response: Response, name: string): string | undefined {
 /** Registers a fresh DONOR and returns everything a test needs to act as them. */
 async function registerDonor() {
   const email = `${randomUUID()}@example.test`;
+  const citizenId = String(Date.now()).slice(-9) + String(Math.floor(100 + Math.random() * 900));
   const response = await fetch(`${base}/api/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -45,6 +46,7 @@ async function registerDonor() {
       email,
       password: STRONG_PASSWORD,
       fullName: 'Auth Test Donor',
+      citizenId,
     }),
   });
   const body = await response.json();
@@ -52,8 +54,10 @@ async function registerDonor() {
   return { email, response, body, refreshCookie };
 }
 
-/** Deletes everything the DonorProfile RESTRICT constraint requires first. */
+/** Deletes everything the DonorProfile/Session/UserRole RESTRICT constraint requires first. */
 async function cleanupUser(userId: string): Promise<void> {
+  await database.authSession.deleteMany({ where: { userId } });
+  await database.userRole.deleteMany({ where: { userId } });
   await database.donorProfile.deleteMany({ where: { userId } });
   await database.user.delete({ where: { id: userId } }).catch(() => undefined);
 }
@@ -83,6 +87,7 @@ describe('POST /auth/register', () => {
           email: first.email,
           password: STRONG_PASSWORD,
           fullName: 'Duplicate',
+          citizenId: '999999999999',
         }),
       });
       const secondBody = await second.json();
@@ -487,7 +492,7 @@ describe('PATCH /auth/me', () => {
       assert.equal(response.status, 400);
       assert.equal(body.error.code, 'VALIDATION_ERROR');
     } finally {
-      await database.user.delete({ where: { id: user.id } });
+      await cleanupUser(user.id);
     }
   });
 });

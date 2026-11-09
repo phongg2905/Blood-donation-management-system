@@ -5,11 +5,12 @@ Pinterest/Dribbble, template HTML mẫu…) để tham khảo khi dựng giao di
 
 ## Quy tắc bắt buộc
 
-- ❌ **Không import trực tiếp** bất kỳ file nào trong `design-references/` vào
+- **Không dùng emoji:** Tuyệt đối không sử dụng emoji trong toàn bộ giao diện (UI) của hệ thống. Thay thế bằng icon vector (`lucide-react`, SVG thuần) hoặc typography.
+- **Không import trực tiếp** bất kỳ file nào trong `design-references/` vào
   production code. Không có ngoại lệ.
-- ❌ **Không copy pixel-to-pixel.** Đây là tài liệu tham khảo, không phải nguồn code.
-- ✅ Chỉ dùng để tham khảo **layout, spacing, màu sắc, component style**.
-- ✅ Asset dùng thật trong production **phải** nằm trong `src/assets/` hoặc `public/`.
+- **Không copy pixel-to-pixel.** Đây là tài liệu tham khảo, không phải nguồn code.
+- Chỉ dùng để tham khảo **layout, spacing, màu sắc, component style**.
+- Asset dùng thật trong production **phải** nằm trong `src/assets/` hoặc `public/`.
   Muốn dùng một hình trong này thì **copy** nó sang `src/assets/` (đã tối ưu) rồi
   import từ đó.
 

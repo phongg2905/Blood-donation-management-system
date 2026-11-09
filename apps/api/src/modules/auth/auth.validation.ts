@@ -17,10 +17,16 @@ const passwordSchema = z
 
 const emailSchema = z.string().trim().toLowerCase().email('Email không hợp lệ');
 
+export const citizenIdSchema = z
+  .string()
+  .trim()
+  .regex(/^\d{12}$/, 'Số CCCD phải bao gồm đúng 12 chữ số');
+
 export const registerSchema = z.object({
   email: emailSchema,
   password: passwordSchema,
   fullName: z.string().trim().min(1).max(200),
+  citizenId: citizenIdSchema,
   phone: z.string().trim().min(8).max(20).optional(),
 });
 export type RegisterInput = z.infer<typeof registerSchema>;
@@ -51,6 +57,7 @@ export const validateResetPassword = (input: unknown): ResetPasswordInput =>
 export const updateMeSchema = z
   .object({
     fullName: z.string().trim().min(1).max(200).optional(),
+    citizenId: citizenIdSchema.optional(),
     phone: z.string().trim().min(8).max(20).optional(),
     address: z.string().trim().min(1).max(500).optional(),
   })

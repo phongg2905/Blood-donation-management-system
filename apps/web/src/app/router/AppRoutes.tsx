@@ -39,6 +39,7 @@ import { RolesPage } from '@/features/admin/RolesPage';
 import { AuditLogsPage } from '@/features/admin/AuditLogsPage';
 import { SettingsPage } from '@/features/admin/SettingsPage';
 import { ReportsPage } from '@/features/admin/ReportsPage';
+import { AdminOverviewPage } from '@/features/admin/AdminOverviewPage';
 
 /**
  * Route table.
@@ -234,6 +235,14 @@ export function AppRoutes() {
           />
 
           {/* Administration: accounts, roles & permissions, audit, settings, reports. */}
+          <Route
+            path="/admin"
+            element={
+              <PermissionGuard requiredPermission="user.manage">
+                <AdminOverviewPage />
+              </PermissionGuard>
+            }
+          />
           <Route
             path="/admin/users"
             element={

@@ -126,6 +126,12 @@ async function seedAdmin(): Promise<void> {
     create: { userId: user.id, roleId: adminRole.id },
     update: {},
   });
+
+  await database.donorProfile.upsert({
+    where: { userId: user.id },
+    create: { userId: user.id, citizenId: '079088001001' },
+    update: { citizenId: '079088001001' },
+  });
   console.info(`Seeded the initial admin account (${env.ADMIN_EMAIL}).`);
 }
 
@@ -138,16 +144,25 @@ async function seedAdmin(): Promise<void> {
  */
 const DEMO_PASSWORD = 'Demo@Password1';
 const DEMO_ACCOUNTS = [
-  { role: 'DONOR', email: 'donor.demo@example.local', fullName: 'Donor Demo' },
+  {
+    role: 'DONOR',
+    email: 'donor.demo@example.local',
+    fullName: 'Donor Demo',
+    citizenId: '079092001002',
+    phone: '0901234567',
+    address: '124 Nguyễn Huệ, Quận 1, TP.HCM',
+  },
   {
     role: 'DONATION_STAFF',
     email: 'donation-staff.demo@example.local',
     fullName: 'Donation Staff Demo',
+    citizenId: '079095001003',
   },
   {
     role: 'COORDINATOR',
     email: 'coordinator.demo@example.local',
     fullName: 'Coordinator Demo',
+    citizenId: '079190001004',
   },
 ] as const;
 
@@ -179,13 +194,20 @@ async function seedDemoAccounts(): Promise<void> {
       update: {},
     });
 
-    if (demo.role === 'DONOR') {
-      await database.donorProfile.upsert({
-        where: { userId: user.id },
-        create: { userId: user.id },
-        update: {},
-      });
-    }
+    await database.donorProfile.upsert({
+      where: { userId: user.id },
+      create: {
+        userId: user.id,
+        citizenId: demo.citizenId,
+        ...('phone' in demo ? { phone: demo.phone } : {}),
+        ...('address' in demo ? { address: demo.address } : {}),
+      },
+      update: {
+        citizenId: demo.citizenId,
+        ...('phone' in demo ? { phone: demo.phone } : {}),
+        ...('address' in demo ? { address: demo.address } : {}),
+      },
+    });
   }
 
   console.info(

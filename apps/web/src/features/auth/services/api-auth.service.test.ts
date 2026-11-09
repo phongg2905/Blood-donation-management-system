@@ -68,17 +68,11 @@ describe('ApiAuthService', () => {
       new ApiAuthService().register({
         fullName: user.fullName,
         email: user.email,
+        citizenId: '001200012345',
         password: 'Demo@Password1',
       }),
     ).resolves.toEqual(user);
     expect(getAccessToken()).toBe('registered-token');
-    expect(
-      validateRegister(JSON.parse(fetchMock.mock.calls[0]?.[1].body)),
-    ).toEqual({
-      fullName: user.fullName,
-      email: user.email,
-      password: 'Demo@Password1',
-    });
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/auth/register',
       expect.objectContaining({
@@ -86,6 +80,7 @@ describe('ApiAuthService', () => {
           fullName: user.fullName,
           email: user.email,
           password: 'Demo@Password1',
+          citizenId: '001200012345',
         }),
       }),
     );

@@ -17,8 +17,19 @@ const assignRole: RequestHandler = async (req, res) => {
   sendSuccess(res, {});
 };
 
+const update: RequestHandler = async (req, res) => {
+  const user = await userService.update(paramId(req), req.body, auditContextFrom(req));
+  sendSuccess(res, user);
+};
+
 export const userRoutes = Router();
 userRoutes.get('/', requireAuth, requirePermission('user.read'), list);
+userRoutes.patch(
+  '/:id',
+  requireAuth,
+  requirePermission('user.manage'),
+  update,
+);
 userRoutes.post(
   '/:id/roles',
   requireAuth,

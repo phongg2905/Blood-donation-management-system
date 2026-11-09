@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link, useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Building2,
   Calendar,
@@ -15,7 +15,7 @@ import {
   X,
   ZoomIn,
 } from 'lucide-react';
-import { Button } from '@/components/ui';
+import { Button, SkeletonAppointmentList, SkeletonAppointmentDetail } from '@/components/ui';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { uploadCertificatePhoto, isSupabaseConfigured, SUPABASE_BUCKET } from '@/services/supabase';
 import { useWorkflowQuery } from './hooks';
@@ -88,6 +88,7 @@ export interface UnifiedAppointment {
   bloodGroup?: string | null;
   rh?: string | null;
   testDate?: string;
+  checkedInAt?: string | null;
 }
 
 function CancelAppointmentModal({
@@ -209,8 +210,10 @@ function CancelAppointmentModal({
 
 export function DonorHistoryPage() {
   const workflow = useWorkflowRepository();
-  const { currentUser } = useAuth();
+  const { currentUser, isLoading: authLoading } = useAuth();
   const donorId = currentUser?.id ?? '';
+  const [searchParams, setSearchParams] = useSearchParams();
+  const selectedIdFromUrl = searchParams.get('id');
 
   const registrations = useWorkflowQuery(
     'my-registrations',
@@ -230,6 +233,24 @@ export function DonorHistoryPage() {
   const [isCancelling, setIsCancelling] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
 
+  const isLoading =
+    authLoading ||
+    (Boolean(donorId) && (registrations.loading || history.loading)) ||
+    (Boolean(donorId) && registrations.data === undefined && history.data === undefined);
+
+  function handleSelectAppointment(item: UnifiedAppointment | null) {
+    setSelectedAppointment(item);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (item) {
+        next.set('id', item.id);
+      } else {
+        next.delete('id');
+      }
+      return next;
+    });
+  }
+
   async function handleConfirmCancel(reason: string) {
     if (!cancellingAppointment?.registrationId) return;
     try {
@@ -241,7 +262,7 @@ export function DonorHistoryPage() {
       setCancellingAppointment(null);
       registrations.retry();
       if (selectedAppointment?.id === cancellingAppointment.id) {
-        setSelectedAppointment(null);
+        handleSelectAppointment(null);
       }
     } catch (err) {
       setCancelError(err instanceof Error ? err.message : 'Không thể hủy lịch hẹn.');
@@ -266,6 +287,7 @@ export function DonorHistoryPage() {
 
     appointmentList.push({
       id: `donation-${entry.id}`,
+      registrationId: entry.id,
       code: entry.id,
       campaignName: entry.campaignName || 'Điểm hiến máu',
       location: entry.location || 'Địa điểm hiến máu',
@@ -280,8 +302,18 @@ export function DonorHistoryPage() {
     });
   });
 
+  // Track ids already represented from completed history to avoid duplicate items
+  const completedRegIds = new Set((history.data ?? []).map((entry) => entry.id));
+
   // Active / cancelled registrations
   (registrations.data ?? []).forEach((reg) => {
+    if (completedRegIds.has(reg.id)) {
+      return;
+    }
+
+    const regDate = reg.slotStartsAt || reg.campaignStartsAt || reg.createdAt || '';
+    const isPast = Boolean(regDate && new Date(regDate).getTime() < Date.now());
+
     let status: UnifiedAppointment['status'] = 'CONFIRMED';
     let statusLabel = 'Đã đăng ký';
 
@@ -291,18 +323,16 @@ export function DonorHistoryPage() {
     } else if (reg.status === 'CANCELLED') {
       status = 'CANCELLED';
       statusLabel = 'Đã hủy';
-    } else if (reg.status === 'NO_SHOW') {
+    } else if (reg.status === 'NO_SHOW' || (isPast && !reg.checkedInAt)) {
       status = 'NO_SHOW';
       statusLabel = 'Không đến';
-    } else if (reg.status === 'PENDING' || reg.status === 'WAITLISTED') {
-      status = 'PENDING';
-      statusLabel = 'Chờ duyệt';
+    } else if (reg.checkedInAt) {
+      status = 'CONFIRMED';
+      statusLabel = 'Đã tiếp nhận';
     } else {
       status = 'CONFIRMED';
       statusLabel = 'Đã đăng ký';
     }
-
-    const regDate = reg.slotStartsAt || reg.campaignStartsAt || reg.createdAt || '';
 
     appointmentList.push({
       id: `reg-${reg.id}`,
@@ -319,6 +349,7 @@ export function DonorHistoryPage() {
       bloodGroup: null,
       rh: null,
       testDate: status === 'COMPLETED' && regDate ? formatDdMmYyyy(regDate) : undefined,
+      checkedInAt: reg.checkedInAt,
     });
   });
 
@@ -345,6 +376,37 @@ export function DonorHistoryPage() {
       ? completedList
       : cancelledList;
 
+  // Restore selected appointment from URL if present
+  useEffect(() => {
+    if (selectedIdFromUrl && appointmentList.length > 0) {
+      const matched = appointmentList.find(
+        (item) => item.id === selectedIdFromUrl || item.registrationId === selectedIdFromUrl || item.code === selectedIdFromUrl
+      );
+      if (matched && (!selectedAppointment || selectedAppointment.id !== matched.id)) {
+        setSelectedAppointment(matched);
+      }
+    }
+  }, [selectedIdFromUrl, appointmentList, selectedAppointment]);
+
+  // Loading state when opening via direct link or refresh
+  if (selectedIdFromUrl && isLoading && !selectedAppointment) {
+    return (
+      <WorkflowShell
+        title=""
+        actions={
+          <button
+            className="btn btn--secondary"
+            onClick={() => handleSelectAppointment(null)}
+          >
+            ← Danh sách đặt hẹn
+          </button>
+        }
+      >
+        <SkeletonAppointmentDetail />
+      </WorkflowShell>
+    );
+  }
+
   // DETAIL VIEW (Images 2 & 4)
   if (selectedAppointment) {
     return (
@@ -353,7 +415,7 @@ export function DonorHistoryPage() {
         actions={
           <button
             className="btn btn--secondary"
-            onClick={() => setSelectedAppointment(null)}
+            onClick={() => handleSelectAppointment(null)}
           >
             ← Danh sách đặt hẹn
           </button>
@@ -387,6 +449,12 @@ export function DonorHistoryPage() {
             <div className="history-panel-card">
               <h2 className="history-panel-card__title">Thông tin hiến máu</h2>
               <div className="zebra-table-list">
+                <div className="zebra-table-row">
+                  <span className="zebra-table-label">Mã đăng ký:</span>
+                  <span className="zebra-table-value" style={{ fontWeight: 700 }}>
+                    {selectedAppointment.code}
+                  </span>
+                </div>
                 <div className="zebra-table-row">
                   <span className="zebra-table-label">Hình thức hiến:</span>
                   <span className="zebra-table-value">Hiến máu</span>
@@ -444,13 +512,16 @@ export function DonorHistoryPage() {
             <button
               type="button"
               className="btn-back-outline"
-              onClick={() => setSelectedAppointment(null)}
+              onClick={() => handleSelectAppointment(null)}
             >
               Quay về
             </button>
             {(selectedAppointment.status === 'CONFIRMED' ||
               selectedAppointment.status === 'SCHEDULED' ||
-              selectedAppointment.status === 'PENDING') && Boolean(selectedAppointment.registrationId) && (
+              selectedAppointment.status === 'PENDING') &&
+              Boolean(selectedAppointment.registrationId) &&
+              !selectedAppointment.checkedInAt &&
+              (!selectedAppointment.date || new Date(selectedAppointment.date).getTime() >= Date.now()) && (
               <button
                 type="button"
                 className="btn btn--danger"
@@ -533,8 +604,7 @@ export function DonorHistoryPage() {
                         <>Mẫu máu của bạn đang trong quá trình xét nghiệm khẳng định nhóm máu tại phòng Lab. Kết quả chi tiết sẽ được thông báo ngay khi hoàn tất.</>
                       )}{' '}
                       Ngày hiến máu tiếp theo dự kiến là từ ngày{' '}
-                      {add84Days(selectedAppointment.date)} (cộng dồn 84 ngày kể từ
-                      ngày hiến máu).
+                      {add84Days(selectedAppointment.date)}.
                     </div>
                     <div className="thank-you-banner__warning">
                       TTHMNĐ-TP và BVTMHH KHÔNG ÁP DỤNG BẤT KỲ HÌNH THỨC ĐĂNG KÝ
@@ -578,7 +648,7 @@ export function DonorHistoryPage() {
           className={`history-tab-btn ${activeTab === 'UPCOMING' ? 'history-tab-btn--active' : ''}`}
           onClick={() => setActiveTab('UPCOMING')}
         >
-          Chưa hiến <span className="history-tab-count">({upcomingList.length})</span>
+          Chưa hiến <span className="history-tab-count">({isLoading ? '—' : upcomingList.length})</span>
         </button>
         <button
           type="button"
@@ -587,7 +657,7 @@ export function DonorHistoryPage() {
           className={`history-tab-btn ${activeTab === 'COMPLETED' ? 'history-tab-btn--active' : ''}`}
           onClick={() => setActiveTab('COMPLETED')}
         >
-          Đã hiến <span className="history-tab-count">({completedList.length})</span>
+          Đã hiến <span className="history-tab-count">({isLoading ? '—' : completedList.length})</span>
         </button>
         <button
           type="button"
@@ -596,11 +666,13 @@ export function DonorHistoryPage() {
           className={`history-tab-btn ${activeTab === 'CANCELLED' ? 'history-tab-btn--active' : ''}`}
           onClick={() => setActiveTab('CANCELLED')}
         >
-          Đã hủy <span className="history-tab-count">({cancelledList.length})</span>
+          Đã hủy <span className="history-tab-count">({isLoading ? '—' : cancelledList.length})</span>
         </button>
       </div>
 
-      {displayedList.length === 0 ? (
+      {isLoading ? (
+        <SkeletonAppointmentList count={2} />
+      ) : displayedList.length === 0 ? (
         <div className="history-empty-state">
           <p className="history-empty-text">
             {activeTab === 'UPCOMING'
@@ -659,7 +731,10 @@ export function DonorHistoryPage() {
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                   {(item.status === 'CONFIRMED' ||
                     item.status === 'SCHEDULED' ||
-                    item.status === 'PENDING') && Boolean(item.registrationId) && (
+                    item.status === 'PENDING') &&
+                    Boolean(item.registrationId) &&
+                    !item.checkedInAt &&
+                    (!item.date || new Date(item.date).getTime() >= Date.now()) && (
                     <button
                       type="button"
                       className="appointment-cancel-btn"
@@ -672,7 +747,7 @@ export function DonorHistoryPage() {
                   <button
                     type="button"
                     className="appointment-detail-btn"
-                    onClick={() => setSelectedAppointment(item)}
+                    onClick={() => handleSelectAppointment(item)}
                   >
                     <FileText size={15} />
                     <span>Xem chi tiết</span>
@@ -718,42 +793,12 @@ export interface PhysicalCertificateRecord {
   notes?: string;
 }
 
-const DEFAULT_DEMO_CERTIFICATES: PhysicalCertificateRecord[] = [
-  {
-    id: 'cert-physical-108',
-    donorId: 'seed-donor',
-    code: 'CN-108/2023',
-    donationDate: '2023-10-28',
-    facilityName: 'Bệnh viện Trung ương Quân đội 108',
-    location: 'Quận Hoàn Kiếm, TP. Hà Nội',
-    volumeMl: 350,
-    bloodGroup: 'B Rh+',
-    imageUrl: '/images/sample-paper-certificate.jpg',
-    uploadedAt: '2023-10-29T10:00:00.000Z',
-    notes: 'Hiến máu tình nguyện đợt 3 tại BV 108',
-  },
-  {
-    id: 'cert-physical-435',
-    donorId: 'seed-donor',
-    code: 'CN-435/2023',
-    donationDate: '2023-11-24',
-    facilityName: 'Ban Chỉ đạo Vận động HMTN TP. Đà Nẵng',
-    location: '123 Đường Lê Lợi, TP. Đà Nẵng',
-    volumeMl: 350,
-    bloodGroup: 'A Rh+',
-    imageUrl: '/images/sample-paper-certificate-2.jpg',
-    uploadedAt: '2023-11-25T14:30:00.000Z',
-    notes: 'Chụp ảnh giấy chứng nhận lần hiến máu thứ 3',
-  },
-];
-
 export function CertificatesPage() {
   const { currentUser } = useAuth();
   const donorId = currentUser?.id ?? 'default';
   const storageKey = `blood_donor_physical_certs_${donorId}`;
 
   const [certificates, setCertificates] = useState<PhysicalCertificateRecord[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
   const [activeLightbox, setActiveLightbox] = useState<PhysicalCertificateRecord | null>(null);
   const [showUploadModal, setShowUploadModal] = useState<boolean>(false);
 
@@ -772,30 +817,36 @@ export function CertificatesPage() {
   const [uploadError, setUploadError] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Load from localStorage or initialize with demo records
+  // Load from localStorage and purge any old mock demo records
   useEffect(() => {
     try {
       const stored = localStorage.getItem(storageKey);
       if (stored) {
         const parsed = JSON.parse(stored) as PhysicalCertificateRecord[];
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setCertificates(parsed);
-          setLoading(false);
+        if (Array.isArray(parsed)) {
+          // Filter out mock seed certificates
+          const realCerts = parsed.filter(
+            (c) =>
+              c.id !== 'cert-physical-108' &&
+              c.id !== 'cert-physical-435' &&
+              c.donorId !== 'seed-donor',
+          );
+          setCertificates(realCerts);
+          localStorage.setItem(storageKey, JSON.stringify(realCerts));
           return;
         }
       }
     } catch {
       // Ignore parse error
     }
-    // Default initial seed
-    setCertificates(DEFAULT_DEMO_CERTIFICATES);
-    setLoading(false);
+    setCertificates([]);
     try {
-      localStorage.setItem(storageKey, JSON.stringify(DEFAULT_DEMO_CERTIFICATES));
+      localStorage.setItem(storageKey, JSON.stringify([]));
     } catch {
       // Ignore storage error
     }
   }, [storageKey]);
+
 
   // Handle file select or photo capture
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1284,15 +1335,7 @@ export function CertificateDetailPage() {
       // Ignore
     }
 
-    // Check defaults
-    const foundDemo = DEFAULT_DEMO_CERTIFICATES.find((item) => item.id === certificateId);
-    if (foundDemo) {
-      setCert(foundDemo);
-    } else if (DEFAULT_DEMO_CERTIFICATES.length > 0 && DEFAULT_DEMO_CERTIFICATES[0]) {
-      setCert(DEFAULT_DEMO_CERTIFICATES[0]);
-    } else {
-      setCert(null);
-    }
+    setCert(null);
     setLoading(false);
   }, [certificateId, storageKey]);
 

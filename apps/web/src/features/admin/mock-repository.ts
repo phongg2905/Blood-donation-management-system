@@ -9,6 +9,7 @@ import {
 } from '@blood/shared-types';
 import { ApiRequestError } from '@/services/api';
 import type {
+  AdminOverviewData,
   AdminRepository,
   AdminUser,
   AdminUserQuery,
@@ -252,6 +253,45 @@ export class MockAdminRepository implements AdminRepository {
 
   private async wait(): Promise<void> {
     return Promise.resolve();
+  }
+
+  async overview(): Promise<AdminOverviewData> {
+    await this.wait();
+    return {
+      kpi: {
+        totalDonors: this.userStore.filter((u) => u.roles.includes('DONOR')).length,
+        totalDonations: 120,
+        totalVolumeMl: 42000,
+        todayAppointments: 8,
+        todayCheckedIn: 5,
+        safeInventoryDays: 14,
+      },
+      inventory: [
+        { bloodType: 'A_POSITIVE', label: 'A+', units: 45, volumeMl: 15750, percentage: 90, status: 'safe' },
+        { bloodType: 'A_NEGATIVE', label: 'A-', units: 12, volumeMl: 4200, percentage: 40, status: 'purple' },
+        { bloodType: 'B_POSITIVE', label: 'B+', units: 38, volumeMl: 13300, percentage: 76, status: 'safe' },
+        { bloodType: 'B_NEGATIVE', label: 'B-', units: 8, volumeMl: 2800, percentage: 26, status: 'purple' },
+        { bloodType: 'AB_POSITIVE', label: 'AB+', units: 15, volumeMl: 5250, percentage: 50, status: 'warning' },
+        { bloodType: 'AB_NEGATIVE', label: 'AB-', units: 4, volumeMl: 1400, percentage: 15, status: 'critical' },
+        { bloodType: 'O_POSITIVE', label: 'O+', units: 52, volumeMl: 18200, percentage: 100, status: 'safe' },
+        { bloodType: 'O_NEGATIVE', label: 'O-', units: 6, volumeMl: 2100, percentage: 20, status: 'critical' },
+      ],
+      monthlyTrend: [
+        { month: 'T5', donations: 18, volumeMl: 6300 },
+        { month: 'T6', donations: 24, volumeMl: 8400 },
+        { month: 'T7', donations: 30, volumeMl: 10500 },
+        { month: 'T8', donations: 22, volumeMl: 7700 },
+        { month: 'T9', donations: 28, volumeMl: 9800 },
+        { month: 'T10', donations: 35, volumeMl: 12250 },
+      ],
+      recentActivities: this.auditStore.slice(0, 5).map((l) => ({
+        id: l.id,
+        action: l.action,
+        entityType: l.entityType,
+        createdAt: l.createdAt,
+        actor: l.actorEmail ?? 'Hệ thống',
+      })),
+    };
   }
 
   async users(query: AdminUserQuery): Promise<Page<AdminUser>> {

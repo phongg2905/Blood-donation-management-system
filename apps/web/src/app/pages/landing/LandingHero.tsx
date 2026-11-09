@@ -62,7 +62,7 @@ export function LandingHero() {
 
             <a
               href={`#${LANDING_ANCHORS.campaigns}`}
-              className="sketch-btn-secondary"
+              className="btn sketch-btn-secondary"
             >
               <Search size={16} />
               Tra cứu điểm hiến

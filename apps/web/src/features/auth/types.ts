@@ -26,6 +26,7 @@ export interface RegisterInput {
   fullName: string;
   email: string;
   password: string;
+  citizenId: string;
 }
 
 export interface ForgotPasswordInput {
@@ -48,13 +49,14 @@ export interface ResetPasswordInput {
 /**
  * `PATCH /auth/me` request DTO.
  *
- * `phone`/`address` apply to DONOR accounts (stored in `DonorProfile`) and are
+ * `citizenId`/`phone`/`address` apply to DONOR accounts (stored in `DonorProfile`) and are
  * echoed back in `CurrentUser`; STAFF/ADMIN must not send them
  * (`VALIDATION_ERROR`). The profile UI only shows the contact fields for
  * accounts whose `CurrentUser` actually carries them.
  */
 export interface UpdateProfileInput {
   fullName?: string;
+  citizenId?: string;
   phone?: string;
   address?: string;
 }

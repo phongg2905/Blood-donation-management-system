@@ -101,15 +101,26 @@ export class ApiCampaignRepository implements CampaignRepository {
   async searchStaff(id: string, search: string): Promise<StaffCandidate[]> {
     if (this.staffAdapter) return this.staffAdapter.searchStaff(id, search);
     try {
-      const response = await apiGet<{ id: string; fullName: string; email: string; roles: Array<{ role: { code: string } }> }[]>(
-        `/users?${search ? `search=${encodeURIComponent(search)}` : ''}`,
-      );
-      return response.data.map((user) => ({
-        id: user.id,
-        fullName: user.fullName,
-        email: user.email,
-        roles: (user.roles ?? []).map((r) => (r.role?.code ?? 'DONATION_STAFF') as RoleCode),
-      }));
+      const params = new URLSearchParams({ role: 'DONATION_STAFF', limit: '50' });
+      if (search.trim()) params.set('search', search.trim());
+      const [usersRes, assigned] = await Promise.all([
+        apiGet<{ id: string; fullName: string; email: string; roles: Array<{ role: { code: string } }> }[]>(
+          `/users?${params.toString()}`,
+        ),
+        this.staff(id).catch(() => [] as CampaignStaff[]),
+      ]);
+      const assignedUserIds = new Set(assigned.map((item) => item.userId));
+      return usersRes.data
+        .map((user) => ({
+          id: user.id,
+          fullName: user.fullName,
+          email: user.email,
+          roles: (user.roles ?? []).map((r) => (r.role?.code ?? 'DONATION_STAFF') as RoleCode),
+        }))
+        .filter(
+          (user) =>
+            user.roles.includes('DONATION_STAFF') && !assignedUserIds.has(user.id),
+        );
     } catch {
       return [];
     }

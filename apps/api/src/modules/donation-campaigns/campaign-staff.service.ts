@@ -19,7 +19,7 @@ export const campaignStaffService = {
       if (!campaign) throw AppError.notFound(ERROR_CODES.CAMPAIGN_NOT_FOUND);
 
       const roles = await repo.userRoleCodesTx(tx, data.userId);
-      if (roles.length === 0 || roles.includes('DONOR')) {
+      if (!roles.includes('DONATION_STAFF')) {
         throw AppError.badRequest(ERROR_CODES.CAMPAIGN_STAFF_INVALID_ROLE);
       }
 

@@ -137,7 +137,7 @@ export class MockWorkflowRepository implements WorkflowRepository {
         status: 'COMPLETED',
         checkedIn: true,
         screening: 'ELIGIBLE',
-        bag: { code: 'BAG-00001', volumeMl: 350, bloodGroup: 'O' },
+        bag: { code: 'RC-2026-WB-00001', volumeMl: 350, bloodGroup: 'O' },
       },
       {
         code: 'REG-00006',

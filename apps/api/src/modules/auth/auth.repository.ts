@@ -3,13 +3,17 @@ import type { PermissionCode, RoleCode } from '@blood/shared-types';
 import { database } from '../../config/database';
 
 export interface UserWithAccess extends User {
-  donorProfile: { phone: string | null; address: string | null } | null;
+  donorProfile: {
+    phone: string | null;
+    address: string | null;
+    citizenId: string | null;
+  } | null;
   roleCodes: RoleCode[];
   permissionCodes: PermissionCode[];
 }
 
 const withAccessInclude = {
-  donorProfile: { select: { phone: true, address: true } },
+  donorProfile: { select: { phone: true, address: true, citizenId: true } },
   roles: {
     include: {
       role: { include: { permissions: { include: { permission: true } } } },
@@ -68,6 +72,7 @@ export const authRepository = {
     email: string;
     passwordHash: string;
     fullName: string;
+    citizenId?: string | undefined;
     phone?: string | undefined;
     donorRoleId: string;
   }): Promise<User> {
@@ -84,7 +89,11 @@ export const authRepository = {
         data: { userId: user.id, roleId: input.donorRoleId },
       });
       await tx.donorProfile.create({
-        data: { userId: user.id, phone: input.phone ?? null },
+        data: {
+          userId: user.id,
+          citizenId: input.citizenId ?? null,
+          phone: input.phone ?? null,
+        },
       });
       return user;
     });
@@ -92,28 +101,49 @@ export const authRepository = {
 
   updateProfile(
     userId: string,
-    input: { fullName?: string | undefined; phone?: string | undefined; address?: string | undefined },
+    input: {
+      fullName?: string | undefined;
+      citizenId?: string | undefined;
+      phone?: string | undefined;
+      address?: string | undefined;
+    },
   ): Promise<UserWithAccess> {
     return database.$transaction(async (tx) => {
       await lockUser(tx, userId);
       if (input.fullName !== undefined) {
-        await tx.user.update({ where: { id: userId }, data: { fullName: input.fullName } });
-      }
-      if (input.phone !== undefined || input.address !== undefined) {
-        await tx.donorProfile.upsert({
-        where: { userId },
-        create: {
-          userId,
-          phone: input.phone ?? null,
-          address: input.address ?? null,
-        },
-        update: {
-          ...(input.phone !== undefined ? { phone: input.phone } : {}),
-          ...(input.address !== undefined ? { address: input.address } : {}),
-        },
+        await tx.user.update({
+          where: { id: userId },
+          data: { fullName: input.fullName },
         });
       }
-      return toUserWithAccess(await tx.user.findUniqueOrThrow({ where: { id: userId }, include: withAccessInclude }));
+      if (
+        input.phone !== undefined ||
+        input.address !== undefined ||
+        input.citizenId !== undefined
+      ) {
+        await tx.donorProfile.upsert({
+          where: { userId },
+          create: {
+            userId,
+            citizenId: input.citizenId ?? null,
+            phone: input.phone ?? null,
+            address: input.address ?? null,
+          },
+          update: {
+            ...(input.citizenId !== undefined
+              ? { citizenId: input.citizenId }
+              : {}),
+            ...(input.phone !== undefined ? { phone: input.phone } : {}),
+            ...(input.address !== undefined ? { address: input.address } : {}),
+          },
+        });
+      }
+      return toUserWithAccess(
+        await tx.user.findUniqueOrThrow({
+          where: { id: userId },
+          include: withAccessInclude,
+        }),
+      );
     });
   },
 

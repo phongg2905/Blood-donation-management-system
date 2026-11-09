@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '@blood/shared-types';
 import { Button, FormField, Input } from '@/components/ui';
@@ -8,7 +9,7 @@ import { useAdminQuery } from './hooks';
 import { useAdminRepository } from './repository';
 import type { AuditLogQuery } from './types';
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 20;
 
 const AUDIT_ACTION_CODES = Object.values(AUDIT_ACTIONS);
 const AUDIT_ENTITY_CODES = Object.values(AUDIT_ENTITY_TYPES);
@@ -39,6 +40,25 @@ export function AuditLogsPage() {
   const result = useAdminQuery(`audit:${params}`, () =>
     repository.auditLogs(query),
   );
+
+  const [actorInput, setActorInput] = useState(params.get('actorId') ?? '');
+
+  useEffect(() => {
+    const current = params.get('actorId') ?? '';
+    if (actorInput !== current) {
+      setActorInput(current);
+    }
+  }, [params]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const current = params.get('actorId') ?? '';
+      if (actorInput !== current) {
+        change('actorId', actorInput);
+      }
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [actorInput]);
 
   function change(name: string, value: string) {
     const next = new URLSearchParams(params);
@@ -86,9 +106,9 @@ export function AuditLogsPage() {
         </FormField>
         <FormField id="admin-audit-actor" label="Người thực hiện">
           <Input
-            value={params.get('actorId') ?? ''}
+            value={actorInput}
             placeholder="Email"
-            onChange={(event) => change('actorId', event.target.value)}
+            onChange={(event) => setActorInput(event.target.value)}
           />
         </FormField>
         <FormField id="admin-audit-from" label="Từ ngày">

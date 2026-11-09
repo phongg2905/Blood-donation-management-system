@@ -14,9 +14,15 @@ import {
   sortCampaignsForOperationalStation,
   sortRegistrationsForCheckIn,
 } from './domain';
-import { useWorkflowMutation, useWorkflowQuery } from './hooks';
+import { useWorkflowMutation, useWorkflowQuery, usePageTransition } from './hooks';
 import { useWorkflowRepository } from './repository';
-import { DetailList, StationCompactHeader, StatusPill, WorkflowShell } from './components';
+import {
+  DetailList,
+  StationCompactHeader,
+  StatusPill,
+  WorkflowPagination,
+  WorkflowShell,
+} from './components';
 import type { CheckInQuery, DonorRegistration } from './types';
 
 const statusTone = (registration: DonorRegistration) => {
@@ -183,7 +189,7 @@ export function CheckInPage() {
 
   const campaignsListQuery = useCampaignQuery(
     'checkin-campaigns-list',
-    () => campaignRepo.list({ page: 1, limit: 30, sort: 'desc' }),
+    () => campaignRepo.list({ page: 1, limit: 50, sort: 'desc' }),
     !campaignId,
   );
 
@@ -198,7 +204,21 @@ export function CheckInPage() {
   const [selected, setSelected] = useState<DonorRegistration | null>(null);
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'UPCOMING' | 'CLOSED'>('ALL');
   const [deskFilter, setDeskFilter] = useState<'ALL' | 'WAITING' | 'CHECKED_IN'>('ALL');
+  const [bypassLock, setBypassLock] = useState(false);
   const isTestEnv = import.meta.env.MODE === 'test';
+
+  const CAMPAIGN_PAGE_SIZE = 10;
+  const DESK_PAGE_SIZE = 12;
+  const campaignPagination = usePageTransition(1);
+  const deskPagination = usePageTransition(1);
+
+  useEffect(() => {
+    campaignPagination.resetPage();
+  }, [statusFilter, campaignPagination.resetPage]);
+
+  useEffect(() => {
+    deskPagination.resetPage();
+  }, [deskFilter, search, campaignId, deskPagination.resetPage]);
 
   useEffect(() => {
     if (campaignId) {
@@ -229,15 +249,19 @@ export function CheckInPage() {
   const results = campaignId ? campaignRegistrations : globalSearchQuery;
 
   const operationalWindow = campaignQuery.data
-    ? getOperationalWindow(campaignQuery.data.startsAt, campaignQuery.data.endsAt)
+    ? getOperationalWindow(campaignQuery.data.startsAt, campaignQuery.data.endsAt, {
+        campaignStatus: campaignQuery.data.status,
+      })
     : null;
 
-  const isClosedOrUpcoming = !isTestEnv && operationalWindow !== null && operationalWindow.status !== 'ACTIVE';
+  const isClosedOrUpcoming = !isTestEnv && !bypassLock && operationalWindow !== null && operationalWindow.status !== 'ACTIVE';
 
   const canCheckIn =
     selected !== null &&
     selected.checkedInAt === null &&
-    (selected.status === 'SCHEDULED' || selected.status === 'CONFIRMED');
+    (selected.status === 'PENDING' ||
+      selected.status === 'SCHEDULED' ||
+      selected.status === 'CONFIRMED');
 
   // Real-time KPI Stats directly from the single campaign data stream
   const stats = useMemo(() => {
@@ -309,16 +333,6 @@ export function CheckInPage() {
     );
   }
 
-  function quickCheckIn(reg: DonorRegistration) {
-    void mutation.run(
-      () => workflow.checkIn(reg.id),
-      () => {
-        campaignRegistrations.retry();
-      },
-      `Đã check-in thành công cho ${reg.donorName}.`,
-    );
-  }
-
   function confirmNoShow() {
     if (!selected || !workflow.markNoShow) return;
     void mutation.run(
@@ -335,7 +349,9 @@ export function CheckInPage() {
   if (!campaignId) {
     const rawCampaignsWithWindow = (campaignsListQuery.data?.items ?? []).map((campaign) => ({
       campaign,
-      window: getOperationalWindow(campaign.startsAt, campaign.endsAt),
+      window: getOperationalWindow(campaign.startsAt, campaign.endsAt, {
+        campaignStatus: campaign.status,
+      }),
     }));
 
     const campaignsWithWindow = sortCampaignsForOperationalStation(rawCampaignsWithWindow);
@@ -349,6 +365,19 @@ export function CheckInPage() {
       if (statusFilter === 'ALL') return true;
       return c.window.status === statusFilter;
     });
+
+    const campaignTotalPages = Math.max(
+      1,
+      Math.ceil(filteredCampaigns.length / CAMPAIGN_PAGE_SIZE),
+    );
+    const safeCampaignPage = Math.min(
+      Math.max(1, campaignPagination.page),
+      campaignTotalPages,
+    );
+    const paginatedCampaigns = filteredCampaigns.slice(
+      (safeCampaignPage - 1) * CAMPAIGN_PAGE_SIZE,
+      safeCampaignPage * CAMPAIGN_PAGE_SIZE,
+    );
 
     return (
       <WorkflowShell title="Chọn đợt hiến máu để tiếp nhận">
@@ -399,69 +428,85 @@ export function CheckInPage() {
               </p>
             )}
 
-            <ul className="workflow-list">
-          {filteredCampaigns.map(({ campaign, window }) => {
-            const isOpen = isTestEnv || window.status === 'ACTIVE';
-            return (
-              <li
-                key={campaign.id}
-                className={`workflow-list__item ${window.status === 'ACTIVE' ? 'workflow-list__item--active' : ''}`}
-              >
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                    <h3 style={{ margin: 0 }}>{campaign.name}</h3>
-                    <span
-                      className={`station-badge-live station-badge-live--${
-                        window.status === 'ACTIVE'
-                          ? 'active'
-                          : window.status === 'UPCOMING'
-                            ? 'upcoming'
-                            : 'closed'
-                      }`}
+            {campaignPagination.pageTransitioning ? (
+              <QueryState
+                loading={true}
+                error={null}
+                retry={campaignsListQuery.retry}
+                variant="workflow-list"
+                count={3}
+              />
+            ) : (
+              <ul className="workflow-list workflow-page-enter" key={safeCampaignPage}>
+                {paginatedCampaigns.map(({ campaign, window }) => {
+                  const isOpen = isTestEnv || window.status === 'ACTIVE';
+                  return (
+                    <li
+                      key={campaign.id}
+                      className={`workflow-list__item ${window.status === 'ACTIVE' ? 'workflow-list__item--active' : ''}`}
                     >
-                      {OPERATIONAL_STATUS_SHORT_LABELS[window.status]}
-                    </span>
-                  </div>
-                  <p className="workflow-muted" style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                      <MapPin size={14} style={{ flexShrink: 0, opacity: 0.75 }} />
-                      {campaign.location}
-                    </span>
-                    <span>·</span>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                      <Clock size={14} style={{ flexShrink: 0, opacity: 0.75 }} />
-                      {formatDate(campaign.startsAt)}
-                    </span>
-                  </p>
-                  <p className="workflow-muted" style={{ fontSize: '0.8rem' }}>
-                    {window.message}
-                  </p>
-                </div>
-                <div className="workflow-list__side">
-                  <StatusPill tone={campaign.status === 'OPEN' ? 'success' : 'neutral'}>
-                    {campaign.status === 'OPEN' ? 'Đang mở' : campaign.status}
-                  </StatusPill>
-                  {isOpen ? (
-                    <Link
-                      className="btn btn--primary"
-                      to={`/campaigns/${campaign.id}/check-in`}
-                    >
-                      Vào bàn tiếp nhận
-                    </Link>
-                  ) : (
-                    <Button
-                      disabled
-                      variant="secondary"
-                      title="Chỉ mở tiếp nhận trong khung giờ quy định"
-                    >
-                      {OPERATIONAL_STATUS_SHORT_LABELS[window.status]}
-                    </Button>
-                  )}
-                </div>
-              </li>
-            );
-          })}
-            </ul>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          <h3 style={{ margin: 0 }}>{campaign.name}</h3>
+                          <span
+                            className={`station-badge-live station-badge-live--${
+                              window.status === 'ACTIVE'
+                                ? 'active'
+                                : window.status === 'UPCOMING'
+                                  ? 'upcoming'
+                                  : 'closed'
+                            }`}
+                          >
+                            {OPERATIONAL_STATUS_SHORT_LABELS[window.status]}
+                          </span>
+                        </div>
+                        <p className="workflow-muted" style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                            <MapPin size={14} style={{ flexShrink: 0, opacity: 0.75 }} />
+                            {campaign.location}
+                          </span>
+                          <span>·</span>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                            <Clock size={14} style={{ flexShrink: 0, opacity: 0.75 }} />
+                            {formatDate(campaign.startsAt)}
+                          </span>
+                        </p>
+                        <p className="workflow-muted" style={{ fontSize: '0.8rem' }}>
+                          {window.message}
+                        </p>
+                      </div>
+                      <div className="workflow-list__side">
+                        {isOpen ? (
+                          <Link
+                            className="btn btn--primary"
+                            to={`/campaigns/${campaign.id}/check-in`}
+                          >
+                            Vào bàn tiếp nhận
+                          </Link>
+                        ) : (
+                          <Button
+                            disabled
+                            variant="secondary"
+                            title="Chỉ mở tiếp nhận trong khung giờ quy định"
+                          >
+                            {OPERATIONAL_STATUS_SHORT_LABELS[window.status]}
+                          </Button>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+
+            <WorkflowPagination
+              page={safeCampaignPage}
+              totalPages={campaignTotalPages}
+              total={filteredCampaigns.length}
+              pageSize={CAMPAIGN_PAGE_SIZE}
+              onChange={campaignPagination.changePage}
+              itemLabel="đợt hiến"
+            />
           </>
         )}
       </WorkflowShell>
@@ -494,6 +539,13 @@ export function CheckInPage() {
             {operationalWindow.message}
           </p>
           <div className="station-blocked__actions">
+            <button
+              type="button"
+              className="btn btn--secondary"
+              onClick={() => setBypassLock(true)}
+            >
+              Tiếp tục vào xem danh sách (Bỏ qua khóa)
+            </button>
             <Link className="btn btn--primary" to="/clinic/check-in">
               Chọn đợt hiến đang mở
             </Link>
@@ -663,74 +715,96 @@ export function CheckInPage() {
             </p>
           )}
 
-          {!results.loading && results.data && displayedResults.length > 0 && (
-            <ul className="workflow-list">
-            {displayedResults.map((registration) => {
-              const isCheckedIn = Boolean(registration.checkedInAt);
-              const canQuickCheckIn =
-                !isCheckedIn &&
-                (registration.status === 'SCHEDULED' || registration.status === 'CONFIRMED');
+          {!results.loading && results.data && displayedResults.length > 0 && (() => {
+            const deskTotalPages = Math.max(
+              1,
+              Math.ceil(displayedResults.length / DESK_PAGE_SIZE),
+            );
+            const safeDeskPage = Math.min(
+              Math.max(1, deskPagination.page),
+              deskTotalPages,
+            );
+            const paginatedResults = displayedResults.slice(
+              (safeDeskPage - 1) * DESK_PAGE_SIZE,
+              safeDeskPage * DESK_PAGE_SIZE,
+            );
 
-              return (
-                <li
-                  key={registration.id}
-                  className={`workflow-list__item ${isCheckedIn ? 'workflow-list__item--active' : ''}`}
-                  onClick={(e) => {
-                    if ((e.target as HTMLElement).tagName !== 'BUTTON') {
-                      setSelected(registration);
-                    }
-                  }}
-                >
-                  <div>
-                    <h3 style={{ color: 'var(--color-primary, #0284c7)', marginBottom: '4px' }}>
-                      {registration.donorName}
-                    </h3>
-                    <p className="workflow-muted">
-                      Mã: <strong>{registration.code}</strong> {registration.donorIdentity && `· CCCD: ${registration.donorIdentity}`} {registration.donorPhone && `· SĐT: ${registration.donorPhone}`}
-                    </p>
-                    <p className="workflow-muted" style={{ fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <Clock size={13} style={{ flexShrink: 0, opacity: 0.75 }} />
-                      <span>{formatSlotRange(registration.slotStartsAt, registration.slotEndsAt)}</span>
-                    </p>
-                    {isCheckedIn && (
-                      <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: '#059669', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <Check size={14} strokeWidth={2.5} />
-                        <span>Đã check-in lúc {new Date(registration.checkedInAt!).toLocaleTimeString('vi-VN')}</span>
-                      </p>
-                    )}
-                  </div>
-                  <div className="workflow-list__side">
-                    <StatusPill tone={statusTone(registration)}>
-                      {isCheckedIn ? 'Đã check-in' : REGISTRATION_STATUS_LABELS[registration.status]}
-                    </StatusPill>
-                    <div style={{ display: 'flex', gap: '6px' }}>
-                      {canQuickCheckIn && (
-                        <Button
-                          disabled={mutation.pending}
+            return (
+              <>
+                {deskPagination.pageTransitioning ? (
+                  <QueryState
+                    loading={true}
+                    error={null}
+                    retry={results.retry}
+                    variant="workflow-list"
+                    count={3}
+                  />
+                ) : (
+                  <ul className="workflow-list workflow-page-enter" key={safeDeskPage}>
+                    {paginatedResults.map((registration) => {
+                      const isCheckedIn = Boolean(registration.checkedInAt);
+
+                      return (
+                        <li
+                          key={registration.id}
+                          className={`workflow-list__item ${isCheckedIn ? 'workflow-list__item--active' : ''}`}
                           onClick={(e) => {
-                            e.stopPropagation();
-                            quickCheckIn(registration);
+                            if ((e.target as HTMLElement).tagName !== 'BUTTON') {
+                              setSelected(registration);
+                            }
                           }}
                         >
-                          Check-in nhanh
-                        </Button>
-                      )}
-                      <Button
-                        variant="secondary"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelected(registration);
-                        }}
-                      >
-                        Chọn
-                      </Button>
-                    </div>
-                  </div>
-                </li>
-              );
-            })}
-            </ul>
-          )}
+                          <div>
+                            <h3 style={{ color: 'var(--color-primary, #0284c7)', marginBottom: '4px' }}>
+                              {registration.donorName}
+                            </h3>
+                            <p className="workflow-muted">
+                              Mã: <strong>{registration.code}</strong> {registration.donorIdentity && `· CCCD: ${registration.donorIdentity}`} {registration.donorPhone && `· SĐT: ${registration.donorPhone}`}
+                            </p>
+                            <p className="workflow-muted" style={{ fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <Clock size={13} style={{ flexShrink: 0, opacity: 0.75 }} />
+                              <span>{formatSlotRange(registration.slotStartsAt, registration.slotEndsAt)}</span>
+                            </p>
+                            {isCheckedIn && (
+                              <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: '#059669', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <Check size={14} strokeWidth={2.5} />
+                                <span>Đã check-in lúc {new Date(registration.checkedInAt!).toLocaleTimeString('vi-VN')}</span>
+                              </p>
+                            )}
+                          </div>
+                          <div className="workflow-list__side">
+                            <StatusPill tone={statusTone(registration)}>
+                              {isCheckedIn ? 'Đã check-in' : REGISTRATION_STATUS_LABELS[registration.status]}
+                            </StatusPill>
+                            <div style={{ display: 'flex', gap: '6px' }}>
+                              <Button
+                                variant="secondary"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelected(registration);
+                                }}
+                              >
+                                Chọn
+                              </Button>
+                            </div>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+
+                <WorkflowPagination
+                  page={safeDeskPage}
+                  totalPages={deskTotalPages}
+                  total={displayedResults.length}
+                  pageSize={DESK_PAGE_SIZE}
+                  onChange={deskPagination.changePage}
+                  itemLabel="người đăng ký"
+                />
+              </>
+            );
+          })()}
         </section>
       )}
 

@@ -80,6 +80,7 @@ export class ApiAuthService implements AuthService {
         fullName: input.fullName,
         email: input.email,
         password: input.password,
+        citizenId: input.citizenId,
       },
       { anonymous: true },
     );

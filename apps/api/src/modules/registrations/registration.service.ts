@@ -53,7 +53,7 @@ export const registrationService = {
         ? await repo.reuse(tx, existing!.id, {
             status: 'PENDING',
             cancelReason: null,
-            timeSlotId: data.timeSlotId ?? null,
+            timeSlotId: null,
           })
         : await repo.create(tx, {
             donorId: donor.id,
@@ -67,36 +67,56 @@ export const registrationService = {
         submittedAt: new Date(),
       });
 
-      await auditLogService.record(
-        {
-          ...ctx,
-          action: AUDIT_ACTIONS.REGISTRATION_CREATED,
-          entityType: AUDIT_ENTITY_TYPES.REGISTRATION,
-          entityId: row.id,
-        },
-        tx,
-      );
-      const notification = await notificationService.create(tx, {
+      if (!data.timeSlotId) {
+        await auditLogService.record(
+          {
+            ...ctx,
+            action: AUDIT_ACTIONS.REGISTRATION_CREATED,
+            entityType: AUDIT_ENTITY_TYPES.REGISTRATION,
+            entityId: row.id,
+          },
+          tx,
+        );
+      }
+
+      return { row, reuse, previous: existing };
+    });
+
+    let finalRow = registration.row;
+    if (data.timeSlotId) {
+      try {
+        finalRow = await timeSlotService.schedule(
+          { registrationId: registration.row.id, timeSlotId: data.timeSlotId },
+          ctx,
+        );
+      } catch (error) {
+        await repo.transaction(async (tx) => {
+          if (registration.reuse && registration.previous) {
+            await repo.reuse(tx, registration.previous.id, {
+              status: registration.previous.status,
+              cancelReason: registration.previous.cancelReason,
+              timeSlotId: registration.previous.timeSlotId,
+            });
+          } else {
+            await repo.deleteCreated(tx, registration.row.id);
+          }
+        });
+        throw error;
+      }
+    }
+
+    const notification = await repo.transaction((tx) =>
+      notificationService.create(tx, {
         userId,
         type: 'REGISTRATION',
         title: 'Xác nhận đăng ký hiến máu',
-        message: `Đăng ký của bạn cho đợt hiến máu đã được ghi nhận (mã ${row.id}).`,
+        message: `Đăng ký của bạn cho đợt hiến máu đã được ghi nhận (mã ${finalRow.id}).`,
         channel: 'EMAIL',
-      });
-      return { row, notification };
-    });
+      }),
+    );
+    void notificationService.dispatch(notification);
 
-    void notificationService.dispatch(registration.notification);
-
-    // Scheduling is a separate, already-atomic operation (capacity/overlap
-    // enforced with Serializable+retry) — not folded into the tx above.
-    if (data.timeSlotId) {
-      return timeSlotService.schedule(
-        { registrationId: registration.row.id, timeSlotId: data.timeSlotId },
-        ctx,
-      );
-    }
-    return registration.row;
+    return finalRow;
   },
 
   /** Staff-only directory search by CCCD/phone/name/email — DONOR uses `my()` instead. */
@@ -179,6 +199,21 @@ export const registrationService = {
         if (!staffLike && existing.donor?.userId !== auth.userId) {
           throw AppError.forbidden();
         }
+      }
+
+      if (existing.checkIn) {
+        throw AppError.conflict(
+          ERROR_CODES.REGISTRATION_INVALID_TRANSITION,
+          'Không thể hủy lịch hẹn đã được tiếp nhận/điểm danh.',
+        );
+      }
+
+      const appointmentEnd = existing.timeSlot?.endsAt ?? existing.campaign?.endsAt;
+      if (appointmentEnd && appointmentEnd < new Date()) {
+        throw AppError.conflict(
+          ERROR_CODES.REGISTRATION_INVALID_TRANSITION,
+          'Không thể hủy lịch hẹn đã qua thời gian diễn ra.',
+        );
       }
 
       assertRegistrationTransition(existing.status, 'CANCELLED');

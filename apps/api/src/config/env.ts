@@ -4,6 +4,10 @@ import { z } from 'zod';
 
 config({ path: resolve(__dirname, '../../../../.env'), quiet: true });
 
+if (process.argv.includes('--test') || process.env.npm_lifecycle_event === 'test') {
+  process.env.NODE_ENV = 'test';
+}
+
 const emailPattern = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
 export const envSchema = z.object({

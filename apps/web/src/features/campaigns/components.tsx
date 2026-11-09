@@ -74,6 +74,7 @@ export function QueryState({
   variant = 'list',
   count,
   columns,
+  data,
 }: {
   loading: boolean;
   error: unknown;
@@ -96,8 +97,10 @@ export function QueryState({
     | 'demand-grid';
   count?: number;
   columns?: number;
+  data?: unknown;
 }) {
-  if (loading) {
+  const hasData = data !== undefined && data !== null;
+  if (loading && !hasData) {
     let skeleton: ReactNode;
     switch (variant) {
       case 'workflow-list':

@@ -9,7 +9,17 @@ const donations: RequestHandler = async (req, res) => {
   sendSuccess(res, await reportService.donations(req.query));
 };
 
+const overview: RequestHandler = async (_req, res) => {
+  sendSuccess(res, await reportService.overview());
+};
+
 export const reportRoutes = Router();
+reportRoutes.get(
+  '/overview',
+  requireAuth,
+  requirePermission('report.read'),
+  overview,
+);
 reportRoutes.get(
   '/donations',
   requireAuth,

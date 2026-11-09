@@ -186,7 +186,7 @@ export function validateCancelCampaign(input: unknown) {
 }
 
 const campaignListQuerySchema = z.object({
-  status: z.enum(CAMPAIGN_STATUSES).optional(),
+  status: z.enum([...CAMPAIGN_STATUSES, 'UPCOMING'] as const).optional(),
   from: z.coerce.date().optional(),
   to: z.coerce.date().optional(),
   page: z.coerce.number().int().positive().optional(),

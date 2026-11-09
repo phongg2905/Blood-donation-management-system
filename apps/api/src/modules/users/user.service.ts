@@ -21,6 +21,10 @@ const listQuerySchema = z.object({
   limit: z.coerce.number().int().positive().optional(),
 });
 const assignRoleSchema = z.object({ roleId: z.string().uuid() });
+const updateUserSchema = z.object({
+  fullName: z.string().trim().min(2).max(100).optional(),
+  isActive: z.boolean().optional(),
+});
 
 export const userService = {
   async list(query: unknown) {
@@ -36,6 +40,38 @@ export const userService = {
       items,
       meta: paginationMeta(pagination.page, pagination.limit, total),
     };
+  },
+
+  async update(userId: string, input: unknown, ctx: AuditContext) {
+    const data = parseDomain(updateUserSchema, input);
+    return repo.transaction(async (tx) => {
+      const existing = await repo.findByIdTx(tx, userId);
+      if (!existing)
+        throw AppError.notFound(
+          ERROR_CODES.VALIDATION_ERROR,
+          'Không tìm thấy người dùng',
+        );
+
+      const updated = await repo.updateTx(tx, userId, data);
+      await auditLogService.record(
+        {
+          ...ctx,
+          action: AUDIT_ACTIONS.USER_UPDATED,
+          entityType: AUDIT_ENTITY_TYPES.USER,
+          entityId: userId,
+          metadata: { ...data },
+        },
+        tx,
+      );
+      return {
+        id: updated.id,
+        email: updated.email,
+        fullName: updated.fullName,
+        isActive: updated.isActive,
+        roles: updated.roles.map((r) => r.role.code),
+        lastLoginAt: updated.lastLoginAt,
+      };
+    });
   },
 
   async assignRole(userId: string, input: unknown, ctx: AuditContext) {

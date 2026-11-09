@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { MapPin, Clock } from 'lucide-react';
+import { MapPin, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 
 /** Mock note is disabled in production and local runtime */
 export function MockNote() {
@@ -260,13 +260,43 @@ export function DetailList({
   );
 }
 
+type PaginationToken = number | 'ellipsis-start' | 'ellipsis-end';
+
+function buildPaginationTokens(page: number, totalPages: number): PaginationToken[] {
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, idx) => idx + 1);
+  }
+  if (page <= 4) {
+    return [1, 2, 3, 4, 5, 'ellipsis-end', totalPages];
+  }
+  if (page >= totalPages - 3) {
+    return [
+      1,
+      'ellipsis-start',
+      totalPages - 4,
+      totalPages - 3,
+      totalPages - 2,
+      totalPages - 1,
+      totalPages,
+    ];
+  }
+  return [
+    1,
+    'ellipsis-start',
+    page - 1,
+    page,
+    page + 1,
+    'ellipsis-end',
+    totalPages,
+  ];
+}
+
 export function WorkflowPagination({
   page,
   totalPages,
   total,
-  pageSize = 10,
   onChange,
-  itemLabel = 'túi máu',
+  itemLabel = 'bản ghi',
 }: {
   page: number;
   totalPages: number;
@@ -277,63 +307,55 @@ export function WorkflowPagination({
 }) {
   if (total <= 0) return null;
 
-  const from = Math.min((page - 1) * pageSize + 1, total);
-  const to = Math.min(page * pageSize, total);
   const safeTotalPages = Math.max(1, totalPages);
-
-  // Generate up to 5 page numbers around the current page
-  const pages: number[] = [];
-  const maxButtons = 5;
-  let startPage = Math.max(1, page - Math.floor(maxButtons / 2));
-  let endPage = startPage + maxButtons - 1;
-  if (endPage > safeTotalPages) {
-    endPage = safeTotalPages;
-    startPage = Math.max(1, endPage - maxButtons + 1);
-  }
-  for (let p = startPage; p <= endPage; p++) {
-    pages.push(p);
-  }
+  const tokens = buildPaginationTokens(page, safeTotalPages);
 
   return (
     <nav className="workflow-pagination" aria-label={`Phân trang ${itemLabel}`}>
-      <div className="workflow-pagination__summary">
-        Hiển thị <strong>{from}</strong> – <strong>{to}</strong> trong tổng số{' '}
-        <strong>{total}</strong> {itemLabel} · Trang <strong>{page}</strong> /{' '}
-        <strong>{safeTotalPages}</strong>
-      </div>
       <div className="workflow-pagination__controls">
         <button
           type="button"
-          className="btn btn--secondary btn--sm workflow-pagination__btn"
+          className="workflow-pagination__page-btn workflow-pagination__nav-btn"
           disabled={page <= 1}
           onClick={() => onChange(page - 1)}
           aria-label="Trang trước"
         >
-          ← Trang trước
+          <ChevronLeft size={16} strokeWidth={2.2} aria-hidden="true" />
         </button>
         <div className="workflow-pagination__pages">
-          {pages.map((p) => (
-            <button
-              key={p}
-              type="button"
-              className={`workflow-pagination__page-btn ${
-                p === page ? 'workflow-pagination__page-btn--active' : ''
-              }`}
-              onClick={() => onChange(p)}
-              aria-current={p === page ? 'page' : undefined}
-            >
-              {p}
-            </button>
-          ))}
+          {tokens.map((token) =>
+            typeof token === 'number' ? (
+              <button
+                key={token}
+                type="button"
+                className={`workflow-pagination__page-btn ${
+                  token === page ? 'workflow-pagination__page-btn--active' : ''
+                }`}
+                onClick={() => onChange(token)}
+                aria-current={token === page ? 'page' : undefined}
+                aria-label={`Trang ${token}`}
+              >
+                {token}
+              </button>
+            ) : (
+              <span
+                key={token}
+                className="workflow-pagination__ellipsis"
+                aria-hidden="true"
+              >
+                ...
+              </span>
+            ),
+          )}
         </div>
         <button
           type="button"
-          className="btn btn--secondary btn--sm workflow-pagination__btn"
+          className="workflow-pagination__page-btn workflow-pagination__nav-btn"
           disabled={page >= safeTotalPages}
           onClick={() => onChange(page + 1)}
           aria-label="Trang sau"
         >
-          Trang sau →
+          <ChevronRight size={16} strokeWidth={2.2} aria-hidden="true" />
         </button>
       </div>
     </nav>

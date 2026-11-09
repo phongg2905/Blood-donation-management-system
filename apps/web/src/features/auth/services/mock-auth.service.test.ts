@@ -104,6 +104,7 @@ describe('MockAuthService', () => {
       await service.register({
         fullName: 'Người Hiến Mới',
         email: 'new-donor@example.local',
+        citizenId: '001200012345',
         password: DEMO_PASSWORD,
       });
 
@@ -121,6 +122,7 @@ describe('MockAuthService', () => {
         service.register({
           fullName: 'Trùng Email',
           email: donorEmail,
+          citizenId: '001200012345',
           password: DEMO_PASSWORD,
         }),
       ).rejects.toMatchObject({ code: AUTH_ERROR_CODES.EMAIL_ALREADY_EXISTS });
@@ -131,6 +133,7 @@ describe('MockAuthService', () => {
       await service.register({
         fullName: 'Người Hiến Mới',
         email: 'new-donor@example.local',
+        citizenId: '001200012345',
         password: DEMO_PASSWORD,
       });
       await expect(service.getCurrentUser()).resolves.toMatchObject({

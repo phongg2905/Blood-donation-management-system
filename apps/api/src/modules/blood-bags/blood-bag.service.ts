@@ -130,6 +130,11 @@ export const bloodBagService = {
         tx,
       );
 
+      await tx.registration.update({
+        where: { id: screening.checkIn.registration.id },
+        data: { status: 'COMPLETED' },
+      });
+
       const notification = await notificationService.create(tx, {
         userId: screening.checkIn.registration.donor.userId,
         type: 'DONATION',

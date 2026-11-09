@@ -695,10 +695,10 @@ a.btn--teal:active {
 
 @keyframes skeleton-shimmer {
   0% {
-    background-position: 200% 0;
+    transform: translateX(-100%);
   }
   100% {
-    background-position: -200% 0;
+    transform: translateX(100%);
   }
 }
 
@@ -713,25 +713,41 @@ a.btn--teal:active {
 
 .skeleton {
   display: block;
-  background: linear-gradient(
-    90deg,
-    var(--color-ink-100) 0%,
-    var(--color-ink-200) 50%,
-    var(--color-ink-100) 100%
-  );
-  background-size: 200% 100%;
-  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+  position: relative;
+  overflow: hidden;
+  background: var(--color-ink-100);
   border-radius: var(--radius-sm);
 }
 
-.skeleton--dark {
+.skeleton::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  transform: translateX(-100%);
   background: linear-gradient(
     90deg,
-    rgba(255, 255, 255, 0.05) 0%,
-    rgba(255, 255, 255, 0.14) 50%,
-    rgba(255, 255, 255, 0.05) 100%
+    transparent 0%,
+    rgba(255, 255, 255, 0.4) 50%,
+    transparent 100%
   );
-  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  pointer-events: none;
+}
+
+.skeleton--dark {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.skeleton--dark::after {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.18) 50%,
+    transparent 100%
+  );
 }
 
 .skeleton--text {
@@ -858,8 +874,9 @@ a.btn--teal:active {
 
 /* 1c. Skeleton Campaign List (CampaignListPage - matches .campaign-list & .campaign-row 1:1) */
 .skeleton-campaign-list {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  gap: 16px;
+  margin-top: 14px;
   width: 100%;
 }
 
@@ -868,8 +885,13 @@ a.btn--teal:active {
   justify-content: space-between;
   align-items: flex-start;
   gap: var(--space-4);
-  padding: var(--space-4) 0;
-  border-bottom: 1px solid var(--color-border);
+  padding: 22px 26px;
+  background: var(--color-surface, #ffffff);
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  border-radius: 16px;
+  box-shadow:
+    -10px -10px 24px rgba(255, 255, 255, 0.85),
+    10px 10px 24px rgba(15, 23, 42, 0.045);
 }
 
 .skeleton-campaign-row__main {
@@ -1165,6 +1187,21 @@ a.btn--teal:active {
   gap: 16px;
   margin-bottom: 16px;
 }
+
+.skeleton-appointment-card {
+  pointer-events: none;
+}
+
+.skeleton-appointment-card:hover {
+  transform: none !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04) !important;
+  border-color: var(--color-border) !important;
+}
+
+.skeleton-history-detail-wrap {
+  pointer-events: none;
+}
+
 
 /* 11. Skeleton Demand Cards (Landing Page) */
 .skeleton-demand-grid {

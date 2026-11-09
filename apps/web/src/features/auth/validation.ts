@@ -139,6 +139,17 @@ function validateConfirmPassword(
   return undefined;
 }
 
+export const CITIZEN_ID_LENGTH = 12;
+export const CITIZEN_ID_PATTERN = /^\d{12}$/;
+
+export function validateCitizenId(citizenId: string): string | undefined {
+  const trimmed = citizenId.trim();
+  if (!trimmed) return 'Vui lòng nhập số CCCD.';
+  if (!CITIZEN_ID_PATTERN.test(trimmed))
+    return 'Số CCCD phải bao gồm đúng 12 chữ số.';
+  return undefined;
+}
+
 /* ---------------------------------------------------------------- Login -- */
 
 export type LoginField = 'email' | 'password';
@@ -159,11 +170,17 @@ export function validateLogin(values: LoginValues): FieldErrors<LoginField> {
 /* ------------------------------------------------------------- Register -- */
 
 export type RegisterField =
-  'fullName' | 'email' | 'password' | 'confirmPassword' | 'acceptTerms';
+  | 'fullName'
+  | 'email'
+  | 'citizenId'
+  | 'password'
+  | 'confirmPassword'
+  | 'acceptTerms';
 
 export interface RegisterValues {
   fullName: string;
   email: string;
+  citizenId: string;
   password: string;
   confirmPassword: string;
   /** FE-only consent; never sent to the API. */
@@ -179,6 +196,9 @@ export function validateRegister(
 
   const emailError = validateEmail(values.email);
   if (emailError) errors.email = emailError;
+
+  const citizenIdError = validateCitizenId(values.citizenId);
+  if (citizenIdError) errors.citizenId = citizenIdError;
 
   const passwordError = validatePassword(values.password);
   if (passwordError) errors.password = passwordError;
@@ -229,21 +249,23 @@ export function validateResetPassword(values: {
 
 /* -------------------------------------------------------------- Profile -- */
 
-export type ProfileField = 'fullName' | 'phone' | 'address';
+export type ProfileField = 'fullName' | 'citizenId' | 'phone' | 'address';
 
 export function validateProfile(values: {
   fullName: string;
   /** Contact fields only apply to DONOR accounts; undefined skips them. */
+  citizenId?: string | undefined;
   phone?: string | undefined;
-  /** Contact fields only apply to DONOR accounts; undefined skips them. */
   address?: string | undefined;
 }): FieldErrors<ProfileField> {
   const errors: FieldErrors<ProfileField> = {};
   const fullNameError = validateFullName(values.fullName);
   if (fullNameError) errors.fullName = fullNameError;
 
-  // Only validate fields the form actually shows/edits: a STAFF/ADMIN profile
-  // never sends phone/address, matching the delivered API behaviour.
+  if (values.citizenId !== undefined && values.citizenId.trim() !== '') {
+    const citizenIdError = validateCitizenId(values.citizenId);
+    if (citizenIdError) errors.citizenId = citizenIdError;
+  }
   if (values.phone !== undefined) {
     const phoneError = validatePhone(values.phone);
     if (phoneError) errors.phone = phoneError;
