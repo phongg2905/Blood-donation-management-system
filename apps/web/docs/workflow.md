@@ -11,7 +11,7 @@ Prisma, seed, shared types hay hợp đồng API.
 
 | Route | Màn hình | Permission | Actor |
 | --- | --- | --- | --- |
-| `/donor/register` | Đăng ký 5 bước + QR | `registration.create` | DONOR |
+| `/donor/register` | Đăng ký 5 bước (cấp Mã đăng ký) | `registration.create` | DONOR |
 | `/donor/history` | Lịch sử + đăng ký sắp tới | `donation.read` | DONOR |
 | `/donor/certificates` | Danh sách chứng nhận | `certificate.read` | DONOR |
 | `/donor/certificates/:certificateId` | Chi tiết chứng nhận | `certificate.read` | DONOR |
@@ -52,17 +52,14 @@ nơi cùng liệt kê đợt hiến.
 
 - Trạng thái dùng đúng enum của `@blood/shared-types`
   (`REGISTRATION_STATUSES`, `SCREENING_STATUSES`, `BLOOD_BAG_STATUSES`,
-  `CERTIFICATE_STATUSES`). Không thêm trạng thái mới.
+  `CERTIFICATE_STATUSES`). Không thêm trạng thái mới. Các đăng ký hợp lệ chờ tiếp nhận (`PENDING`, `SCHEDULED`, `CONFIRMED`) được hiển thị thống nhất là **"Đã đăng ký"** và sẵn sàng Check-in ngay.
 - Check-in không có trạng thái riêng: đánh dấu `checkedInAt` và tạo phiếu sàng
   lọc `PENDING`. Sàng lọc đi theo `PENDING → WAITING_REVIEW →
   ELIGIBLE/INELIGIBLE/DEFERRED`; `INELIGIBLE`/`DEFERRED` bắt buộc có lý do.
 - Khai báo sức khỏe chỉ ghi nhận câu trả lời, **không** tự suy diễn ngưỡng y tế.
   Chỉ nhân viên kết luận đủ/không đủ điều kiện.
-- Màn hình túi máu chỉ quản lý túi (mã, thể tích, nhóm máu, trạng thái). Không có
-  timer/thao tác lấy máu theo yêu cầu.
-- Chứng nhận là mock, không phải chứng nhận thật, không chữ ký số.
-- QR trong trang xác nhận/chứng nhận là **placeholder minh họa, không quét
-  được** (dự án chưa cài thư viện tạo QR); mã đăng ký được in kèm để dùng thủ công.
+- Màn hình túi máu quản lý túi (mã, thể tích, nhóm máu, trạng thái). Khi mở form gán mã túi máu (`QuickCollectModal` / `NewBloodBagPage`), hệ thống tự động sinh sẵn mã định danh đơn vị máu theo chuẩn **Thông tư 26/2013/TT-BYT** (`<Mã Đơn Vị>-<YYYY>-WB-<5 chữ số>`, ví dụ `NIHBT-2026-WB-00245`) dựa trên đơn vị tổ chức đợt hiến, kèm nút **"Cấp mã mới"** hoặc cho phép quét barcode thực tế.
+- Sau khi hoàn tất đăng ký và trong chi tiết lịch hẹn, hệ thống hiển thị rõ **Mã đăng ký** (`REG-...`) để người hiến đối chiếu khi làm thủ tục Check-in tại bàn tiếp đón.
 - STYLE/UX dùng lại component và token hiện có (`Button`, `Input`, `FormField`,
   `Checkbox`, `QueryState`, `Feedback`, `ConfirmDialog` của feature campaign).
 
