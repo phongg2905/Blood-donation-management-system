@@ -13,6 +13,7 @@ import {
   type PermissionCode,
 } from '@blood/shared-types';
 import type {
+  AdminOverviewData,
   AdminRepository,
   AdminUser,
   AdminUserQuery,
@@ -51,6 +52,11 @@ const query = (values: Record<string, unknown>): string => {
 export const mapAdminUser = (dto: AdminUser): AdminUser => ({ ...dto });
 
 export class ApiAdminRepository implements AdminRepository {
+  async overview(): Promise<AdminOverviewData> {
+    const response = await apiGet<AdminOverviewData>('/reports/overview');
+    return response.data;
+  }
+
   async users(input: AdminUserQuery): Promise<Page<AdminUser>> {
     const response = await apiGet<AdminUser[]>(`/users?${query({ ...input })}`);
     if (!response.meta) throw new ApiRequestError('INTERNAL_ERROR', '', 500);

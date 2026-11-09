@@ -40,6 +40,7 @@ describe('validateRegister', () => {
   const base = {
     fullName: 'Nguyễn Văn A',
     email: 'new@example.local',
+    citizenId: '001200012345',
     password: VALID_PASSWORD,
     confirmPassword: VALID_PASSWORD,
     acceptTerms: true,
@@ -47,6 +48,15 @@ describe('validateRegister', () => {
 
   it('accepts a complete form', () => {
     expect(hasErrors(validateRegister(base))).toBe(false);
+  });
+
+  it('requires a 12-digit citizen ID', () => {
+    expect(
+      validateRegister({ ...base, citizenId: '' }).citizenId,
+    ).toBeDefined();
+    expect(
+      validateRegister({ ...base, citizenId: '12345' }).citizenId,
+    ).toContain('12 chữ số');
   });
 
   it('requires the full name', () => {

@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { Lock, Shield, UserCheck, Users } from 'lucide-react';
 import { ACTOR_CODES, ROLE_NAMES, type ActorCode } from '@blood/shared-types';
 import { Button, Checkbox, FormField, Input } from '@/components/ui';
 import { Feedback, QueryState } from '@/features/campaigns/components';
@@ -15,7 +16,7 @@ import { useAdminMutation, useAdminQuery } from './hooks';
 import { useAdminRepository } from './repository';
 import type { AdminUser, AdminUserQuery } from './types';
 
-const PAGE_SIZE = 8;
+const PAGE_SIZE = 15;
 
 export function UsersPage() {
   const repository = useAdminRepository();
@@ -43,6 +44,25 @@ export function UsersPage() {
   const result = useAdminQuery(`users:${params}`, () =>
     repository.users(query),
   );
+
+  const [searchInput, setSearchInput] = useState(params.get('q') ?? '');
+
+  useEffect(() => {
+    const current = params.get('q') ?? '';
+    if (searchInput !== current) {
+      setSearchInput(current);
+    }
+  }, [params]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const current = params.get('q') ?? '';
+      if (searchInput !== current) {
+        change('q', searchInput);
+      }
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   const [editing, setEditing] = useState<AdminUser | null>(null);
   const [draftName, setDraftName] = useState('');
@@ -105,8 +125,68 @@ export function UsersPage() {
     );
   }
 
+  const totalUsers = result.data?.meta.total ?? 0;
+  const activeCount = result.data?.items.filter((u) => u.isActive).length ?? 0;
+  const lockedCount = result.data?.items.filter((u) => !u.isActive).length ?? 0;
+  const staffCount = result.data?.items.filter((u) => u.roles.some((r) => r !== 'DONOR')).length ?? 0;
+
   return (
     <AdminShell title="Người dùng">
+      {/* 4 Compact Glass KPI Stat Cards */}
+      <div className="admin-glass-kpi-grid">
+        <div className="admin-glass-kpi-card">
+          <div className="admin-kpi-header">
+            <span className="admin-kpi-title">Tổng tài khoản</span>
+            <span className="admin-kpi-icon-badge" style={{ background: 'rgba(0, 240, 255, 0.15)', color: '#00f0ff' }} aria-hidden="true">
+              <Users size={16} />
+            </span>
+          </div>
+          <div className="admin-kpi-value">{totalUsers.toLocaleString('vi-VN')}</div>
+          <div className="admin-kpi-trend admin-kpi-trend--up">
+            <span>● Toàn hệ thống</span>
+          </div>
+        </div>
+
+        <div className="admin-glass-kpi-card">
+          <div className="admin-kpi-header">
+            <span className="admin-kpi-title">Đang hoạt động</span>
+            <span className="admin-kpi-icon-badge" style={{ background: 'rgba(34, 197, 94, 0.15)', color: '#4ade80' }} aria-hidden="true">
+              <UserCheck size={16} />
+            </span>
+          </div>
+          <div className="admin-kpi-value">{activeCount}</div>
+          <div className="admin-kpi-trend" style={{ color: '#4ade80' }}>
+            <span>Trang hiện tại</span>
+          </div>
+        </div>
+
+        <div className="admin-glass-kpi-card">
+          <div className="admin-kpi-header">
+            <span className="admin-kpi-title">Tạm khóa</span>
+            <span className="admin-kpi-icon-badge" style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#f87171' }} aria-hidden="true">
+              <Lock size={16} />
+            </span>
+          </div>
+          <div className="admin-kpi-value">{lockedCount}</div>
+          <div className="admin-kpi-trend" style={{ color: '#f87171' }}>
+            <span>Cần kiểm tra</span>
+          </div>
+        </div>
+
+        <div className="admin-glass-kpi-card">
+          <div className="admin-kpi-header">
+            <span className="admin-kpi-title">Cán bộ & Quản trị</span>
+            <span className="admin-kpi-icon-badge" style={{ background: 'rgba(168, 85, 247, 0.15)', color: '#c084fc' }} aria-hidden="true">
+              <Shield size={16} />
+            </span>
+          </div>
+          <div className="admin-kpi-value">{staffCount}</div>
+          <div className="admin-kpi-trend admin-kpi-trend--purple">
+            <span>Có quyền vận hành</span>
+          </div>
+        </div>
+      </div>
+
       <form
         className="admin-filters"
         onSubmit={(event) => event.preventDefault()}
@@ -114,9 +194,9 @@ export function UsersPage() {
         <FormField id="admin-user-q" label="Tìm kiếm">
           <Input
             type="search"
-            value={query.q}
+            value={searchInput}
             placeholder="Email hoặc họ tên"
-            onChange={(event) => change('q', event.target.value)}
+            onChange={(event) => setSearchInput(event.target.value)}
           />
         </FormField>
         <FormField id="admin-user-role" label="Vai trò">
@@ -183,12 +263,26 @@ export function UsersPage() {
                 <tbody>
                   {result.data.items.map((user) => (
                     <tr key={user.id}>
-                      <td>{user.email}</td>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span
+                            className="admin-user-avatar"
+                            style={{ width: '24px', height: '24px', fontSize: '0.68rem', flexShrink: 0 }}
+                            aria-hidden="true"
+                          >
+                            {user.fullName ? user.fullName.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase()}
+                          </span>
+                          <span>{user.email}</span>
+                        </div>
+                      </td>
                       <td>{user.fullName}</td>
                       <td>
                         <span className="admin-roles">
                           {user.roles.map((code) => (
-                            <AdminBadge key={code} tone="info">
+                            <AdminBadge
+                              key={code}
+                              tone={code === 'SYSTEM_ADMIN' || (code as string) === 'ADMIN' ? 'purple' : 'info'}
+                            >
                               {ROLE_NAMES[code]}
                             </AdminBadge>
                           ))}

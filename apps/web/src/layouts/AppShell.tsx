@@ -9,7 +9,6 @@ import { visibleNavItems } from '@/features/auth/navigation';
 import { AUTH_ROUTES, primaryRole } from '@/features/auth/routing';
 import { Heart } from 'lucide-react';
 import { NotificationBell } from '@/features/notifications/components/NotificationBell';
-import { TopProgressBar } from '@/components/common/TopProgressBar';
 export interface AppShellProps {
   children: ReactNode;
   /** Only used for layout-specific styling hooks. */
@@ -53,7 +52,6 @@ export function AppShell({ children, variant }: AppShellProps) {
 
   return (
     <div className={`app-shell app-shell--${variant}${isHome ? ' app-shell--home' : ''}`}>
-      <TopProgressBar />
       <a className="skip-link" href="#main-content">
         Đến nội dung chính
       </a>

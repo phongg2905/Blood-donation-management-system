@@ -20,7 +20,7 @@ import type {
 } from './types';
 
 export const REGISTRATION_STATUS_LABELS: Record<RegistrationStatus, string> = {
-  PENDING: 'Chờ xử lý',
+  PENDING: 'Đã đăng ký',
   WAITLISTED: 'Danh sách chờ',
   SCHEDULED: 'Đã xếp lịch',
   CONFIRMED: 'Đã xác nhận',
@@ -214,14 +214,26 @@ export function getOperationalWindow(
     earlyMinutes?: number;
     lateMinutes?: number;
     now?: Date;
+    campaignStatus?: string;
   },
 ): OperationalWindow {
+  const startDate = new Date(startsAt);
+  const endDate = new Date(endsAt);
+
+  if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+    const fallback = new Date();
+    return {
+      opensAt: fallback,
+      closesAt: fallback,
+      status: 'CLOSED',
+      isOpen: false,
+      message: 'Thời gian đợt hiến không hợp lệ.',
+    };
+  }
+
   const earlyMs = (options?.earlyMinutes ?? 60) * 60 * 1000;
   const lateMs = (options?.lateMinutes ?? 60) * 60 * 1000;
   const now = options?.now ?? new Date();
-
-  const startDate = new Date(startsAt);
-  const endDate = new Date(endsAt);
 
   const opensAt = new Date(startDate.getTime() - earlyMs);
   const closesAt = new Date(endDate.getTime() + lateMs);
@@ -233,13 +245,33 @@ export function getOperationalWindow(
     month: '2-digit',
   });
 
+  const campaignStatus = options?.campaignStatus;
+  if (campaignStatus === 'CANCELLED') {
+    return {
+      opensAt,
+      closesAt,
+      status: 'CLOSED',
+      isOpen: false,
+      message: 'Đợt hiến máu đã bị hủy.',
+    };
+  }
+  if (campaignStatus === 'COMPLETED') {
+    return {
+      opensAt,
+      closesAt,
+      status: 'CLOSED',
+      isOpen: false,
+      message: `Đợt hiến đã hoàn tất và kết thúc tác nghiệp lúc ${timeFormatter.format(closesAt)}.`,
+    };
+  }
+
   if (now.getTime() < opensAt.getTime()) {
     return {
       opensAt,
       closesAt,
       status: 'UPCOMING',
       isOpen: false,
-      message: `Quầy tiếp nhận & sàng lọc chưa mở. Dự kiến mở lúc ${timeFormatter.format(opensAt)} (sớm 60 phút trước khi bắt đầu).`,
+      message: `Quầy tiếp nhận & sàng lọc chưa mở. Dự kiến mở lúc ${timeFormatter.format(opensAt)}.`,
     };
   }
 
@@ -249,7 +281,7 @@ export function getOperationalWindow(
       closesAt,
       status: 'CLOSED',
       isOpen: false,
-      message: `Đã kết thúc giờ tác nghiệp tại điểm hiến. Quầy đã đóng lúc ${timeFormatter.format(closesAt)} (muộn 60 phút sau khi kết thúc).`,
+      message: `Đã kết thúc giờ tác nghiệp tại điểm hiến. Quầy đã đóng lúc ${timeFormatter.format(closesAt)}.`,
     };
   }
 
@@ -329,8 +361,10 @@ export function sortRegistrationsForCheckIn(items: DonorRegistration[]): DonorRe
 
     // 2. Cả hai chưa check-in
     if (!aCheckedIn && !bCheckedIn) {
-      const aEligible = a.status === 'SCHEDULED' || a.status === 'CONFIRMED';
-      const bEligible = b.status === 'SCHEDULED' || b.status === 'CONFIRMED';
+      const aEligible =
+        a.status === 'PENDING' || a.status === 'SCHEDULED' || a.status === 'CONFIRMED';
+      const bEligible =
+        b.status === 'PENDING' || b.status === 'SCHEDULED' || b.status === 'CONFIRMED';
       if (aEligible && !bEligible) return -1;
       if (!aEligible && bEligible) return 1;
 
@@ -462,6 +496,67 @@ export function validateBloodBag(input: BloodBagInput): FieldErrors {
   if (!Number.isInteger(input.volumeMl) || input.volumeMl <= 0)
     errors.volumeMl = 'Thể tích phải là số nguyên lớn hơn 0 (ml).';
   return errors;
+}
+
+let bagSequenceCounter = Math.floor(10000 + Math.random() * 80000);
+
+/**
+ * Generates a standardized blood bag barcode (Donation Identification Number - DIN)
+ * compliant with Circular 26/2013/TT-BYT of the Vietnamese Ministry of Health:
+ * Format: `<FACILITY_CODE>-<YYYY>-WB-<5_DIGIT_SEQ>` (e.g. `NIHBT-2026-WB-00245`)
+ */
+export function generateStandardBloodBagCode(campaignName?: string | null): string {
+  const normalized = (campaignName ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/gi, 'd')
+    .toLowerCase();
+
+  let prefix = 'RC';
+  if (
+    normalized.includes('cho ray') ||
+    normalized.includes('bach khoa') ||
+    normalized.includes('binh duong') ||
+    normalized.includes('sinh vien hien mau') ||
+    normalized.includes('song than')
+  ) {
+    prefix = 'CR';
+  } else if (
+    normalized.includes('vien huyet hoc') ||
+    normalized.includes('trung uong') ||
+    normalized.includes('blouse trang') ||
+    normalized.includes('thu do')
+  ) {
+    prefix = 'NIHBT';
+  } else if (
+    normalized.includes('truyen mau huyet hoc') ||
+    normalized.includes('14/6') ||
+    normalized.includes('quoc te nguoi hien mau') ||
+    normalized.includes('xuan tinh nguyen')
+  ) {
+    prefix = 'BTH';
+  } else if (normalized.includes('bach mai') || normalized.includes('tri an')) {
+    prefix = 'BM';
+  } else if (
+    normalized.includes('da nang') ||
+    normalized.includes('song han') ||
+    normalized.includes('khan cap mien trung')
+  ) {
+    prefix = 'DNG';
+  } else if (normalized.includes('hue') || normalized.includes('trai tim mien trung')) {
+    prefix = 'HUE';
+  } else if (normalized.includes('y duoc')) {
+    prefix = 'UMP';
+  } else if (normalized.includes('thong nhat') || normalized.includes('chung dong mau viet')) {
+    prefix = 'TN';
+  } else if (normalized.includes('175') || normalized.includes('moi giot mau cho di')) {
+    prefix = 'QY175';
+  }
+
+  const year = new Date().getFullYear();
+  bagSequenceCounter = ((bagSequenceCounter + 1) % 90000) + 10000;
+  const seq = String(bagSequenceCounter).padStart(5, '0');
+  return `${prefix}-${year}-WB-${seq}`;
 }
 
 /** Mirrors the campaign error mapping so feedback copy stays consistent. */

@@ -96,9 +96,9 @@ export function LoginPage() {
       visualLead="Đăng nhập để quản lý đợt hiến máu, theo dõi người hiến và toàn bộ quá trình tiếp nhận."
     >
       <AuthCard
-        eyebrow="Đăng nhập"
+        eyebrow="Cổng truy cập"
         title="Đăng nhập hệ thống"
-        subtitle="Kết nối cộng đồng hiến máu, trao gửi sự sống."
+        subtitle="Hệ thống tiếp nhận và điều phối người hiến máu"
         footer={
           <div className="auth-card__links">
             <span>Chưa có tài khoản? </span>
@@ -106,6 +106,21 @@ export function LoginPage() {
           </div>
         }
       >
+        {DemoAccountPicker && (
+          <Suspense fallback={null}>
+            <DemoAccountPicker
+              disabled={submitting}
+              onSelect={(credentials) => {
+                setEmail(credentials.email);
+                setPassword(credentials.password);
+                setErrors({});
+                setFormError(null);
+                document.getElementById('login-email')?.focus();
+              }}
+            />
+          </Suspense>
+        )}
+
         <form className="auth-card__form" onSubmit={handleSubmit} noValidate>
           <FormError message={formError?.message} />
 
@@ -154,20 +169,6 @@ export function LoginPage() {
             Đăng nhập
           </Button>
         </form>
-        {DemoAccountPicker && (
-          <Suspense fallback={null}>
-            <DemoAccountPicker
-              disabled={submitting}
-              onSelect={(credentials) => {
-                setEmail(credentials.email);
-                setPassword(credentials.password);
-                setErrors({});
-                setFormError(null);
-                document.getElementById('login-email')?.focus();
-              }}
-            />
-          </Suspense>
-        )}
       </AuthCard>
     </AuthLayout>
   );

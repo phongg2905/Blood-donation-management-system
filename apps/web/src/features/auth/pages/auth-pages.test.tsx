@@ -98,7 +98,7 @@ describe('LoginPage', () => {
     await user.click(screen.getByRole('button', { name: 'Đăng nhập' }));
 
     expect(
-      await screen.findByRole('heading', { name: /Trao một phần máu/ }),
+      await screen.findByRole('heading', { name: /Tổng quan hệ thống/ }),
     ).toBeInTheDocument();
     expect(container.querySelector('.session__role')?.textContent).toBe(
       'Quản trị hệ thống',
@@ -151,6 +151,7 @@ describe('RegisterPage', () => {
 
     await user.type(await screen.findByLabelText(/^Họ và tên/), 'Nguyễn Văn A');
     await user.type(screen.getByLabelText(/^Email/), 'moi@example.local');
+    await user.type(screen.getByLabelText(/^Số CCCD/), '001200012345');
     await user.type(screen.getByLabelText(/^Mật khẩu/), DEMO_PASSWORD);
     await user.type(screen.getByLabelText(/^Nhập lại mật khẩu/), DEMO_PASSWORD);
     await user.click(screen.getByRole('checkbox'));
@@ -170,6 +171,7 @@ describe('RegisterPage', () => {
 
     await user.type(await screen.findByLabelText(/^Họ và tên/), 'Nguyễn Văn A');
     await user.type(screen.getByLabelText(/^Email/), 'donor@example.local');
+    await user.type(screen.getByLabelText(/^Số CCCD/), '001200012345');
     await user.type(screen.getByLabelText(/^Mật khẩu/), DEMO_PASSWORD);
     await user.type(screen.getByLabelText(/^Nhập lại mật khẩu/), DEMO_PASSWORD);
     await user.click(screen.getByRole('checkbox'));
@@ -279,7 +281,7 @@ describe('ResetPasswordPage', () => {
 });
 
 describe('ProfilePage with the delivered backend contract', () => {
-  it('edits only the full name when CurrentUser has no contact fields', async () => {
+  it('edits fullName, phone and address for a staff member and reads them back', async () => {
     const user = userEvent.setup();
     const service = createMockAuthService();
     await service.login({
@@ -297,20 +299,32 @@ describe('ProfilePage with the delivered backend contract', () => {
     );
 
     const fullName = await screen.findByLabelText(/^Họ và tên/);
-    expect(screen.queryByLabelText('Số điện thoại')).not.toBeInTheDocument();
-    expect(screen.queryByLabelText('Địa chỉ')).not.toBeInTheDocument();
+    const phone = await screen.findByLabelText(/^Số điện thoại/);
+    const address = await screen.findByLabelText(/^Địa chỉ/);
+    expect(phone).toBeInTheDocument();
+    expect(address).toBeInTheDocument();
     await user.clear(fullName);
     await user.type(fullName, 'Tên mới');
+    await user.clear(phone);
+    await user.type(phone, '0987654321');
+    await user.clear(address);
+    await user.type(address, '456 Đường XYZ, Quận 3');
     await user.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
 
     expect(
       await screen.findByText('Thông tin cá nhân đã được cập nhật.'),
     ).toBeInTheDocument();
-    expect(save).toHaveBeenCalledWith({ fullName: 'Tên mới' });
+    expect(save).toHaveBeenCalledWith({
+      fullName: 'Tên mới',
+      phone: '0987654321',
+      address: '456 Đường XYZ, Quận 3',
+    });
     const saved = await service.getCurrentUser();
-    expect(saved).toMatchObject({ fullName: 'Tên mới' });
-    // STAFF/ADMIN must never carry contact fields.
-    expect(saved).not.toHaveProperty('phone');
+    expect(saved).toMatchObject({
+      fullName: 'Tên mới',
+      phone: '0987654321',
+      address: '456 Đường XYZ, Quận 3',
+    });
   });
 
   it('edits fullName, phone and address for a DONOR and reads them back', async () => {

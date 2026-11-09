@@ -5,7 +5,6 @@ import { useCampaignRepository } from './repository';
 import { useCampaignMutation, useUnsavedWarning } from './hooks';
 import { ConfirmDialog, Feedback } from './components';
 import {
-  timezoneLabel,
   toIso,
   toLocalInput,
   validateCampaign,
@@ -115,7 +114,7 @@ export function CampaignForm({ campaign }: { campaign?: Campaign }) {
         aria-busy={mutation.pending}
       >
         <Feedback error={mutation.error} />
-        <p>Các mục có dấu * là bắt buộc. Thời gian theo {timezoneLabel}.</p>
+        <p>Các mục có dấu * là bắt buộc.</p>
         <fieldset disabled={mutation.pending}>
           <div className="campaign-form-grid">
             {fields.map((field) => (

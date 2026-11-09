@@ -1,79 +1,85 @@
 /* ==========================================================================
-   Modern Clean Medical Portal — Sketch Design System (Full-Bleed Visual First)
-   Color Palette:
-   - Deep Navy Medical: #090E1A, #0F172A, #1E3A8A
-   - Vital Blood Red: #DC2626, #EF4444, #FEF2F2
-   - Clean Slate Surfaces: #FFFFFF, #F8FAFC, #F1F5F9
-   - Text Slate: #0F172A (900), #334155 (700), #64748B (500)
+   Modern Clean Medical Portal — Landing Page Design System
+   Full-Bleed Visual Architecture, Unified 1280px Container Alignment,
+   Seamless Medical Obsidian & Clinical Crimson Theme (All Sections Unified)
    ========================================================================== */
 
 :root {
-  --sketch-bg: #ffffff;
-  --sketch-surface: #f8fafc;
-  --sketch-subtle: #f1f5f9;
-  --sketch-border: #e2e8f0;
+  --sketch-bg: #050204;
+  --sketch-surface: #070b14;
+  --sketch-surface-card: rgba(13, 19, 33, 0.72);
+  --sketch-border: rgba(255, 255, 255, 0.08);
+  --sketch-border-hover: rgba(225, 29, 72, 0.45);
 
-  --sketch-blue: #2563eb;
-  --sketch-blue-dark: #1e3a8a;
-  --sketch-blue-light: #eff6ff;
+  --sketch-crimson: #e11d48;
+  --sketch-crimson-hover: #f43f5e;
+  --sketch-crimson-dark: #be123c;
+  --sketch-crimson-glow: rgba(225, 29, 72, 0.45);
 
-  --sketch-red: #a8192e;
-  --sketch-red-light: #fef2f4;
-  --sketch-red-border: #fecdd3;
+  --sketch-emerald: #10b981;
+  --sketch-amber: #f59e0b;
 
-  --sketch-text-main: #0f172a;
-  --sketch-text-muted: #475569;
-  --sketch-text-light: #64748b;
+  --sketch-text-main: #ffffff;
+  --sketch-text-muted: #cbd5e1;
+  --sketch-text-light: #94a3b8;
 }
 
 /* Base Landing Canvas */
 .sketch-landing {
-  background-color: #ffffff;
-  background-image:
-    radial-gradient(circle at 50% 0%, rgba(219, 234, 254, 0.45) 0%, transparent 40%),
-    radial-gradient(circle at 90% 15%, rgba(254, 205, 211, 0.35) 0%, transparent 35%);
+  background-color: #050204;
   color: var(--sketch-text-main);
   font-family: var(--font-sans);
   overflow-x: hidden;
   width: 100%;
 }
 
+/* Unified 1280px Container System — Perfectly matches Header */
 .sketch-container {
   width: 100%;
-  max-width: 1240px;
+  max-width: var(--layout-max-width, 1280px);
   margin: 0 auto;
   padding: 0 1.5rem;
   position: relative;
   z-index: 1;
+  box-sizing: border-box;
 }
 
 @media (min-width: 768px) {
+  .sketch-container {
+    padding: 0 2rem;
+  }
+}
+
+@media (min-width: 1024px) {
   .sketch-container {
     padding: 0 2.5rem;
   }
 }
 
 /* ==========================================================================
-   1. Cinematic Hero Section with Floating Glass Blood Dock & Shader
+   1. Cinematic Hero Section with WebGL Fluid Droplet Shader
    ========================================================================== */
 .portal-hero-sketch {
   position: relative;
-  min-height: 82vh;
+  min-height: calc(100vh - var(--header-height, 64px));
+  min-height: calc(100dvh - var(--header-height, 64px));
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  padding: 6rem 0 7rem 0;
+  padding: 3rem 0;
   text-align: center;
   overflow: hidden;
   background-color: #050204;
   color: #f8fafc;
+  box-sizing: border-box;
 }
 
 @media (min-width: 1024px) {
   .portal-hero-sketch {
-    min-height: 88vh;
-    padding: 7rem 0 8.5rem 0;
+    min-height: calc(100vh - var(--header-height, 64px));
+    min-height: calc(100dvh - var(--header-height, 64px));
+    padding: 3.5rem 0;
   }
 }
 
@@ -83,7 +89,7 @@
   width: 100%;
 }
 
-/* Background WebGL Shader & Backdrop */
+/* Background WebGL Shader & Dark Radiant Backdrop */
 .sketch-hero__shader-backdrop {
   position: absolute;
   inset: 0;
@@ -104,17 +110,17 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(
-    180deg,
-    rgba(5, 2, 4, 0.35) 0%,
-    rgba(5, 2, 4, 0.05) 30%,
-    rgba(5, 2, 4, 0.35) 75%,
-    #090e1a 100%
-  );
+  background: radial-gradient(circle at 50% 30%, rgba(225, 29, 72, 0.12) 0%, transparent 60%),
+    linear-gradient(180deg,
+      rgba(5, 2, 4, 0.35) 0%,
+      rgba(5, 2, 4, 0.05) 40%,
+      rgba(5, 2, 4, 0.45) 75%,
+      #050204 100%
+    );
 }
 
 .sketch-hero__intro {
-  max-width: 860px;
+  max-width: 880px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -124,50 +130,48 @@
 .sketch-welcome-pill {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.4rem 1.05rem;
+  gap: 0.55rem;
+  padding: 0.45rem 1.15rem;
   background: rgba(15, 23, 42, 0.75);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(239, 68, 68, 0.35);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(225, 29, 72, 0.35);
   border-radius: 9999px;
   font-size: 0.8125rem;
   font-weight: 700;
   color: #fecdd3;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3), 0 0 12px rgba(220, 38, 38, 0.2);
-  margin-bottom: 1.35rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), 0 0 14px rgba(225, 29, 72, 0.25);
+  margin-bottom: 1.5rem;
 }
 
 .sketch-welcome-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background-color: #ef4444;
-  box-shadow: 0 0 8px #ef4444;
+  background-color: #f43f5e;
+  box-shadow: 0 0 8px #f43f5e;
   animation: pulse-dot 1.8s infinite;
 }
 
 @keyframes pulse-dot {
-  0%,
-  100% {
+  0%, 100% {
     transform: scale(1);
     opacity: 1;
   }
-
   50% {
-    transform: scale(1.35);
-    opacity: 0.7;
+    transform: scale(1.4);
+    opacity: 0.65;
   }
 }
 
 .sketch-hero__title {
-  font-size: clamp(2.4rem, 4.2vw, 3.75rem);
+  font-size: clamp(2.35rem, 4.4vw, 3.85rem);
   font-weight: 850;
   line-height: 1.15;
   letter-spacing: -0.03em;
   color: #ffffff;
-  text-shadow: 0 4px 20px rgba(0, 0, 0, 0.7);
-  margin-bottom: 1.25rem;
+  text-shadow: 0 4px 24px rgba(0, 0, 0, 0.75);
+  margin: 0 0 1.25rem 0;
 }
 
 .sketch-hero__title-gradient {
@@ -175,16 +179,16 @@
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   display: inline-block;
-  filter: drop-shadow(0 2px 10px rgba(244, 63, 94, 0.45));
+  filter: drop-shadow(0 2px 10px rgba(244, 63, 94, 0.5));
 }
 
 .sketch-hero__subtitle {
   font-size: 1.125rem;
   line-height: 1.65;
-  color: rgba(241, 245, 249, 0.9);
+  color: rgba(241, 245, 249, 0.88);
   text-shadow: 0 2px 10px rgba(0, 0, 0, 0.6);
   max-width: 680px;
-  margin-bottom: 2.25rem;
+  margin: 0 0 2.25rem 0;
 }
 
 /* Hero Action Bar */
@@ -193,7 +197,7 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 1rem;
+  gap: 1.15rem;
 }
 
 .sketch-btn-primary {
@@ -201,17 +205,17 @@
   align-items: center;
   justify-content: center;
   gap: 0.55rem;
-  height: 50px;
-  padding: 0 2rem;
+  height: 52px;
+  padding: 0 2.25rem;
   box-sizing: border-box;
   background: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
   color: #ffffff;
   font-weight: 750;
   font-size: 0.98rem;
   border-radius: 9999px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.22);
   cursor: pointer;
-  box-shadow: 0 4px 20px rgba(225, 29, 72, 0.55), 0 0 14px rgba(225, 29, 72, 0.35);
+  box-shadow: 0 6px 24px rgba(225, 29, 72, 0.55), 0 0 16px rgba(225, 29, 72, 0.35);
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   text-decoration: none;
   line-height: 1;
@@ -219,39 +223,42 @@
 
 .sketch-btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 26px rgba(225, 29, 72, 0.7), 0 0 18px rgba(225, 29, 72, 0.45);
+  background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);
+  box-shadow: 0 10px 30px rgba(225, 29, 72, 0.7), 0 0 22px rgba(225, 29, 72, 0.45);
   color: #ffffff;
   text-decoration: none;
 }
 
+a.sketch-btn-secondary,
 .sketch-btn-secondary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.55rem;
-  height: 50px;
-  padding: 0 2rem;
+  height: 52px;
+  padding: 0 2.25rem;
   box-sizing: border-box;
   background: rgba(15, 23, 42, 0.65);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  color: #f1f5f9;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  color: #f1f5f9 !important;
   font-weight: 700;
   font-size: 0.98rem;
   border-radius: 9999px;
   border: 1px solid rgba(255, 255, 255, 0.16);
-  text-decoration: none;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+  text-decoration: none !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
   transition: all 0.25s ease;
   line-height: 1;
 }
 
+a.sketch-btn-secondary:hover,
 .sketch-btn-secondary:hover {
   background: rgba(30, 41, 59, 0.85);
   border-color: rgba(255, 255, 255, 0.3);
-  color: #ffffff;
+  color: #ffffff !important;
   transform: translateY(-2px);
-  text-decoration: none;
+  text-decoration: none !important;
 }
 
 .sketch-registration-slot-hidden {
@@ -268,115 +275,167 @@
   pointer-events: none;
 }
 
-
-
-/* ==========================================================================
-   2. Current Hospital Demands (Deep Navy Full-Bleed Section)
-   ========================================================================== */
-.sketch-demands-section {
-  background: linear-gradient(180deg, #090e1a 0%, #0c1527 50%, #0f172a 100%);
-  color: #ffffff;
-  padding: 5rem 0;
-  position: relative;
-  overflow: hidden;
+/* Hero Trust Badges — Anchors the lower space */
+.sketch-hero__badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  margin-top: 3.5rem;
+  padding: 1.15rem 1.75rem;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 18px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
 }
 
-.sketch-demands-section::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.4), transparent);
+.sketch-hero__badge-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  text-align: left;
+}
+
+.sketch-hero__badge-icon {
+  color: #fb7185;
+  flex-shrink: 0;
+}
+
+.sketch-hero__badge-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.sketch-hero__badge-text strong {
+  font-size: 0.875rem;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.sketch-hero__badge-text span {
+  font-size: 0.775rem;
+  color: #94a3b8;
+}
+
+.sketch-hero__badge-divider {
+  display: none;
+  width: 1px;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+@media (min-width: 768px) {
+  .sketch-hero__badge-divider {
+    display: block;
+  }
+}
+
+/* ==========================================================================
+   2. Current Hospital Demands (Seamless Obsidian/Crimson Section)
+   ========================================================================== */
+.sketch-demands-section {
+  background: linear-gradient(180deg, #050204 0%, #080d1a 35%, #0b1122 100%);
+  color: #ffffff;
+  padding: 5.5rem 0;
+  position: relative;
 }
 
 .sketch-section-head {
   text-align: center;
-  max-width: 680px;
-  margin: 0 auto 3rem auto;
+  max-width: 720px;
+  margin: 0 auto 3.25rem auto;
 }
 
 .sketch-section-pill {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
-  padding: 0.3rem 0.85rem;
-  background: rgba(30, 58, 138, 0.4);
-  border: 1px solid rgba(59, 130, 246, 0.35);
+  padding: 0.35rem 0.95rem;
+  background: rgba(225, 29, 72, 0.14);
+  border: 1px solid rgba(225, 29, 72, 0.35);
   border-radius: 9999px;
   font-size: 0.75rem;
-  font-weight: 700;
-  color: #93c5fd;
+  font-weight: 750;
+  color: #fda4af;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin-bottom: 0.85rem;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.9rem;
 }
 
-.sketch-section-pill--blue {
-  background: #eff6ff;
-  border-color: #bfdbfe;
-  color: #2563eb;
+.sketch-section-pill--ruby {
+  background: rgba(225, 29, 72, 0.14);
+  border-color: rgba(225, 29, 72, 0.35);
+  color: #fda4af;
 }
 
 .sketch-section-title {
-  font-size: clamp(1.85rem, 3vw, 2.5rem);
-  font-weight: 800;
+  font-size: clamp(1.85rem, 3.2vw, 2.6rem);
+  font-weight: 850;
   line-height: 1.2;
   letter-spacing: -0.025em;
   color: #ffffff;
-  margin-bottom: 0.75rem;
-}
-
-.sketch-section-title--dark {
-  color: #0f172a;
+  margin: 0 0 0.85rem 0;
 }
 
 .sketch-title-highlight {
-  color: #60a5fa;
+  color: #fda4af;
+}
+
+.sketch-title-highlight-ruby {
+  background: linear-gradient(135deg, #ff4d6d 0%, #f43f5e 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .sketch-section-sub {
-  font-size: 0.95rem;
-  line-height: 1.55;
+  font-size: 1rem;
+  line-height: 1.6;
   color: #94a3b8;
   margin: 0;
-}
-
-.sketch-section-sub--dark {
-  color: #64748b;
 }
 
 /* Demands Grid */
 .sketch-demands-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 1.5rem;
+  gap: 1.75rem;
 }
 
 @media (min-width: 768px) {
+  .sketch-demands-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
   .sketch-demands-grid {
     grid-template-columns: repeat(3, 1fr);
   }
 }
 
 .sketch-demand-card {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(13, 19, 33, 0.75);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 1.35rem;
-  padding: 1.65rem 1.5rem;
+  padding: 1.75rem 1.6rem;
   display: flex;
   flex-direction: column;
+  height: 100%;
+  box-sizing: border-box;
+  box-shadow: 0 12px 36px -10px rgba(0, 0, 0, 0.6);
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .sketch-demand-card:hover {
   transform: translateY(-5px);
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(96, 165, 250, 0.5);
-  box-shadow: 0 16px 36px -8px rgba(37, 99, 235, 0.25);
+  background: rgba(18, 26, 44, 0.85);
+  border-color: rgba(225, 29, 72, 0.5);
+  box-shadow: 0 20px 48px -8px rgba(225, 29, 72, 0.25);
 }
 
 .sketch-demand-card__head {
@@ -396,8 +455,7 @@
 .sketch-demand-card__num {
   font-size: 1.15rem;
   font-weight: 800;
-  color: #60a5fa;
-  font-family: var(--font-sans);
+  color: #fb7185;
   font-variant-numeric: tabular-nums;
 }
 
@@ -412,26 +470,26 @@
 .sketch-status-badge {
   font-size: 0.6875rem;
   font-weight: 800;
-  padding: 0.2rem 0.55rem;
+  padding: 0.22rem 0.6rem;
   border-radius: 9999px;
   white-space: nowrap;
 }
 
 .sketch-status-badge--critical {
-  background: rgba(168, 25, 46, 0.25);
+  background: rgba(225, 29, 72, 0.25);
   color: #fecdd3;
-  border: 1px solid #a8192e;
-  box-shadow: 0 0 12px rgba(168, 25, 46, 0.35);
+  border: 1px solid #e11d48;
+  box-shadow: 0 0 12px rgba(225, 29, 72, 0.35);
 }
 
 .sketch-status-badge--high-priority {
-  background: rgba(217, 119, 6, 0.25);
+  background: rgba(245, 158, 11, 0.22);
   color: #fde68a;
-  border: 1px solid #d97706;
+  border: 1px solid #f59e0b;
 }
 
 .sketch-status-badge--active {
-  background: rgba(16, 185, 129, 0.25);
+  background: rgba(16, 185, 129, 0.22);
   color: #86efac;
   border: 1px solid #10b981;
 }
@@ -470,7 +528,7 @@
 }
 
 .sketch-demand-progress-bar--critical {
-  background: linear-gradient(90deg, #a8192e, #c0273f);
+  background: linear-gradient(90deg, #e11d48, #f43f5e);
 }
 
 .sketch-demand-progress-bar--high-priority {
@@ -492,7 +550,7 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   color: #94a3b8;
   white-space: nowrap;
   overflow: hidden;
@@ -504,64 +562,118 @@
   text-overflow: ellipsis;
 }
 
+a.sketch-demand-card__link,
 .sketch-demand-card__link {
   margin-top: auto;
   width: 100%;
-  padding: 0.7rem 1rem;
+  padding: 0.75rem 1rem;
   border-radius: 0.75rem;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.15);
-  color: #ffffff;
+  color: #ffffff !important;
   font-weight: 750;
   font-size: 0.875rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.4rem;
-  text-decoration: none;
-  transition: all 0.2s ease;
+  text-decoration: none !important;
+  transition: all 0.22s ease;
 }
 
+a.sketch-demand-card__link:hover,
 .sketch-demand-card__link:hover {
-  background: #2563eb;
-  border-color: #2563eb;
-  color: #ffffff;
+  background: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
+  border-color: #e11d48;
+  color: #ffffff !important;
+  box-shadow: 0 4px 16px rgba(225, 29, 72, 0.4);
+  text-decoration: none !important;
 }
 
+.sketch-demands-empty {
+  text-align: center;
+  padding: 3.5rem 2rem;
+  background: rgba(13, 19, 33, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1.25rem;
+  color: #94a3b8;
+}
+
+.sketch-demands-empty__icon {
+  margin: 0 auto 12px auto;
+  color: #fb7185;
+  display: block;
+}
+
+.sketch-demands-action {
+  text-align: center;
+  margin-top: 3rem;
+}
+
+a.sketch-btn-outline-glow,
 .sketch-btn-outline-glow {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 2rem;
+  gap: 0.55rem;
+  padding: 0.85rem 2.25rem;
   border-radius: 9999px;
   background: rgba(255, 255, 255, 0.05);
-  border: 1.5px solid rgba(255, 255, 255, 0.2);
-  color: #ffffff;
+  border: 1.5px solid rgba(255, 255, 255, 0.18);
+  color: #ffffff !important;
   font-weight: 750;
   font-size: 0.9375rem;
-  text-decoration: none;
+  text-decoration: none !important;
   transition: all 0.25s ease;
 }
 
+a.sketch-btn-outline-glow:hover,
 .sketch-btn-outline-glow:hover {
-  background: #ffffff;
-  color: #0f172a;
-  border-color: #ffffff;
+  background: rgba(225, 29, 72, 0.15);
+  border-color: rgba(225, 29, 72, 0.5);
+  color: #ffffff !important;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(225, 29, 72, 0.25);
+  text-decoration: none !important;
 }
 
 /* ==========================================================================
-   3. Your Journey: Easy 3-Step Process (Connected Timeline)
+   3. Your Journey: Easy 3-Step Process (Unified Dark Glass Timeline)
    ========================================================================== */
 .sketch-journey-section {
-  background-color: #fafbfc;
-  padding: 5rem 0;
+  background: linear-gradient(180deg, #0b1122 0%, #080d1a 50%, #050204 100%);
+  color: #ffffff;
+  padding: 5.5rem 0;
   position: relative;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
 }
 
 .sketch-timeline-container {
   position: relative;
-  max-width: 1020px;
+  width: 100%;
   margin: 0 auto;
+}
+
+/* Continuous Glowing Connector Line across 3 steps */
+.sketch-timeline-track {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .sketch-timeline-track {
+    display: block;
+    position: absolute;
+    top: 54px;
+    left: 14%;
+    right: 14%;
+    height: 2px;
+    background: linear-gradient(90deg,
+      rgba(225, 29, 72, 0.3) 0%,
+      rgba(225, 29, 72, 0.75) 50%,
+      rgba(225, 29, 72, 0.3) 100%
+    );
+    box-shadow: 0 0 10px rgba(225, 29, 72, 0.5);
+    z-index: 1;
+  }
 }
 
 .sketch-timeline-grid {
@@ -580,92 +692,114 @@
 }
 
 .sketch-step-card {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
+  background: rgba(13, 19, 33, 0.75);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 1.5rem;
-  padding: 2rem 1.65rem;
-  box-shadow: 0 10px 25px -6px rgba(15, 23, 42, 0.05);
+  padding: 2.25rem 1.75rem;
+  box-shadow: 0 12px 36px -8px rgba(0, 0, 0, 0.6);
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
+  height: 100%;
+  box-sizing: border-box;
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   position: relative;
 }
 
 .sketch-step-card:hover {
   transform: translateY(-6px);
-  border-color: #93c5fd;
-  box-shadow: 0 20px 40px -10px rgba(37, 99, 235, 0.12);
+  border-color: rgba(225, 29, 72, 0.45);
+  box-shadow: 0 20px 48px -10px rgba(225, 29, 72, 0.22);
 }
 
 .sketch-step-node {
   position: relative;
-  width: 64px;
-  height: 64px;
+  width: 68px;
+  height: 68px;
   border-radius: 1.25rem;
-  background: #eff6ff;
-  border: 2px solid #bfdbfe;
+  background: rgba(20, 28, 48, 0.85);
+  border: 2px solid rgba(255, 255, 255, 0.14);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 1.25rem;
-  box-shadow: 0 8px 16px rgba(37, 99, 235, 0.1);
+  margin-bottom: 1.35rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  z-index: 3;
+}
+
+.sketch-step-icon--blue {
+  color: #60a5fa;
+}
+
+.sketch-step-icon--ruby {
+  color: #f43f5e;
+}
+
+.sketch-step-icon--emerald {
+  color: #34d399;
 }
 
 .sketch-step-node__num {
   position: absolute;
   top: -8px;
   right: -8px;
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
-  background: #2563eb;
+  background: linear-gradient(135deg, #e11d48, #be123c);
   color: #ffffff;
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   font-weight: 850;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 2px solid #ffffff;
+  border: 2px solid #070b14;
+  box-shadow: 0 2px 8px rgba(225, 29, 72, 0.5);
 }
 
 .sketch-step-tag {
   font-size: 0.72rem;
   font-weight: 750;
-  color: #2563eb;
-  background: #eff6ff;
-  padding: 0.2rem 0.6rem;
+  color: #fda4af;
+  background: rgba(225, 29, 72, 0.14);
+  border: 1px solid rgba(225, 29, 72, 0.3);
+  padding: 0.25rem 0.75rem;
   border-radius: 9999px;
   display: inline-block;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .sketch-step-title {
-  font-size: 1.15rem;
+  font-size: 1.2rem;
   font-weight: 800;
-  color: #0f172a;
-  margin-bottom: 0.25rem;
+  color: #ffffff;
+  margin: 0 0 0.35rem 0;
 }
 
 .sketch-step-sub {
-  font-size: 0.8125rem;
+  font-size: 0.85rem;
   font-weight: 650;
-  color: #2563eb;
-  margin-bottom: 0.75rem;
+  color: #fb7185;
+  margin-bottom: 0.85rem;
 }
 
 .sketch-step-desc {
-  font-size: 0.84rem;
-  color: #64748b;
-  line-height: 1.55;
+  font-size: 0.875rem;
+  color: #94a3b8;
+  line-height: 1.6;
   margin: 0;
 }
 
-/* CTA Banner below 3-step */
+/* CTA Banner below 3-step — Balanced Left/Right */
 .sketch-cta-banner {
-  margin-top: 3.5rem;
-  background: linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%);
+  margin-top: 4rem;
+  background: linear-gradient(135deg, rgba(225, 29, 72, 0.2) 0%, rgba(13, 19, 33, 0.88) 100%);
+  border: 1px solid rgba(225, 29, 72, 0.38);
   border-radius: 1.5rem;
   padding: 2.25rem 2.5rem;
   color: #ffffff;
@@ -673,8 +807,14 @@
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 1.5rem;
-  box-shadow: 0 20px 40px -10px rgba(15, 23, 42, 0.2);
+  gap: 1.75rem;
+  box-shadow: 0 20px 48px -10px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.sketch-cta-banner__left {
+  max-width: 600px;
 }
 
 .sketch-cta-badge {
@@ -683,68 +823,84 @@
   gap: 6px;
   font-size: 0.78rem;
   font-weight: 750;
-  background: rgba(255, 255, 255, 0.15);
-  padding: 0.25rem 0.75rem;
+  background: rgba(225, 29, 72, 0.25);
+  padding: 0.3rem 0.85rem;
   border-radius: 9999px;
-  color: #93c5fd;
-  margin-bottom: 0.5rem;
+  color: #fda4af;
+  margin-bottom: 0.75rem;
 }
 
 .sketch-cta-title {
-  font-size: 1.25rem;
-  font-weight: 800;
+  font-size: 1.35rem;
+  font-weight: 850;
   color: #ffffff;
-  margin-bottom: 0.25rem;
+  margin: 0 0 0.45rem 0;
 }
 
 .sketch-cta-desc {
-  font-size: 0.875rem;
+  font-size: 0.925rem;
   color: #cbd5e1;
   margin: 0;
+  line-height: 1.55;
 }
 
+.sketch-cta-banner__right {
+  flex-shrink: 0;
+}
+
+a.sketch-cta-btn,
 .sketch-cta-btn {
-  background: #a8192e;
-  color: #ffffff;
+  background: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
+  color: #ffffff !important;
   font-weight: 800;
-  font-size: 0.9375rem;
+  font-size: 0.95rem;
   border-radius: 9999px;
-  padding: 0.75rem 1.85rem;
+  padding: 0.85rem 2rem;
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
-  text-decoration: none;
-  box-shadow: 0 4px 14px rgba(168, 25, 46, 0.35);
-  transition: all 0.2s ease;
+  gap: 0.55rem;
+  text-decoration: none !important;
+  box-shadow: 0 4px 18px rgba(225, 29, 72, 0.45);
+  transition: all 0.25s ease;
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
+a.sketch-cta-btn:hover,
 .sketch-cta-btn:hover {
-  background: #8c0f21;
+  background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);
   transform: translateY(-2px);
-  color: #ffffff;
+  box-shadow: 0 8px 24px rgba(225, 29, 72, 0.65);
+  color: #ffffff !important;
+  text-decoration: none !important;
+}
+
+a.sketch-cta-btn svg,
+.sketch-cta-btn svg {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
 }
 
 /* ==========================================================================
-   4. Minimal Modern Footer
+   4. Minimal Modern Footer (Matching Obsidian Theme)
    ========================================================================== */
 .sketch-footer {
-  background-color: #090e1a;
+  background-color: #050204;
   color: #94a3b8;
-  padding: 3.5rem 0 2rem 0;
-  border-top: 1px solid #1e293b;
+  padding: 4rem 0 2rem 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .sketch-footer__inner {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 2rem;
+  gap: 2.25rem;
   padding-bottom: 2.5rem;
-  border-bottom: 1px solid #1e293b;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 @media (min-width: 768px) {
   .sketch-footer__inner {
-    grid-template-columns: 1.4fr 1fr 1fr;
+    grid-template-columns: 1.4fr 1.1fr 1fr;
     align-items: center;
   }
 }
@@ -757,13 +913,14 @@
 }
 
 .sketch-footer__icon {
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  background: #a8192e;
+  background: linear-gradient(135deg, #e11d48, #be123c);
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 0 12px rgba(225, 29, 72, 0.4);
 }
 
 .sketch-footer__name {
@@ -775,27 +932,27 @@
 .sketch-footer__desc {
   font-size: 0.8125rem;
   color: #64748b;
-  line-height: 1.5;
+  line-height: 1.55;
   margin: 0;
-  max-width: 360px;
+  max-width: 380px;
 }
 
 .sketch-footer__hotline {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.6rem 1.15rem;
-  background: rgba(220, 38, 38, 0.15);
-  border: 1px solid rgba(220, 38, 38, 0.35);
-  border-radius: 0.75rem;
-  color: #f87171;
+  gap: 0.55rem;
+  padding: 0.75rem 1.25rem;
+  background: rgba(225, 29, 72, 0.12);
+  border: 1px solid rgba(225, 29, 72, 0.3);
+  border-radius: 0.85rem;
+  color: #fda4af;
   font-size: 0.875rem;
 }
 
 .sketch-footer__links {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.65rem;
 }
 
 @media (min-width: 768px) {
@@ -804,15 +961,18 @@
   }
 }
 
+a.sketch-footer__link,
 .sketch-footer__link {
-  color: #94a3b8;
-  font-size: 0.84rem;
-  text-decoration: none;
-  transition: color 0.15s ease;
+  color: #94a3b8 !important;
+  font-size: 0.875rem;
+  text-decoration: none !important;
+  transition: color 0.18s ease;
 }
 
+a.sketch-footer__link:hover,
 .sketch-footer__link:hover {
-  color: #ffffff;
+  color: #fda4af !important;
+  text-decoration: underline !important;
 }
 
 .sketch-footer__bottom {
@@ -822,7 +982,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.85rem;
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   color: #64748b;
 }
 
@@ -835,10 +995,12 @@
 .sketch-footer__credits {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.4rem;
 }
 
-/* AppShell Overrides for Full-Bleed Edge-to-Edge */
+/* ==========================================================================
+   AppShell Overrides for Seamless Full-Bleed Landing Page
+   ========================================================================== */
 .app-shell--home {
   background: #050204;
   overflow-x: clip;

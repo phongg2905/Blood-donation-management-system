@@ -30,12 +30,13 @@ import {
   validateScreening,
   type FieldErrors,
 } from './domain';
-import { useWorkflowMutation, useWorkflowQuery } from './hooks';
+import { useWorkflowMutation, useWorkflowQuery, usePageTransition } from './hooks';
 import { useWorkflowRepository } from './repository';
 import {
   DetailList,
   StationCompactHeader,
   StatusPill,
+  WorkflowPagination,
   WorkflowShell,
   type PillTone,
 } from './components';
@@ -65,6 +66,19 @@ export function ScreeningQueuePage() {
   const [search, setSearch] = useState('');
   const isTestEnv = import.meta.env.MODE === 'test';
 
+  const CAMPAIGN_PAGE_SIZE = 10;
+  const QUEUE_PAGE_SIZE = 12;
+  const campaignPagination = usePageTransition(1);
+  const queuePagination = usePageTransition(1);
+
+  useEffect(() => {
+    campaignPagination.resetPage();
+  }, [statusFilter, campaignPagination.resetPage]);
+
+  useEffect(() => {
+    queuePagination.resetPage();
+  }, [queueTab, search, campaignId, queuePagination.resetPage]);
+
   const campaignQuery = useCampaignQuery(
     `screening-campaign:${campaignId}`,
     () => campaignRepo.detail(campaignId!),
@@ -73,7 +87,7 @@ export function ScreeningQueuePage() {
 
   const campaignsListQuery = useCampaignQuery(
     'screening-campaigns-list',
-    () => campaignRepo.list({ page: 1, limit: 30, sort: 'desc' }),
+    () => campaignRepo.list({ page: 1, limit: 50, sort: 'desc' }),
     !campaignId,
   );
 
@@ -83,11 +97,15 @@ export function ScreeningQueuePage() {
     Boolean(campaignId),
   );
 
+  const [bypassLock, setBypassLock] = useState(false);
+
   const operationalWindow = campaignQuery.data
-    ? getOperationalWindow(campaignQuery.data.startsAt, campaignQuery.data.endsAt)
+    ? getOperationalWindow(campaignQuery.data.startsAt, campaignQuery.data.endsAt, {
+        campaignStatus: campaignQuery.data.status,
+      })
     : null;
 
-  const isClosedOrUpcoming = !isTestEnv && operationalWindow !== null && operationalWindow.status !== 'ACTIVE';
+  const isClosedOrUpcoming = !isTestEnv && !bypassLock && operationalWindow !== null && operationalWindow.status !== 'ACTIVE';
 
   // Stats calculation
   const stats = useMemo(() => {
@@ -130,7 +148,9 @@ export function ScreeningQueuePage() {
   if (!campaignId) {
     const rawCampaignsWithWindow = (campaignsListQuery.data?.items ?? []).map((campaign) => ({
       campaign,
-      window: getOperationalWindow(campaign.startsAt, campaign.endsAt),
+      window: getOperationalWindow(campaign.startsAt, campaign.endsAt, {
+        campaignStatus: campaign.status,
+      }),
     }));
 
     const campaignsWithWindow = sortCampaignsForOperationalStation(rawCampaignsWithWindow);
@@ -144,6 +164,19 @@ export function ScreeningQueuePage() {
       if (statusFilter === 'ALL') return true;
       return c.window.status === statusFilter;
     });
+
+    const campaignTotalPages = Math.max(
+      1,
+      Math.ceil(filteredCampaigns.length / CAMPAIGN_PAGE_SIZE),
+    );
+    const safeCampaignPage = Math.min(
+      Math.max(1, campaignPagination.page),
+      campaignTotalPages,
+    );
+    const paginatedCampaigns = filteredCampaigns.slice(
+      (safeCampaignPage - 1) * CAMPAIGN_PAGE_SIZE,
+      safeCampaignPage * CAMPAIGN_PAGE_SIZE,
+    );
 
     return (
       <WorkflowShell
@@ -196,69 +229,85 @@ export function ScreeningQueuePage() {
               </p>
             )}
 
-        <ul className="workflow-list">
-          {filteredCampaigns.map(({ campaign, window }) => {
-            const isOpen = isTestEnv || window.status === 'ACTIVE';
-            return (
-              <li
-                key={campaign.id}
-                className={`workflow-list__item ${window.status === 'ACTIVE' ? 'workflow-list__item--active' : ''}`}
-              >
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                    <h3 style={{ margin: 0 }}>{campaign.name}</h3>
-                    <span
-                      className={`station-badge-live station-badge-live--${
-                        window.status === 'ACTIVE'
-                          ? 'active'
-                          : window.status === 'UPCOMING'
-                            ? 'upcoming'
-                            : 'closed'
-                      }`}
+            {campaignPagination.pageTransitioning ? (
+              <QueryState
+                loading={true}
+                error={null}
+                retry={campaignsListQuery.retry}
+                variant="workflow-list"
+                count={3}
+              />
+            ) : (
+              <ul className="workflow-list workflow-page-enter" key={safeCampaignPage}>
+                {paginatedCampaigns.map(({ campaign, window }) => {
+                  const isOpen = isTestEnv || window.status === 'ACTIVE';
+                  return (
+                    <li
+                      key={campaign.id}
+                      className={`workflow-list__item ${window.status === 'ACTIVE' ? 'workflow-list__item--active' : ''}`}
                     >
-                      {OPERATIONAL_STATUS_SHORT_LABELS[window.status]}
-                    </span>
-                  </div>
-                  <p className="workflow-muted" style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                      <MapPin size={14} style={{ flexShrink: 0, opacity: 0.75 }} />
-                      {campaign.location}
-                    </span>
-                    <span>·</span>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                      <Clock size={14} style={{ flexShrink: 0, opacity: 0.75 }} />
-                      {formatDate(campaign.startsAt)}
-                    </span>
-                  </p>
-                  <p className="workflow-muted" style={{ fontSize: '0.8rem' }}>
-                    {window.message}
-                  </p>
-                </div>
-                <div className="workflow-list__side">
-                  <StatusPill tone={campaign.status === 'OPEN' ? 'success' : 'neutral'}>
-                    {campaign.status === 'OPEN' ? 'Đang mở' : campaign.status}
-                  </StatusPill>
-                  {isOpen ? (
-                    <Link
-                      className="btn btn--primary"
-                      to={`/campaigns/${campaign.id}/screening`}
-                    >
-                      Vào bàn sàng lọc
-                    </Link>
-                  ) : (
-                    <Button
-                      disabled
-                      variant="secondary"
-                      title="Chỉ mở khám sàng lọc trong khung giờ quy định"
-                    >
-                      {OPERATIONAL_STATUS_SHORT_LABELS[window.status]}
-                    </Button>
-                  )}
-                </div>
-              </li>
-            );
-          })}
-            </ul>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          <h3 style={{ margin: 0 }}>{campaign.name}</h3>
+                          <span
+                            className={`station-badge-live station-badge-live--${
+                              window.status === 'ACTIVE'
+                                ? 'active'
+                                : window.status === 'UPCOMING'
+                                  ? 'upcoming'
+                                  : 'closed'
+                            }`}
+                          >
+                            {OPERATIONAL_STATUS_SHORT_LABELS[window.status]}
+                          </span>
+                        </div>
+                        <p className="workflow-muted" style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                            <MapPin size={14} style={{ flexShrink: 0, opacity: 0.75 }} />
+                            {campaign.location}
+                          </span>
+                          <span>·</span>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                            <Clock size={14} style={{ flexShrink: 0, opacity: 0.75 }} />
+                            {formatDate(campaign.startsAt)}
+                          </span>
+                        </p>
+                        <p className="workflow-muted" style={{ fontSize: '0.8rem' }}>
+                          {window.message}
+                        </p>
+                      </div>
+                      <div className="workflow-list__side">
+                        {isOpen ? (
+                          <Link
+                            className="btn btn--primary"
+                            to={`/campaigns/${campaign.id}/screening`}
+                          >
+                            Vào bàn sàng lọc
+                          </Link>
+                        ) : (
+                          <Button
+                            disabled
+                            variant="secondary"
+                            title="Chỉ mở khám sàng lọc trong khung giờ quy định"
+                          >
+                            {OPERATIONAL_STATUS_SHORT_LABELS[window.status]}
+                          </Button>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+
+            <WorkflowPagination
+              page={safeCampaignPage}
+              totalPages={campaignTotalPages}
+              total={filteredCampaigns.length}
+              pageSize={CAMPAIGN_PAGE_SIZE}
+              onChange={campaignPagination.changePage}
+              itemLabel="đợt hiến"
+            />
           </>
         )}
       </WorkflowShell>
@@ -291,6 +340,13 @@ export function ScreeningQueuePage() {
             {operationalWindow.message}
           </p>
           <div className="station-blocked__actions">
+            <button
+              type="button"
+              className="btn btn--secondary"
+              onClick={() => setBypassLock(true)}
+            >
+              Tiếp tục vào xem danh sách (Bỏ qua khóa)
+            </button>
             <Link className="btn btn--primary" to="/clinic/screening">
               Chọn đợt hiến đang mở
             </Link>
@@ -406,63 +462,99 @@ export function ScreeningQueuePage() {
         </p>
       )}
 
-      {!queue.loading && queue.data && filteredQueue.length > 0 && (
-        <ul className="workflow-list">
-        {filteredQueue.map(({ registration, screening }) => {
-          // Check if health declaration has any warning answers
-          const hasRiskAnswers = registration.healthDeclaration?.answers
-            ? Object.values(registration.healthDeclaration.answers).some((val) => val === true)
-            : false;
+      {!queue.loading && queue.data && filteredQueue.length > 0 && (() => {
+        const queueTotalPages = Math.max(
+          1,
+          Math.ceil(filteredQueue.length / QUEUE_PAGE_SIZE),
+        );
+        const safeQueuePage = Math.min(
+          Math.max(1, queuePagination.page),
+          queueTotalPages,
+        );
+        const paginatedQueue = filteredQueue.slice(
+          (safeQueuePage - 1) * QUEUE_PAGE_SIZE,
+          safeQueuePage * QUEUE_PAGE_SIZE,
+        );
 
-          return (
-            <li key={registration.id} className="workflow-list__item">
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '4px' }}>
-                  <h3 style={{ margin: 0 }}>{registration.donorName}</h3>
-                  {hasRiskAnswers && (
-                    <span
-                      style={{
-                        fontSize: '0.74rem',
-                        fontWeight: 700,
-                        padding: '1px 7px',
-                        borderRadius: '999px',
-                        background: '#fef3c7',
-                        color: '#b45309',
-                        border: '1px solid #fde68a',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                      }}
-                    >
-                      <AlertTriangle size={12} />
-                      <span>Có yếu tố cần lưu ý</span>
-                    </span>
-                  )}
-                </div>
-                <p className="workflow-muted">
-                  Mã: <strong>{registration.code}</strong> {registration.donorIdentity && `· CCCD: ${registration.donorIdentity}`}
-                </p>
-                <p className="workflow-muted" style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <Clock size={13} style={{ flexShrink: 0, opacity: 0.75 }} />
-                  <span>{formatSlotRange(registration.slotStartsAt, registration.slotEndsAt)}</span>
-                </p>
-              </div>
-              <div className="workflow-list__side">
-                <StatusPill tone={screeningTone[screening.status]}>
-                  {SCREENING_STATUS_LABELS[screening.status]}
-                </StatusPill>
-                <Link
-                  className="btn btn--primary"
-                  to={`/campaigns/${campaignId}/screening/${registration.id}`}
-                >
-                  Mở phiếu
-                </Link>
-              </div>
-            </li>
-          );
-        })}
-        </ul>
-      )}
+        return (
+          <>
+            {queuePagination.pageTransitioning ? (
+              <QueryState
+                loading={true}
+                error={null}
+                retry={queue.retry}
+                variant="workflow-list"
+                count={3}
+              />
+            ) : (
+              <ul className="workflow-list workflow-page-enter" key={safeQueuePage}>
+                {paginatedQueue.map(({ registration, screening }) => {
+                  // Check if health declaration has any warning answers
+                  const hasRiskAnswers = registration.healthDeclaration?.answers
+                    ? Object.values(registration.healthDeclaration.answers).some((val) => val === true)
+                    : false;
+
+                  return (
+                    <li key={registration.id} className="workflow-list__item">
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '4px' }}>
+                          <h3 style={{ margin: 0 }}>{registration.donorName}</h3>
+                          {hasRiskAnswers && (
+                            <span
+                              style={{
+                                fontSize: '0.74rem',
+                                fontWeight: 700,
+                                padding: '1px 7px',
+                                borderRadius: '999px',
+                                background: '#fef3c7',
+                                color: '#b45309',
+                                border: '1px solid #fde68a',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                              }}
+                            >
+                              <AlertTriangle size={12} />
+                              <span>Có yếu tố cần lưu ý</span>
+                            </span>
+                          )}
+                        </div>
+                        <p className="workflow-muted">
+                          Mã: <strong>{registration.code}</strong> {registration.donorIdentity && `· CCCD: ${registration.donorIdentity}`}
+                        </p>
+                        <p className="workflow-muted" style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <Clock size={13} style={{ flexShrink: 0, opacity: 0.75 }} />
+                          <span>{formatSlotRange(registration.slotStartsAt, registration.slotEndsAt)}</span>
+                        </p>
+                      </div>
+                      <div className="workflow-list__side">
+                        <StatusPill tone={screeningTone[screening.status]}>
+                          {SCREENING_STATUS_LABELS[screening.status]}
+                        </StatusPill>
+                        <Link
+                          className="btn btn--primary"
+                          to={`/campaigns/${campaignId}/screening/${registration.id}`}
+                        >
+                          Mở phiếu
+                        </Link>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+
+            <WorkflowPagination
+              page={safeQueuePage}
+              totalPages={queueTotalPages}
+              total={filteredQueue.length}
+              pageSize={QUEUE_PAGE_SIZE}
+              onChange={queuePagination.changePage}
+              itemLabel="người hiến"
+            />
+          </>
+        );
+      })()}
     </WorkflowShell>
   );
 }
@@ -495,7 +587,9 @@ export function ScreeningPage() {
   );
 
   const operationalWindow = campaignQuery.data
-    ? getOperationalWindow(campaignQuery.data.startsAt, campaignQuery.data.endsAt)
+    ? getOperationalWindow(campaignQuery.data.startsAt, campaignQuery.data.endsAt, {
+        campaignStatus: campaignQuery.data.status,
+      })
     : null;
 
   const isLocked = operationalWindow ? !operationalWindow.isOpen && !bypassLock : false;
@@ -661,7 +755,7 @@ export function ScreeningPage() {
       {isLocked && (
         <p className="workflow-muted" style={{ color: '#b45309', margin: '0 0 12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
           <AlertTriangle size={16} style={{ flexShrink: 0 }} />
-          <span>Bàn sàng lọc hiện không trong khung giờ tác nghiệp của đợt hiến ({operationalWindow?.message}).</span>
+          <span>Bàn sàng lọc hiện không trong khung giờ tác nghiệp của đợt hiến.</span>
         </p>
       )}
 
@@ -775,7 +869,7 @@ export function ScreeningPage() {
                     label: 'Nhóm máu & Rh',
                     value: screening.bloodGroup
                       ? `${screening.bloodGroup} (${screening.rh === 'POSITIVE' ? 'Rh+' : screening.rh === 'NEGATIVE' ? 'Rh−' : 'Rh chưa rõ'})`
-                      : 'Chưa rõ (Chờ kết quả xét nghiệm phòng Lab)',
+                      : 'Chưa rõ',
                   },
                   {
                     label: 'Test nhanh truyền nhiễm',

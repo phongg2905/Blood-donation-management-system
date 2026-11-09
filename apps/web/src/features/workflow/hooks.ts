@@ -45,10 +45,6 @@ export function useWorkflowQuery<T>(
   latest.current = fetcher;
   const [revision, setRevision] = useState(0);
 
-  const cached = enabled
-    ? (workflowQueryCache.get(identity) as WorkflowCacheEntry<T> | undefined)
-    : undefined;
-
   const [state, setState] = useState<{
     key: string;
     data?: T;
@@ -56,26 +52,19 @@ export function useWorkflowQuery<T>(
     loading: boolean;
   }>(() => ({
     key: identity,
-    data: cached?.data,
-    loading: enabled && cached?.data === undefined,
+    data: undefined,
+    loading: enabled,
   }));
 
   useEffect(() => {
     let active = true;
     if (!enabled) return;
 
-    const currentCached = workflowQueryCache.get(identity) as
-      | WorkflowCacheEntry<T>
-      | undefined;
-    const hasData = currentCached?.data !== undefined;
-
-    if (!hasData) {
-      setState((previous) => ({
-        key: identity,
-        data: previous.key === identity ? previous.data : undefined,
-        loading: true,
-      }));
-    }
+    setState({
+      key: identity,
+      data: undefined,
+      loading: true,
+    });
 
     let inFlight = workflowInFlight.get(identity) as Promise<T> | undefined;
     if (!inFlight) {
@@ -110,6 +99,40 @@ export function useWorkflowQuery<T>(
       setRevision((n) => n + 1);
     }, [identity]),
   };
+}
+
+/**
+ * Client-side pagination state with a smooth skeleton/transition state
+ * when changing pages so page switches provide clear visual feedback.
+ */
+export function usePageTransition(initialPage = 1) {
+  const [page, setPage] = useState(initialPage);
+  const [pageTransitioning, setPageTransitioning] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
+
+  const changePage = useCallback((nextPage: number) => {
+    setPage(nextPage);
+    if (import.meta.env.MODE === 'test') return;
+    if (timerRef.current) clearTimeout(timerRef.current);
+    setPageTransitioning(true);
+    timerRef.current = setTimeout(() => {
+      setPageTransitioning(false);
+    }, 180);
+  }, []);
+
+  const resetPage = useCallback(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    setPageTransitioning(false);
+    setPage(1);
+  }, []);
+
+  return { page, pageTransitioning, changePage, resetPage };
 }
 
 /** Single-flight mutation with success/error feedback and a double-submit lock. */

@@ -24,8 +24,8 @@ import {
   ACTIONS,
   canAct,
   formatDate,
+  getRegistrationWindowInfo,
   STATUS_LABELS,
-  timezoneLabel,
 } from './domain';
 import { useCampaignMutation, useCampaignQuery } from './hooks';
 import { useCampaignRepository } from './repository';
@@ -35,6 +35,7 @@ import {
   getOperationalWindow,
   OPERATIONAL_STATUS_SHORT_LABELS,
 } from '@/features/workflow/domain';
+import { WorkflowPagination } from '@/features/workflow/components';
 
 export function CampaignListPage() {
   const repository = useCampaignRepository();
@@ -46,13 +47,16 @@ export function CampaignListPage() {
     Number.isSafeInteger(requestedPage) && requestedPage > 0
       ? requestedPage
       : 1;
+  const isUpcoming = status === 'UPCOMING';
   const query: CampaignQuery = {
     page,
-    limit: 6,
+    limit: 10,
     search: params.get('search') ?? '',
-    ...(CAMPAIGN_STATUSES.includes(status as CampaignStatus)
-      ? { status: status as CampaignStatus }
-      : {}),
+    ...(isUpcoming
+      ? { status: 'UPCOMING' }
+      : CAMPAIGN_STATUSES.includes(status as CampaignStatus)
+        ? { status: status as CampaignStatus }
+        : {}),
     ...(params.get('from') ? { from: params.get('from')! } : {}),
     ...(params.get('to') ? { to: params.get('to')! } : {}),
     sort: params.get('sort') === 'desc' ? 'desc' : 'asc',
@@ -96,11 +100,14 @@ export function CampaignListPage() {
             onChange={(event) => change('status', event.target.value)}
           >
             <option value="">Tất cả trạng thái</option>
-            {CAMPAIGN_STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {STATUS_LABELS[s]}
-              </option>
-            ))}
+            <option value="OPEN">Đang mở nhận đăng ký</option>
+            <option value="UPCOMING">Sắp mở đăng ký</option>
+            <option value="CLOSED">Đã đóng đăng ký</option>
+            <option value="COMPLETED">Đã hoàn tất</option>
+            <option value="CANCELLED">Đã hủy</option>
+            {hasPermission('campaign.create') && (
+              <option value="DRAFT">Bản nháp</option>
+            )}
           </select>
         </FormField>
         <FormField id="campaign-from" label="Từ ngày">
@@ -136,15 +143,47 @@ export function CampaignListPage() {
       {!result.loading && result.data && (
         <>
           <p className="campaign-muted" role="status">
-            {result.data.meta.total} đợt hiến máu · Thời gian theo{' '}
-            {timezoneLabel}
+            {result.data.meta.total} đợt hiến máu
           </p>
           {result.data.items.length ? (
             <div className="campaign-list">
               {result.data.items.map((campaign) => (
                 <article className="campaign-row" key={campaign.id}>
                   <div>
-                    <StatusBadge status={campaign.status} />
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        flexWrap: 'wrap',
+                        marginBottom: '8px',
+                      }}
+                    >
+                      {(() => {
+                        const regInfo = getRegistrationWindowInfo(campaign);
+                        const isUpcoming =
+                          campaign.status === 'OPEN' &&
+                          regInfo.state === 'NOT_OPEN_YET';
+                        return (
+                          <>
+                            {isUpcoming ? (
+                              <span className="campaign-status campaign-status--upcoming">
+                                Sắp mở đăng ký
+                              </span>
+                            ) : (
+                              <StatusBadge status={campaign.status} />
+                            )}
+                            {regInfo.label && (
+                              <span
+                                className={`reg-timing-note reg-timing-note--${regInfo.state.toLowerCase()}`}
+                              >
+                                {regInfo.label}
+                              </span>
+                            )}
+                          </>
+                        );
+                      })()}
+                    </div>
                     <h2>
                       <Link to={`/campaigns/${campaign.id}`}>
                         {campaign.name}
@@ -155,17 +194,36 @@ export function CampaignListPage() {
                   </div>
                   <div className="campaign-row-aside">
                     <time dateTime={campaign.startsAt}>
-                      {formatDate(campaign.startsAt)}
+                      Bắt đầu: {formatDate(campaign.startsAt)}
                     </time>
-                    {hasPermission('registration.create') &&
-                      campaign.status === 'OPEN' && (
-                        <Link
-                          className="btn btn--primary"
-                          to={`/donor/register?campaign=${campaign.id}`}
-                        >
-                          Đăng ký hiến máu
-                        </Link>
-                      )}
+                    {(() => {
+                      const regInfo = getRegistrationWindowInfo(campaign);
+                      if (!hasPermission('registration.create')) return null;
+                      if (campaign.status === 'OPEN') {
+                        if (regInfo.isAcceptingRegistration) {
+                          return (
+                            <Link
+                              className="btn btn--primary"
+                              to={`/donor/register?campaign=${campaign.id}`}
+                            >
+                              Đăng ký hiến máu
+                            </Link>
+                          );
+                        }
+                        if (regInfo.state === 'NOT_OPEN_YET') {
+                          return (
+                            <span
+                              className="btn btn--secondary"
+                              style={{ opacity: 0.6, cursor: 'not-allowed' }}
+                              title="Chưa đến thời gian mở cổng đăng ký"
+                            >
+                              Chưa mở đăng ký
+                            </span>
+                          );
+                        }
+                      }
+                      return null;
+                    })()}
                     <Link
                       className="btn btn--secondary"
                       to={`/campaigns/${campaign.id}`}
@@ -185,25 +243,14 @@ export function CampaignListPage() {
               </Button>
             </div>
           )}
-          <nav className="campaign-pagination" aria-label="Phân trang đợt hiến">
-            <Button
-              variant="secondary"
-              disabled={page <= 1}
-              onClick={() => change('page', String(page - 1))}
-            >
-              Trang trước
-            </Button>
-            <span>
-              Trang {page} / {Math.max(1, result.data.meta.totalPages)}
-            </span>
-            <Button
-              variant="secondary"
-              disabled={page >= result.data.meta.totalPages}
-              onClick={() => change('page', String(page + 1))}
-            >
-              Trang sau
-            </Button>
-          </nav>
+          <WorkflowPagination
+            page={page}
+            totalPages={result.data.meta.totalPages}
+            total={result.data.meta.total}
+            pageSize={10}
+            onChange={(nextPage) => change('page', String(nextPage))}
+            itemLabel="đợt hiến"
+          />
         </>
       )}
     </CampaignShell>
@@ -250,17 +297,65 @@ function CampaignDetail({
         }
       />
       <div className="campaign-toolbar">
-        <StatusBadge status={campaign.status} />
+        {(() => {
+          const regInfo = getRegistrationWindowInfo(campaign);
+          const isUpcoming =
+            campaign.status === 'OPEN' && regInfo.state === 'NOT_OPEN_YET';
+          return (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                flexWrap: 'wrap',
+              }}
+            >
+              {isUpcoming ? (
+                <span className="campaign-status campaign-status--upcoming">
+                  Sắp mở đăng ký
+                </span>
+              ) : (
+                <StatusBadge status={campaign.status} />
+              )}
+              {regInfo.label && (
+                <span
+                  className={`reg-timing-note reg-timing-note--${regInfo.state.toLowerCase()}`}
+                >
+                  {regInfo.label}
+                </span>
+              )}
+            </div>
+          );
+        })()}
         <div className="campaign-actions">
-          {hasPermission('registration.create') &&
-            campaign.status === 'OPEN' && (
-              <Link
-                className="btn btn--primary"
-                to={`/donor/register?campaign=${campaign.id}`}
-              >
-                Đăng ký hiến máu
-              </Link>
-            )}
+          {(() => {
+            const regInfo = getRegistrationWindowInfo(campaign);
+            if (!hasPermission('registration.create')) return null;
+            if (campaign.status === 'OPEN') {
+              if (regInfo.isAcceptingRegistration) {
+                return (
+                  <Link
+                    className="btn btn--primary"
+                    to={`/donor/register?campaign=${campaign.id}`}
+                  >
+                    Đăng ký hiến máu
+                  </Link>
+                );
+              }
+              if (regInfo.state === 'NOT_OPEN_YET') {
+                return (
+                  <span
+                    className="btn btn--secondary"
+                    style={{ opacity: 0.6, cursor: 'not-allowed' }}
+                    title="Chưa đến thời gian mở cổng đăng ký"
+                  >
+                    Chưa mở đăng ký
+                  </span>
+                );
+              }
+            }
+            return null;
+          })()}
           {hasPermission('campaign.update') &&
             !CAMPAIGN_STATUSES_FROZEN.includes(campaign.status) && (
               <Link
@@ -270,6 +365,14 @@ function CampaignDetail({
                 Chỉnh sửa
               </Link>
             )}
+          {hasPermission('campaign_staff.read') && (
+            <Link
+              className="btn btn--secondary"
+              to={`/campaigns/${campaign.id}/staff`}
+            >
+              Nhân sự đợt hiến
+            </Link>
+          )}
           {(Object.keys(ACTIONS) as CampaignAction[])
             .filter(
               (key) =>
@@ -324,7 +427,6 @@ function CampaignDetail({
               </div>
             ))}
         </dl>
-        <p className="campaign-muted">Thời gian theo {timezoneLabel}.</p>
         {campaign.description && (
           <p className="campaign-description">{campaign.description}</p>
         )}
@@ -360,7 +462,9 @@ function CampaignDetail({
         hasPermission('screening.review') ||
         hasPermission('campaign_staff.read')) && (() => {
         const isTestEnv = import.meta.env.MODE === 'test';
-        const opsWindow = getOperationalWindow(campaign.startsAt, campaign.endsAt);
+        const opsWindow = getOperationalWindow(campaign.startsAt, campaign.endsAt, {
+          campaignStatus: campaign.status,
+        });
         const isOpsOpen = isTestEnv || opsWindow.status === 'ACTIVE';
         return (
           <section className="panel" aria-labelledby="campaign-ops-heading">

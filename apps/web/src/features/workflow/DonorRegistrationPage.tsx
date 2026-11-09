@@ -18,7 +18,6 @@ import { useWorkflowMutation, useWorkflowQuery } from './hooks';
 import { useWorkflowRepository } from './repository';
 import {
   DetailList,
-  QrPlaceholder,
   Stepper,
   type StepDefinition,
 } from './components';
@@ -205,9 +204,11 @@ export function DonorRegistrationPage() {
             {slotData.data?.slots
               .filter((item) => item.isActive)
               .map((item) => {
+                const isPast = new Date().getTime() >= new Date(item.startsAt).getTime();
                 const registered = item.occupied ?? slotData.data?.counts[item.id] ?? 0;
                 const remaining = Math.max(item.capacity - registered, 0);
                 const full = remaining === 0;
+                const isUnavailable = isPast || full;
                 return (
                   <li key={item.id} className="workflow-list__item">
                     <div>
@@ -219,18 +220,18 @@ export function DonorRegistrationPage() {
                     </div>
                     <div className="workflow-list__side">
                       <span
-                        className={`pill pill--${full ? 'danger' : 'info'}`}
+                        className={`pill pill--${isPast ? 'neutral' : full ? 'danger' : 'info'}`}
                       >
-                        {full ? 'Hết chỗ' : 'Còn chỗ'}
+                        {isPast ? 'Đã qua giờ' : full ? 'Hết chỗ' : 'Còn chỗ'}
                       </span>
                       <Button
-                        disabled={full}
+                        disabled={isUnavailable}
                         onClick={() => {
                           setSlot(item);
                           setStep(2);
                         }}
                       >
-                        {full ? 'Hết chỗ' : 'Chọn khung giờ'}
+                        {isPast ? 'Đã qua giờ' : full ? 'Hết chỗ' : 'Chọn khung giờ'}
                       </Button>
                     </div>
                   </li>
@@ -360,29 +361,26 @@ export function DonorRegistrationPage() {
       {step === 4 && created && (
         <section className="workflow-card" aria-labelledby="step-done">
           <h2 id="step-done">Bước 5 · Đăng ký thành công</h2>
-          <div className="workflow-confirmation">
-            <div>
-              <p className="workflow-muted">Mã đăng ký của bạn</p>
-              <p className="workflow-code">{created.code}</p>
-              <DetailList
-                items={[
-                  { label: 'Đợt hiến', value: created.campaignName },
-                  { label: 'Địa điểm', value: created.location },
-                  {
-                    label: 'Khung giờ',
-                    value: formatSlotRange(
-                      created.slotStartsAt,
-                      created.slotEndsAt,
-                    ),
-                  },
-                  {
-                    label: 'Trạng thái',
-                    value: REGISTRATION_STATUS_LABELS[created.status],
-                  },
-                ]}
-              />
-            </div>
-            <QrPlaceholder code={created.code} />
+          <div>
+            <p className="workflow-muted">Mã đăng ký của bạn</p>
+            <p className="workflow-code">{created.code}</p>
+            <DetailList
+              items={[
+                { label: 'Đợt hiến', value: created.campaignName },
+                { label: 'Địa điểm', value: created.location },
+                {
+                  label: 'Khung giờ',
+                  value: formatSlotRange(
+                    created.slotStartsAt,
+                    created.slotEndsAt,
+                  ),
+                },
+                {
+                  label: 'Trạng thái',
+                  value: REGISTRATION_STATUS_LABELS[created.status],
+                },
+              ]}
+            />
           </div>
           <div className="status status--info" style={{ marginTop: '1.25rem', marginBottom: '1.5rem' }}>
             <span className="status__icon" aria-hidden="true">ℹ</span>

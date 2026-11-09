@@ -137,16 +137,16 @@ export class MockCampaignRepository implements CampaignRepository {
 
     const first = this.campaigns[0];
     if (first) {
+      const baseTime = Math.max(
+        Date.parse(first.startsAt),
+        Date.now() - 3600000,
+      );
       this.timeSlots = [0, 1, 2, 3, 4].map((i) => ({
         id: `slot-${i}`,
         campaignId: first.id,
         label: null,
-        startsAt: new Date(
-          Date.parse(first.startsAt) + (i + 0.5) * 3600000,
-        ).toISOString(),
-        endsAt: new Date(
-          Date.parse(first.startsAt) + (i + 1.5) * 3600000,
-        ).toISOString(),
+        startsAt: new Date(baseTime + (i + 1) * 3600000).toISOString(),
+        endsAt: new Date(baseTime + (i + 2) * 3600000).toISOString(),
         capacity: 20,
         isActive: i !== 4,
       }));
@@ -197,7 +197,16 @@ export class MockCampaignRepository implements CampaignRepository {
             `${c.name} ${c.location}`
               .toLocaleLowerCase('vi')
               .includes(query.search.toLocaleLowerCase('vi'))) &&
-          (!query.status || c.status === query.status) &&
+          (!query.status ||
+            (query.status === 'UPCOMING'
+              ? c.status === 'OPEN' &&
+                !!c.registrationOpensAt &&
+                Date.parse(c.registrationOpensAt) > Date.now()
+              : query.status === 'OPEN'
+                ? c.status === 'OPEN' &&
+                  (!c.registrationOpensAt ||
+                    Date.parse(c.registrationOpensAt) <= Date.now())
+                : c.status === query.status)) &&
           (!query.from ||
             Date.parse(c.startsAt) >= boundary(query.from, false)) &&
           (!query.to || Date.parse(c.startsAt) <= boundary(query.to, true)),
@@ -330,12 +339,16 @@ export class MockCampaignRepository implements CampaignRepository {
     this.find(id);
     if (
       !this.assignments.some(
-        (s) => s.campaignId === id && s.id === assignmentId,
+        (s) =>
+          s.campaignId === id &&
+          (s.id === assignmentId || s.userId === assignmentId),
       )
     )
       throw new ApiRequestError('ROUTE_NOT_FOUND', '', 404);
     this.assignments = this.assignments.filter(
-      (s) => s.campaignId !== id || s.id !== assignmentId,
+      (s) =>
+        s.campaignId !== id ||
+        (s.id !== assignmentId && s.userId !== assignmentId),
     );
   }
 }

@@ -95,6 +95,7 @@ interface StoredUser {
   id: string;
   email: string;
   fullName: string;
+  citizenId?: string;
   /** Mock only — a real backend stores a hash and never returns it. */
   password: string;
   role: ActorCode;
@@ -164,10 +165,23 @@ export class MockAuthService implements AuthService {
 
   private profileOverrides(): Record<
     string,
-    { fullName?: string; phone?: string; address?: string }
+    {
+      fullName?: string;
+      citizenId?: string;
+      phone?: string;
+      address?: string;
+    }
   > {
     return readJson<
-      Record<string, { fullName?: string; phone?: string; address?: string }>
+      Record<
+        string,
+        {
+          fullName?: string;
+          citizenId?: string;
+          phone?: string;
+          address?: string;
+        }
+      >
     >(STORAGE_KEYS.profiles, {});
   }
 
@@ -201,9 +215,18 @@ export class MockAuthService implements AuthService {
       fullName: override?.fullName ?? stored.fullName,
       // Mirrors the delivered API: contact fields exist only for DONOR
       // accounts (stored in DonorProfile) and are null until filled in.
-      ...(stored.role === 'DONOR'
-        ? { phone: override?.phone ?? null, address: override?.address ?? null }
-        : {}),
+      citizenId:
+        override?.citizenId ??
+        stored.citizenId ??
+        (stored.role === 'DONOR'
+          ? '001200012345'
+          : stored.role === 'SYSTEM_ADMIN'
+            ? '079088001001'
+            : stored.role === 'DONATION_STAFF'
+              ? '079095001003'
+              : '079190001004'),
+      phone: override?.phone ?? null,
+      address: override?.address ?? null,
       roles: [stored.role],
       permissions: permissionsFor(stored.role),
     };
@@ -242,6 +265,7 @@ export class MockAuthService implements AuthService {
     fullName,
     email,
     password,
+    citizenId,
   }: RegisterInput): Promise<AuthUser> {
     await this.simulateLatency();
     if (this.findUser(email)) {
@@ -256,6 +280,7 @@ export class MockAuthService implements AuthService {
       id: `mock-user-${Date.now().toString(36)}`,
       email: normalizeEmail(email),
       fullName: fullName.trim(),
+      citizenId: citizenId.trim(),
       password,
       role: 'DONOR',
       isActive: true,
@@ -328,6 +353,7 @@ export class MockAuthService implements AuthService {
     }
     if (
       input.fullName !== undefined ||
+      input.citizenId !== undefined ||
       input.phone !== undefined ||
       input.address !== undefined
     ) {
@@ -336,6 +362,9 @@ export class MockAuthService implements AuthService {
         ...overrides[current.id],
         ...(input.fullName !== undefined
           ? { fullName: input.fullName.trim() }
+          : {}),
+        ...(input.citizenId !== undefined
+          ? { citizenId: input.citizenId.trim() }
           : {}),
         ...(input.phone !== undefined ? { phone: input.phone.trim() } : {}),
         ...(input.address !== undefined

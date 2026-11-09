@@ -35,6 +35,91 @@ export const formatDate = (value: string) =>
     timeStyle: 'short',
   }).format(new Date(value));
 export const timezoneLabel = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+export interface RegistrationWindowInfo {
+  state: 'NOT_OPEN_YET' | 'OPEN' | 'CLOSED' | 'NONE';
+  label: string | null;
+  isAcceptingRegistration: boolean;
+}
+
+export function getRegistrationWindowInfo(
+  campaign: {
+    status: CampaignStatus;
+    registrationOpensAt?: string | null;
+    registrationClosesAt?: string | null;
+  },
+  now = new Date(),
+): RegistrationWindowInfo {
+  if (campaign.status === 'CANCELLED' || campaign.status === 'COMPLETED') {
+    return {
+      state: 'NONE',
+      label: null,
+      isAcceptingRegistration: false,
+    };
+  }
+
+  const opensAt = campaign.registrationOpensAt
+    ? new Date(campaign.registrationOpensAt)
+    : null;
+  const closesAt = campaign.registrationClosesAt
+    ? new Date(campaign.registrationClosesAt)
+    : null;
+
+  if (campaign.status === 'DRAFT') {
+    if (opensAt && now < opensAt) {
+      return {
+        state: 'NOT_OPEN_YET',
+        label: `Dự kiến mở: ${formatDate(campaign.registrationOpensAt!)}`,
+        isAcceptingRegistration: false,
+      };
+    }
+    return {
+      state: 'NOT_OPEN_YET',
+      label: null,
+      isAcceptingRegistration: false,
+    };
+  }
+
+  if (campaign.status === 'CLOSED') {
+    if (closesAt) {
+      return {
+        state: 'CLOSED',
+        label: `Cổng đã đóng: ${formatDate(campaign.registrationClosesAt!)}`,
+        isAcceptingRegistration: false,
+      };
+    }
+    return {
+      state: 'CLOSED',
+      label: null,
+      isAcceptingRegistration: false,
+    };
+  }
+
+  // When status is OPEN
+  if (opensAt && now < opensAt) {
+    return {
+      state: 'NOT_OPEN_YET',
+      label: `Mở cổng lúc: ${formatDate(campaign.registrationOpensAt!)}`,
+      isAcceptingRegistration: false,
+    };
+  }
+
+  if (closesAt && now >= closesAt) {
+    return {
+      state: 'CLOSED',
+      label: `Hết hạn nhận hồ sơ: ${formatDate(campaign.registrationClosesAt!)}`,
+      isAcceptingRegistration: false,
+    };
+  }
+
+  return {
+    state: 'OPEN',
+    label: closesAt
+      ? `Hạn đăng ký: ${formatDate(campaign.registrationClosesAt!)}`
+      : null,
+    isAcceptingRegistration: true,
+  };
+}
 export function toLocalInput(value: string | null): string {
   if (!value) return '';
   const date = new Date(value);

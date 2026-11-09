@@ -9,7 +9,11 @@ import { CampaignRepositoryContext } from '@/features/campaigns/repository';
 import { MockCampaignRepository } from '@/features/campaigns/mock-repository';
 import { MockWorkflowRepository } from './mock-repository';
 import { WorkflowRepositoryContext } from './repository';
-import { sortCampaignsForOperationalStation, sortRegistrationsForCheckIn } from './domain';
+import {
+  generateStandardBloodBagCode,
+  sortCampaignsForOperationalStation,
+  sortRegistrationsForCheckIn,
+} from './domain';
 import type { DonorRegistration } from './types';
 
 const withRepositories = (node: ReactNode) => (
@@ -540,5 +544,19 @@ describe('sortRegistrationsForCheckIn', () => {
     // Checked-in donors come later, sorted by most recently checked in first:
     expect(sorted[2]?.id).toBe('reg-4'); // Check-in lúc 08:45
     expect(sorted[3]?.id).toBe('reg-1'); // Check-in lúc 08:15
+  });
+});
+
+describe('generateStandardBloodBagCode', () => {
+  it('generates unique DIN codes following Circular 26/2013/TT-BYT format', () => {
+    const year = new Date().getFullYear();
+    const nihbt = generateStandardBloodBagCode('Ngày hội Xuân hồng - Viện Huyết học TW');
+    const choRay = generateStandardBloodBagCode('Hiến máu tại Bệnh viện Chợ Rẫy');
+    const redCross = generateStandardBloodBagCode('Ngày hội Giọt hồng Nhân ái');
+
+    expect(nihbt).toMatch(new RegExp(`^NIHBT-${year}-WB-\\d{5}$`));
+    expect(choRay).toMatch(new RegExp(`^CR-${year}-WB-\\d{5}$`));
+    expect(redCross).toMatch(new RegExp(`^RC-${year}-WB-\\d{5}$`));
+    expect(nihbt).not.toBe(choRay);
   });
 });

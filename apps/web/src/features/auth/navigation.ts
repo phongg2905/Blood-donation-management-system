@@ -101,4 +101,9 @@ export const visibleNavItems = (
     (item) =>
       (!item.permission || hasPermission(item.permission)) &&
       (!item.roles || (actor !== null && item.roles.includes(actor))),
-  );
+  ).map((item) => {
+    if (actor === 'SYSTEM_ADMIN' && item.to === AUTH_ROUTES.home) {
+      return { ...item, label: 'Tổng quan' };
+    }
+    return item;
+  });

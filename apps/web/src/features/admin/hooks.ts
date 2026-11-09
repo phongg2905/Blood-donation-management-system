@@ -2,11 +2,35 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { describeError } from './domain';
 
+interface AdminCacheEntry<T> {
+  data: T;
+  timestamp: number;
+}
+
+const adminQueryCache = new Map<string, AdminCacheEntry<unknown>>();
+const adminInFlight = new Map<string, Promise<unknown>>();
+
+export function clearAdminQueryCache(keyPrefix?: string) {
+  if (!keyPrefix) {
+    adminQueryCache.clear();
+    adminInFlight.clear();
+    return;
+  }
+  for (const key of adminQueryCache.keys()) {
+    if (key.includes(keyPrefix)) adminQueryCache.delete(key);
+  }
+  for (const key of adminInFlight.keys()) {
+    if (key.includes(keyPrefix)) adminInFlight.delete(key);
+  }
+}
+
 /**
- * Session-scoped async query.
+ * Session-scoped async query with SWR caching and keepPreviousData.
  *
- * The key carries the user id and permissions so a late response can never
- * replace the data of a different route or account.
+ * SWR caching ensures returning to a previously loaded admin tab is instantaneous (0ms)
+ * without flashing full-page Skeletons.
+ * keepPreviousData keeps existing table data visible while filtering/paginating,
+ * avoiding visual flicker.
  */
 export function useAdminQuery<T>(
   key: string,
@@ -18,41 +42,63 @@ export function useAdminQuery<T>(
   const latest = useRef(fetcher);
   latest.current = fetcher;
   const [revision, setRevision] = useState(0);
+
   const [state, setState] = useState<{
     key: string;
     data?: T;
     error?: unknown;
     loading: boolean;
-  }>({ key: identity, loading: true });
+  }>(() => ({
+    key: identity,
+    data: undefined,
+    loading: enabled,
+  }));
 
   useEffect(() => {
     let active = true;
     if (!enabled) return;
-    setState((previous) => ({
+
+    setState({
       key: identity,
-      ...(previous.key === identity && previous.data !== undefined
-        ? { data: previous.data }
-        : {}),
+      data: undefined,
       loading: true,
-    }));
-    void latest.current().then(
+    });
+
+    let inFlight = adminInFlight.get(identity) as Promise<T> | undefined;
+    if (!inFlight) {
+      inFlight = latest.current().finally(() => {
+        adminInFlight.delete(identity);
+      });
+      adminInFlight.set(identity, inFlight);
+    }
+
+    void inFlight.then(
       (data) => {
+        adminQueryCache.set(identity, { data, timestamp: Date.now() });
         if (active) setState({ key: identity, data, loading: false });
       },
       (error) => {
         if (active) setState({ key: identity, error, loading: false });
       },
     );
+
     return () => {
       active = false;
     };
   }, [identity, revision, enabled]);
 
+  const data = state.key === identity ? state.data : undefined;
+
   return {
-    data: state.key === identity ? state.data : undefined,
+    data,
     error: state.key === identity ? state.error : undefined,
     loading: enabled && (state.key !== identity || state.loading),
-    retry: useCallback(() => setRevision((n) => n + 1), []),
+    isFetching: enabled && (state.key !== identity || state.loading),
+    retry: useCallback(() => {
+      adminQueryCache.delete(identity);
+      adminInFlight.delete(identity);
+      setRevision((n) => n + 1);
+    }, [identity]),
   };
 }
 

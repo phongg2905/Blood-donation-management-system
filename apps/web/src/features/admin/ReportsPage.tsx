@@ -1,4 +1,5 @@
 import { useSearchParams } from 'react-router-dom';
+import { Droplets, FlaskConical, Package, Users } from 'lucide-react';
 import { Button, FormField, Input } from '@/components/ui';
 import { Feedback, QueryState } from '@/features/campaigns/components';
 import { useAuth } from '@/features/auth/hooks/useAuth';
@@ -139,6 +140,58 @@ export function ReportsPage() {
 
       <Feedback error={mutation.error} success={mutation.success} />
       <QueryState {...result} variant="table" columns={5} />
+      {result.data && (
+        <div className="admin-glass-kpi-grid">
+          <div className="admin-glass-kpi-card">
+            <div className="admin-kpi-header">
+              <span className="admin-kpi-title">Tổng lượt hiến</span>
+              <span className="admin-kpi-icon-badge" style={{ background: 'rgba(0, 240, 255, 0.15)', color: '#00f0ff' }} aria-hidden="true">
+                <Droplets size={16} />
+              </span>
+            </div>
+            <div className="admin-kpi-value">{formatNumber(totals.donations)}</div>
+            <div className="admin-kpi-trend admin-kpi-trend--up">
+              <span>● Trong kỳ báo cáo</span>
+            </div>
+          </div>
+          <div className="admin-glass-kpi-card">
+            <div className="admin-kpi-header">
+              <span className="admin-kpi-title">Đơn vị máu</span>
+              <span className="admin-kpi-icon-badge" style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8' }} aria-hidden="true">
+                <Package size={16} />
+              </span>
+            </div>
+            <div className="admin-kpi-value">{formatNumber(totals.units)}</div>
+            <div className="admin-kpi-trend admin-kpi-trend--up">
+              <span>Túi máu thành phẩm</span>
+            </div>
+          </div>
+          <div className="admin-glass-kpi-card">
+            <div className="admin-kpi-header">
+              <span className="admin-kpi-title">Tổng thể tích</span>
+              <span className="admin-kpi-icon-badge" style={{ background: 'rgba(168, 85, 247, 0.15)', color: '#c084fc' }} aria-hidden="true">
+                <FlaskConical size={16} />
+              </span>
+            </div>
+            <div className="admin-kpi-value">{(totals.volumeMl / 1000).toLocaleString('vi-VN', { maximumFractionDigits: 1 })} L</div>
+            <div className="admin-kpi-trend admin-kpi-trend--purple">
+              <span>{formatNumber(totals.volumeMl)} ml</span>
+            </div>
+          </div>
+          <div className="admin-glass-kpi-card">
+            <div className="admin-kpi-header">
+              <span className="admin-kpi-title">Người hiến duy nhất</span>
+              <span className="admin-kpi-icon-badge" style={{ background: 'rgba(34, 197, 94, 0.15)', color: '#4ade80' }} aria-hidden="true">
+                <Users size={16} />
+              </span>
+            </div>
+            <div className="admin-kpi-value">{formatNumber(totals.uniqueDonors)}</div>
+            <div className="admin-kpi-trend" style={{ color: '#4ade80' }}>
+              <span>Tình nguyện viên</span>
+            </div>
+          </div>
+        </div>
+      )}
       {result.data &&
         (rows.length === 0 ? (
           <p className="admin-empty">

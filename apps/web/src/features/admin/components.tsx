@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { Button } from '@/components/ui';
 import { Feedback } from '@/features/campaigns/components';
+import { WorkflowPagination } from '@/features/workflow/components';
 
 export function AdminShell({
   eyebrow,
@@ -30,7 +31,7 @@ export function AdminShell({
   );
 }
 
-export type BadgeTone = 'neutral' | 'info' | 'success' | 'warning' | 'danger';
+export type BadgeTone = 'neutral' | 'info' | 'success' | 'warning' | 'danger' | 'purple';
 
 export function AdminBadge({
   tone = 'neutral',
@@ -137,28 +138,13 @@ export function AdminPagination({
   onChange: (page: number) => void;
 }) {
   return (
-    <nav className="admin-pagination" aria-label="Phân trang">
-      <span className="admin-muted">
-        {total.toLocaleString('vi-VN')} bản ghi · Trang {page} /{' '}
-        {Math.max(1, totalPages)}
-      </span>
-      <div className="admin-actions">
-        <Button
-          variant="secondary"
-          disabled={page <= 1}
-          onClick={() => onChange(page - 1)}
-        >
-          Trang trước
-        </Button>
-        <Button
-          variant="secondary"
-          disabled={page >= totalPages}
-          onClick={() => onChange(page + 1)}
-        >
-          Trang sau
-        </Button>
-      </div>
-    </nav>
+    <WorkflowPagination
+      page={page}
+      totalPages={totalPages}
+      total={total}
+      onChange={onChange}
+      itemLabel="bản ghi"
+    />
   );
 }
 

@@ -539,3 +539,92 @@ export function SkeletonAuthCard({ fields = 2 }: { fields?: number }) {
     </div>
   );
 }
+
+/** Skeleton precisely matching .appointment-card in DonorAppointmentsPage. */
+export function SkeletonAppointmentList({ count = 2 }: { count?: number }) {
+  return (
+    <div className="appointment-history-wrap skeleton-appointment-wrap" role="status" aria-label="Đang tải danh sách đặt hẹn…">
+      {Array.from({ length: count }).map((_, idx) => (
+        <article key={idx} className="appointment-card skeleton-appointment-card" style={{ pointerEvents: 'none' }}>
+          {/* Left side: Droplet icon skeleton + body */}
+          <div className="appointment-card__left">
+            <div className="appointment-card__droplet">
+              <Skeleton variant="circular" width="38px" height="38px" />
+              <div style={{ marginTop: '6px' }}>
+                <Skeleton width="48px" height="12px" borderRadius="4px" />
+              </div>
+            </div>
+
+            <div className="appointment-card__body">
+              <Skeleton width="60%" height="22px" borderRadius="6px" style={{ marginBottom: '8px' }} />
+              <div className="appointment-card__line">
+                <Skeleton width="15px" height="15px" borderRadius="3px" style={{ flexShrink: 0 }} />
+                <Skeleton width="45%" height="14px" borderRadius="4px" />
+              </div>
+              <div className="appointment-card__line">
+                <Skeleton width="15px" height="15px" borderRadius="3px" style={{ flexShrink: 0 }} />
+                <Skeleton width="32%" height="14px" borderRadius="4px" />
+              </div>
+            </div>
+          </div>
+
+          {/* Right side: Badge and action buttons */}
+          <div className="appointment-card__right">
+            <Skeleton width="92px" height="26px" borderRadius="999px" />
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <Skeleton width="110px" height="34px" borderRadius="8px" />
+            </div>
+          </div>
+        </article>
+      ))}
+    </div>
+  );
+}
+
+/** Skeleton precisely matching .history-detail-wrap in DonorAppointmentsPage detail view. */
+export function SkeletonAppointmentDetail() {
+  return (
+    <div className="history-detail-wrap skeleton-history-detail-wrap" role="status" aria-label="Đang tải chi tiết lịch hẹn…">
+      {/* Header */}
+      <div className="history-detail-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Skeleton width="190px" height="28px" borderRadius="6px" />
+        <div className="history-detail-status-row" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Skeleton width="65px" height="16px" borderRadius="4px" />
+          <Skeleton width="90px" height="26px" borderRadius="999px" />
+        </div>
+      </div>
+
+      {/* 2-Column Grid */}
+      <div className="history-detail-grid">
+        {/* Column 1: Thông tin hiến máu */}
+        <div className="history-panel-card">
+          <Skeleton width="170px" height="22px" borderRadius="6px" style={{ marginBottom: '16px' }} />
+          <div className="zebra-table-list">
+            {Array.from({ length: 5 }).map((_, idx) => (
+              <div key={idx} className="zebra-table-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Skeleton width="130px" height="16px" borderRadius="4px" />
+                <Skeleton width={idx === 1 ? '55%' : idx === 2 ? '65%' : '35%'} height="16px" borderRadius="4px" />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Column 2: Kết quả xét nghiệm */}
+        <div className="history-panel-card">
+          <Skeleton width="170px" height="22px" borderRadius="6px" style={{ marginBottom: '16px' }} />
+          <div className="test-result-center" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px', padding: '32px 0' }}>
+            <Skeleton variant="circular" width="56px" height="56px" />
+            <Skeleton width="180px" height="38px" borderRadius="8px" />
+            <Skeleton width="100px" height="14px" borderRadius="4px" />
+          </div>
+        </div>
+      </div>
+
+      {/* Centered Return Action */}
+      <div className="history-footer-actions" style={{ display: 'flex', justifyContent: 'center', marginTop: '28px' }}>
+        <Skeleton width="120px" height="40px" borderRadius="8px" />
+      </div>
+    </div>
+  );
+}
+

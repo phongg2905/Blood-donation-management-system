@@ -10,7 +10,6 @@ import {
 } from './components';
 import {
   formatDate,
-  timezoneLabel,
   toIso,
   toLocalInput,
   validateSlot,
@@ -68,10 +67,6 @@ export function TimeSlotList({
         success={notice || mutation.success}
         error={!deactivate ? mutation.error : null}
       />
-      <p className="campaign-muted">
-        Thời gian theo {timezoneLabel}. Số chỗ là sức chứa của khung giờ, không
-        phải số chỗ còn lại.
-      </p>
       {manage && hasPermission('timeslot.create') && !editor && (
         <Button onClick={() => setEditor('new')}>Thêm khung giờ</Button>
       )}

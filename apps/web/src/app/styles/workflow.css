@@ -2027,86 +2027,103 @@
   background: #eff6ff;
 }
 
-/* Workflow Pagination */
+/* Workflow Pagination & Page Transition */
+@keyframes workflowPageFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.workflow-page-enter {
+  animation: workflowPageFadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workflow-page-enter {
+    animation: none;
+  }
+}
+
 .workflow-pagination {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  flex-wrap: wrap;
-  padding: 16px 4px 6px;
-  margin-top: 14px;
-  border-top: 1px solid var(--color-border-subtle, #e2e8f0);
-}
-
-.workflow-pagination__summary {
-  font-size: 0.86rem;
-  color: var(--color-ink-600, #64748b);
-}
-
-.workflow-pagination__summary strong {
-  color: var(--color-ink-900, #0f172a);
-  font-weight: 600;
+  justify-content: center;
+  padding: 18px 4px 6px;
+  margin-top: 16px;
 }
 
 .workflow-pagination__controls {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  gap: 6px;
   flex-wrap: wrap;
 }
 
 .workflow-pagination__pages {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 }
 
 .workflow-pagination__page-btn {
-  min-width: 32px;
-  height: 32px;
-  padding: 0 8px;
-  border-radius: 6px;
-  font-size: 0.84rem;
+  min-width: 36px;
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 8px;
+  font-size: 0.875rem;
   font-weight: 600;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: transparent;
+  background: #ffffff;
   color: var(--color-ink-700, #334155);
-  border: 1px solid transparent;
+  border: 1px solid var(--color-border, #e2e8f0);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
+.workflow-pagination__nav-btn {
+  padding: 0;
+  width: 36px;
+}
+
 .workflow-pagination__page-btn:hover:not(:disabled) {
-  background: var(--color-surface-sunken, #f1f5f9);
+  background: var(--color-surface-sunken, #f8fafc);
+  border-color: #cbd5e1;
   color: var(--color-ink-900, #0f172a);
 }
 
+.workflow-pagination__page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
 .workflow-pagination__page-btn--active {
-  background: var(--color-primary-600, #059669) !important;
+  background: var(--color-brand-600, #a8192e) !important;
   color: #ffffff !important;
-  border-color: var(--color-primary-600, #059669) !important;
-  box-shadow: 0 1px 2px rgba(5, 150, 105, 0.2);
+  border-color: var(--color-brand-600, #a8192e) !important;
+  box-shadow: 0 2px 6px rgba(168, 25, 46, 0.25);
 }
 
-.workflow-pagination__btn {
-  font-size: 0.82rem;
-  padding: 5px 12px;
-  font-weight: 500;
-}
-
-@media (max-width: 640px) {
-  .workflow-pagination {
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
-    text-align: center;
-  }
-  .workflow-pagination__controls {
-    justify-content: center;
-  }
+.workflow-pagination__ellipsis {
+  min-width: 28px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--color-ink-500, #64748b);
+  user-select: none;
 }
 
 /* Blood Bag Detail Modal */

@@ -130,7 +130,47 @@ export interface Page<T> {
   meta: PaginationMeta;
 }
 
+export interface AdminOverviewKPI {
+  totalDonors: number;
+  totalDonations: number;
+  totalVolumeMl: number;
+  todayAppointments: number;
+  todayCheckedIn: number;
+  safeInventoryDays: number;
+}
+
+export interface AdminInventoryItem {
+  bloodType: string;
+  label: string;
+  units: number;
+  volumeMl: number;
+  percentage: number;
+  status: 'safe' | 'warning' | 'critical' | 'purple';
+}
+
+export interface AdminMonthlyTrend {
+  month: string;
+  donations: number;
+  volumeMl: number;
+}
+
+export interface AdminRecentActivity {
+  id: string;
+  action: string;
+  entityType: string;
+  createdAt: string;
+  actor: string;
+}
+
+export interface AdminOverviewData {
+  kpi: AdminOverviewKPI;
+  inventory: AdminInventoryItem[];
+  monthlyTrend: AdminMonthlyTrend[];
+  recentActivities: AdminRecentActivity[];
+}
+
 export interface AdminRepository {
+  overview(): Promise<AdminOverviewData>;
   users(query: AdminUserQuery): Promise<Page<AdminUser>>;
   updateUser(id: string, input: AdminUserUpdate): Promise<AdminUser>;
   setUserRoles(id: string, roleCodes: readonly ActorCode[]): Promise<AdminUser>;

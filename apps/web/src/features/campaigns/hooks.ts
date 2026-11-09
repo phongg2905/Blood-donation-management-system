@@ -51,10 +51,6 @@ export function useCampaignQuery<T>(
   latest.current = fetcher;
   const [revision, setRevision] = useState(0);
 
-  const cached = enabled
-    ? (campaignQueryCache.get(identity) as CampaignCacheEntry<T> | undefined)
-    : undefined;
-
   const [state, setState] = useState<{
     key: string;
     data?: T;
@@ -62,26 +58,19 @@ export function useCampaignQuery<T>(
     loading: boolean;
   }>(() => ({
     key: identity,
-    data: cached?.data,
-    loading: enabled && cached?.data === undefined,
+    data: undefined,
+    loading: enabled,
   }));
 
   useEffect(() => {
     let active = true;
     if (!enabled) return;
 
-    const currentCached = campaignQueryCache.get(identity) as
-      | CampaignCacheEntry<T>
-      | undefined;
-    const hasData = currentCached?.data !== undefined;
-
-    if (!hasData) {
-      setState((previous) => ({
-        key: identity,
-        data: previous.key === identity ? previous.data : undefined,
-        loading: true,
-      }));
-    }
+    setState({
+      key: identity,
+      data: undefined,
+      loading: true,
+    });
 
     let inFlight = campaignInFlight.get(identity) as Promise<T> | undefined;
     if (!inFlight) {
@@ -105,10 +94,13 @@ export function useCampaignQuery<T>(
     };
   }, [identity, revision, enabled]);
 
+  const data = state.key === identity ? state.data : undefined;
+
   return {
-    data: state.key === identity ? state.data : undefined,
+    data,
     error: state.key === identity ? state.error : undefined,
     loading: enabled && (state.key !== identity || state.loading),
+    isFetching: enabled && (state.key !== identity || state.loading),
     retry: useCallback(() => {
       campaignQueryCache.delete(identity);
       campaignInFlight.delete(identity);

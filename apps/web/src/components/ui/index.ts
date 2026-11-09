@@ -33,6 +33,8 @@ export {
   SkeletonDemandGrid,
   SkeletonRoleGrid,
   SkeletonAuthCard,
+  SkeletonAppointmentList,
+  SkeletonAppointmentDetail,
 } from './Skeleton';
 export type { SkeletonProps } from './Skeleton';
 
