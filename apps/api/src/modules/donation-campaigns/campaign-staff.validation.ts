@@ -9,7 +9,6 @@ const assignmentEnum = z.enum([
   'CHECK_IN',
   'SCREENING',
   'COLLECTION',
-  'SUPPORT',
 ]);
 
 const assignStaffSchema = z.object({

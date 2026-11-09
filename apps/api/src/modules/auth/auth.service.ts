@@ -51,6 +51,7 @@ const toCurrentUser = (user: UserWithAccess): CurrentUser => ({
   id: user.id,
   email: user.email,
   fullName: user.fullName,
+  citizenId: user.donorProfile?.citizenId ?? null,
   phone: user.donorProfile?.phone ?? null,
   address: user.donorProfile?.address ?? null,
   roles: user.roleCodes,
@@ -104,10 +105,15 @@ export const authService = {
       email: data.email,
       passwordHash,
       fullName: data.fullName,
+      citizenId: data.citizenId,
       phone: data.phone,
       donorRoleId: donorRole.id,
     }).catch((error: unknown) => {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        const target = String(error.meta?.target ?? '');
+        if (target.includes('citizenId')) {
+          throw AppError.conflict(ERROR_CODES.AUTH_CITIZEN_ID_EXISTS);
+        }
         throw AppError.conflict(ERROR_CODES.AUTH_EMAIL_EXISTS);
       }
       throw error;
@@ -333,15 +339,19 @@ export const authService = {
     const user = await authRepository.findByIdWithAccess(userId);
     if (!user?.isActive) throw AppError.unauthorized(ERROR_CODES.UNAUTHENTICATED);
 
-    const wantsContactUpdate =
-      data.phone !== undefined || data.address !== undefined;
-    if (wantsContactUpdate && !user.roleCodes.includes('DONOR')) {
+    const isDonor = user.roleCodes.includes('DONOR');
+    if (!isDonor && (data.phone !== undefined || data.address !== undefined)) {
       throw AppError.validation({
-        phone: 'Chỉ tài khoản người hiến máu có hồ sơ liên hệ (phone/address)',
+        phone: 'Chỉ tài khoản người hiến máu (DONOR) mới có thông tin liên hệ mở rộng',
       });
     }
 
-    const updated = await authRepository.updateProfile(userId, data);
+    const updated = await authRepository.updateProfile(userId, data).catch((error: unknown) => {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw AppError.conflict(ERROR_CODES.AUTH_CITIZEN_ID_EXISTS);
+      }
+      throw error;
+    });
     return toCurrentUser(updated);
   },
 };

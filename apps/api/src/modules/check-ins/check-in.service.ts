@@ -30,6 +30,7 @@ export const checkInService = {
         registrationId,
         checkedInById: staffUserId,
       });
+      await repo.markCheckedIn(tx, registrationId);
       await auditLogService.record(
         {
           ...ctx,

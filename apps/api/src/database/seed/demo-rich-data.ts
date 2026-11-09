@@ -113,6 +113,25 @@ async function cleanupPreviousRichData(): Promise<void> {
   await database.campaignStaff.deleteMany({});
   await database.campaignTimeSlot.deleteMany({});
   await database.donationCampaign.deleteMany({});
+  await database.notification.deleteMany({});
+
+  // Ensure core donor demo profile has complete contact info
+  const coreDonorUser = await database.user.findUnique({
+    where: { email: 'donor.demo@example.local' },
+    select: { id: true },
+  });
+  if (coreDonorUser) {
+    await database.donorProfile.updateMany({
+      where: { userId: coreDonorUser.id },
+      data: {
+        phone: '0901234567',
+        address: '124 Nguyễn Huệ, Quận 1, TP.HCM',
+        gender: 'MALE',
+        dateOfBirth: new Date('1995-05-15T00:00:00.000Z'),
+        bloodType: 'O_POSITIVE',
+      },
+    });
+  }
 
   // Delete non-core rich seed users
   const richUsers = await database.user.findMany({
@@ -212,17 +231,17 @@ const STAFF_SPECS: { email: string; fullName: string; defaultAssignment: Campaig
   { email: 'staff.ktv.thao@example.com', fullName: 'ĐD. Đặng Thu Thảo', defaultAssignment: 'COLLECTION' },
   { email: 'staff.ktv.huy@example.com', fullName: 'KTV. Phạm Đức Huy', defaultAssignment: 'COLLECTION' },
 
-  // 10 Receptionists & Support
+  // 10 Receptionists for Check-in
   { email: 'staff.tiepdon.phuong@example.com', fullName: 'ĐD. Bùi Bích Phương', defaultAssignment: 'CHECK_IN' },
   { email: 'staff.tiepdon.canh@example.com', fullName: 'CN. Mai Văn Cảnh', defaultAssignment: 'CHECK_IN' },
   { email: 'staff.tiepdon.nhung@example.com', fullName: 'ĐD. Nguyễn Thị Hồng Nhung', defaultAssignment: 'CHECK_IN' },
   { email: 'staff.tiepdon.quyet@example.com', fullName: 'CN. Trịnh Văn Quyết', defaultAssignment: 'CHECK_IN' },
   { email: 'staff.tiepdon.trang@example.com', fullName: 'ĐD. Trần Thu Trang', defaultAssignment: 'CHECK_IN' },
-  { email: 'staff.tiepdon.dang@example.com', fullName: 'CN. Hồ Hải Đăng', defaultAssignment: 'SUPPORT' },
-  { email: 'staff.tiepdon.chi@example.com', fullName: 'ĐD. Lê Thùy Chi', defaultAssignment: 'SUPPORT' },
-  { email: 'staff.tiepdon.anh@example.com', fullName: 'CN. Phạm Tuấn Anh', defaultAssignment: 'SUPPORT' },
-  { email: 'staff.tiepdon.tuong@example.com', fullName: 'ĐD. Vũ Cát Tường', defaultAssignment: 'SUPPORT' },
-  { email: 'staff.tiepdon.khanh@example.com', fullName: 'CN. Đặng Xuân Khánh', defaultAssignment: 'SUPPORT' },
+  { email: 'staff.tiepdon.dang@example.com', fullName: 'CN. Hồ Hải Đăng', defaultAssignment: 'CHECK_IN' },
+  { email: 'staff.tiepdon.chi@example.com', fullName: 'ĐD. Lê Thùy Chi', defaultAssignment: 'CHECK_IN' },
+  { email: 'staff.tiepdon.anh@example.com', fullName: 'CN. Phạm Tuấn Anh', defaultAssignment: 'CHECK_IN' },
+  { email: 'staff.tiepdon.tuong@example.com', fullName: 'ĐD. Vũ Cát Tường', defaultAssignment: 'CHECK_IN' },
+  { email: 'staff.tiepdon.khanh@example.com', fullName: 'CN. Đặng Xuân Khánh', defaultAssignment: 'CHECK_IN' },
 ];
 
 // ---------------------------------------------------------------------------
@@ -407,6 +426,8 @@ interface CampaignSpec {
   targetDonors: number;
   targetBloodVolumeMl: number;
   hospitalPrefix: string;
+  registrationOpensAt?: Date;
+  registrationClosesAt?: Date;
 }
 
 const CAMPAIGN_SPECS: CampaignSpec[] = [
@@ -542,7 +563,7 @@ const CAMPAIGN_SPECS: CampaignSpec[] = [
     hospitalPrefix: 'RC',
   },
 
-  // 4 OPEN Campaigns (Current - October 2026)
+  // Current & Upcoming Campaigns (Aligned with Nov 2026)
   {
     name: 'Hiến Máu Cứu Người - Chung Tay Vì Sự Sống',
     location: 'Trung tâm Hiến Máu Nhân Đạo TP.HCM - 106 Thiên Phước, Phường 9, Tân Bình, TP.HCM',
@@ -550,8 +571,10 @@ const CAMPAIGN_SPECS: CampaignSpec[] = [
     contactPhone: '02838685507',
     description: 'Điểm tiếp nhận máu cố định mở cửa phục vụ người dân đăng ký hiến máu tình nguyện hàng tuần.',
     status: 'OPEN',
-    startsAt: new Date('2026-10-10T07:30:00+07:00'),
-    endsAt: new Date('2026-10-16T16:30:00+07:00'),
+    startsAt: new Date('2026-11-09T07:30:00+07:00'),
+    endsAt: new Date('2026-11-09T17:00:00+07:00'),
+    registrationOpensAt: new Date('2026-10-20T07:30:00+07:00'),
+    registrationClosesAt: new Date('2026-11-09T16:30:00+07:00'),
     targetDonors: 200,
     targetBloodVolumeMl: 70000,
     hospitalPrefix: 'RC',
@@ -561,10 +584,12 @@ const CAMPAIGN_SPECS: CampaignSpec[] = [
     location: 'Nhà Văn Hóa Sinh Viên - ĐHQG TP.HCM, Đông Hòa, Dĩ An, Bình Dương',
     organizerName: 'Ban Thường vụ Đoàn ĐHQG TP.HCM phối hợp BV Chợ Rẫy',
     contactPhone: '02837242160',
-    description: 'Đợt hiến máu sinh viên lớn nhất trong năm của Đại học Quốc gia TP.HCM diễn ra ngay trong ngày hôm nay.',
-    status: 'OPEN',
-    startsAt: new Date('2026-10-14T07:30:00+07:00'),
-    endsAt: new Date('2026-10-14T16:00:00+07:00'),
+    description: 'Đợt hiến máu sinh viên lớn nhất trong năm của Đại học Quốc gia TP.HCM.',
+    status: 'COMPLETED',
+    startsAt: new Date('2026-10-24T07:30:00+07:00'),
+    endsAt: new Date('2026-10-24T16:00:00+07:00'),
+    registrationOpensAt: new Date('2026-10-01T07:30:00+07:00'),
+    registrationClosesAt: new Date('2026-10-23T18:00:00+07:00'),
     targetDonors: 350,
     targetBloodVolumeMl: 122500,
     hospitalPrefix: 'CR',
@@ -574,8 +599,8 @@ const CAMPAIGN_SPECS: CampaignSpec[] = [
     location: 'Viện Huyết học - Truyền máu TW - Tầng 2 Khoa Tiếp nhận máu, Cầu Giấy, Hà Nội',
     organizerName: 'Viện Huyết học - Truyền máu Trung ương',
     contactPhone: '02437821895',
-    description: 'Tiếp nhận người hiến máu tình nguyện trực tiếp tại Viện Huyết học - Truyền máu TW trong tuần này.',
-    status: 'OPEN',
+    description: 'Tiếp nhận người hiến máu tình nguyện trực tiếp tại Viện Huyết học - Truyền máu TW.',
+    status: 'COMPLETED',
     startsAt: new Date('2026-10-14T07:30:00+07:00'),
     endsAt: new Date('2026-10-14T17:00:00+07:00'),
     targetDonors: 250,
@@ -588,24 +613,26 @@ const CAMPAIGN_SPECS: CampaignSpec[] = [
     organizerName: 'Khoa Truyền máu Bệnh viện Quân Y 175',
     contactPhone: '02838954988',
     description: 'Chương trình hiến máu mở rộng của cán bộ chiến sĩ và nhân dân quận Gò Vấp tại BV Quân Y 175.',
-    status: 'OPEN',
-    startsAt: new Date('2026-10-18T07:30:00+07:00'),
-    endsAt: new Date('2026-10-18T16:00:00+07:00'),
+    status: 'CLOSED',
+    startsAt: new Date('2026-11-10T08:00:00+07:00'),
+    endsAt: new Date('2026-11-10T16:30:00+07:00'),
+    registrationOpensAt: new Date('2026-10-20T08:00:00+07:00'),
+    registrationClosesAt: new Date('2026-11-08T18:00:00+07:00'),
     targetDonors: 200,
     targetBloodVolumeMl: 70000,
     hospitalPrefix: 'QY175',
   },
-
-  // 4 UPCOMING / CLOSED Campaigns (Nov to Dec 2026)
   {
     name: 'Chung Dòng Máu Việt - Mùa Đông 2026',
     location: 'Bệnh viện Thống Nhất - 1 Lý Thường Kiệt, Phường 7, Tân Bình, TP.HCM',
     organizerName: 'Bệnh viện Thống Nhất TP.HCM',
     contactPhone: '02838642142',
     description: 'Đợt vận động hiến máu trước thềm mùa đông của Bệnh viện Thống Nhất, phục vụ điều trị người cao tuổi.',
-    status: 'CLOSED',
-    startsAt: new Date('2026-11-05T07:30:00+07:00'),
-    endsAt: new Date('2026-11-05T16:30:00+07:00'),
+    status: 'OPEN',
+    startsAt: new Date('2026-11-14T07:30:00+07:00'),
+    endsAt: new Date('2026-11-14T16:30:00+07:00'),
+    registrationOpensAt: new Date('2026-10-25T07:30:00+07:00'),
+    registrationClosesAt: new Date('2026-11-13T18:00:00+07:00'),
     targetDonors: 180,
     targetBloodVolumeMl: 63000,
     hospitalPrefix: 'TN',
@@ -616,9 +643,11 @@ const CAMPAIGN_SPECS: CampaignSpec[] = [
     organizerName: 'CLB Sinh viên Tình nguyện ĐH Ngoại Thương & Viện Huyết học TW',
     contactPhone: '02438356800',
     description: 'Ngày hội hiến máu sinh viên FTU, kêu gọi các bạn trẻ chung tay trao gửi hơi ấm giọt máu đầu đông.',
-    status: 'CLOSED',
+    status: 'OPEN',
     startsAt: new Date('2026-11-15T08:00:00+07:00'),
-    endsAt: new Date('2026-11-15T16:00:00+07:00'),
+    endsAt: new Date('2026-11-15T16:30:00+07:00'),
+    registrationOpensAt: new Date('2026-10-28T08:00:00+07:00'),
+    registrationClosesAt: new Date('2026-11-14T18:00:00+07:00'),
     targetDonors: 300,
     targetBloodVolumeMl: 105000,
     hospitalPrefix: 'NIHBT',
@@ -629,9 +658,11 @@ const CAMPAIGN_SPECS: CampaignSpec[] = [
     organizerName: 'Hội Chữ Thập Đỏ tỉnh Thừa Thiên Huế',
     contactPhone: '02343761234',
     description: 'Chiến dịch đưa xe hiến máu lưu động về huyện Phong Điền phục vụ bà con vùng ven cố đô Huế.',
-    status: 'CLOSED',
+    status: 'DRAFT',
     startsAt: new Date('2026-12-02T07:30:00+07:00'),
     endsAt: new Date('2026-12-02T15:30:00+07:00'),
+    registrationOpensAt: new Date('2026-11-11T07:30:00+07:00'),
+    registrationClosesAt: new Date('2026-12-01T18:00:00+07:00'),
     targetDonors: 160,
     targetBloodVolumeMl: 56000,
     hospitalPrefix: 'HUE',
@@ -642,9 +673,11 @@ const CAMPAIGN_SPECS: CampaignSpec[] = [
     organizerName: 'Đoàn Thanh niên Bệnh viện Ung Bướu & BV Truyền Máu Huyết Học',
     contactPhone: '02838433021',
     description: 'Chương trình hiến máu gây quỹ hỗ trợ bệnh nhi ung thư nghèo dịp Tết Dương Lịch 2027.',
-    status: 'CLOSED',
+    status: 'DRAFT',
     startsAt: new Date('2026-12-20T07:30:00+07:00'),
     endsAt: new Date('2026-12-20T16:30:00+07:00'),
+    registrationOpensAt: new Date('2026-11-29T07:30:00+07:00'),
+    registrationClosesAt: new Date('2026-12-19T18:00:00+07:00'),
     targetDonors: 250,
     targetBloodVolumeMl: 87500,
     hospitalPrefix: 'BTH',
@@ -700,90 +733,101 @@ async function seedRichData() {
 
   // 4. Create 5 Coordinators
   console.info('Đang tạo 5 tài khoản Điều phối viên (COORDINATOR)...');
-  const coordinatorUsers: { id: string; email: string; fullName: string }[] = [];
-  for (const c of COORDINATOR_SPECS) {
-    const user = await database.user.create({
-      data: {
-        email: c.email,
-        fullName: c.fullName,
-        passwordHash,
-        isActive: true,
-        emailVerifiedAt: new Date('2025-12-01T08:00:00Z'),
-        roles: {
-          create: { roleId: roles.coordinatorRoleId },
+  const coordinatorUsers = await Promise.all(
+    COORDINATOR_SPECS.map((c) =>
+      database.user.create({
+        data: {
+          email: c.email,
+          fullName: c.fullName,
+          passwordHash,
+          isActive: true,
+          emailVerifiedAt: new Date('2025-12-01T08:00:00Z'),
+          roles: {
+            create: { roleId: roles.coordinatorRoleId },
+          },
         },
-      },
-      select: { id: true, email: true, fullName: true },
-    });
-    coordinatorUsers.push(user);
-  }
+        select: { id: true, email: true, fullName: true },
+      }),
+    ),
+  );
   console.info(`Đã tạo thành công 5 Điều phối viên.`);
 
-  // 5. Create 45 Donation Staff
+  // 5. Create 45 Donation Staff in batches of 15
   console.info('Đang tạo 45 tài khoản Nhân viên y tế (DONATION_STAFF)...');
   const staffUsers: { id: string; email: string; fullName: string; defaultAssignment: CampaignAssignment }[] = [];
-  for (const s of STAFF_SPECS) {
-    const user = await database.user.create({
-      data: {
-        email: s.email,
-        fullName: s.fullName,
-        passwordHash,
-        isActive: true,
-        emailVerifiedAt: new Date('2025-12-01T08:00:00Z'),
-        roles: {
-          create: { roleId: roles.staffRoleId },
-        },
-      },
-      select: { id: true, email: true, fullName: true },
-    });
-    staffUsers.push({ ...user, defaultAssignment: s.defaultAssignment });
+  for (let i = 0; i < STAFF_SPECS.length; i += 15) {
+    const batch = STAFF_SPECS.slice(i, i + 15);
+    const created = await Promise.all(
+      batch.map(async (s) => {
+        const user = await database.user.create({
+          data: {
+            email: s.email,
+            fullName: s.fullName,
+            passwordHash,
+            isActive: true,
+            emailVerifiedAt: new Date('2025-12-01T08:00:00Z'),
+            roles: {
+              create: { roleId: roles.staffRoleId },
+            },
+          },
+          select: { id: true, email: true, fullName: true },
+        });
+        return { ...user, defaultAssignment: s.defaultAssignment };
+      }),
+    );
+    staffUsers.push(...created);
   }
   console.info(`Đã tạo thành công 45 Nhân viên y tế.`);
 
-  // 6. Create 150 Donors with Profiles
+  // 6. Create 150 Donors with Profiles in batches of 15
   console.info('Đang tạo 150 tài khoản Người hiến máu (DONOR) kèm hồ sơ lâm sàng...');
   const donorSpecs = generate150Donors();
   const donorProfiles: { id: string; userId: string; email: string; bloodType: BloodType | null; fullName: string }[] = [];
 
-  for (const d of donorSpecs) {
-    const user = await database.user.create({
-      data: {
-        email: d.email,
-        fullName: d.fullName,
-        passwordHash,
-        isActive: true,
-        emailVerifiedAt: new Date('2025-12-15T08:00:00Z'),
-        roles: {
-          create: { roleId: roles.donorRoleId },
-        },
-        donorProfile: {
-          create: {
-            dateOfBirth: d.dateOfBirth,
-            phone: d.phone,
-            citizenId: d.citizenId,
-            gender: d.gender,
-            address: d.address,
-            bloodType: d.bloodType,
-            emergencyName: d.emergencyName,
-            emergencyPhone: d.emergencyPhone,
+  for (let i = 0; i < donorSpecs.length; i += 15) {
+    const batch = donorSpecs.slice(i, i + 15);
+    const created = await Promise.all(
+      batch.map(async (d) => {
+        const user = await database.user.create({
+          data: {
+            email: d.email,
+            fullName: d.fullName,
+            passwordHash,
+            isActive: true,
+            emailVerifiedAt: new Date('2025-12-15T08:00:00Z'),
+            roles: {
+              create: { roleId: roles.donorRoleId },
+            },
+            donorProfile: {
+              create: {
+                dateOfBirth: d.dateOfBirth,
+                phone: d.phone,
+                citizenId: d.citizenId,
+                gender: d.gender,
+                address: d.address,
+                bloodType: d.bloodType,
+                emergencyName: d.emergencyName,
+                emergencyPhone: d.emergencyPhone,
+              },
+            },
           },
-        },
-      },
-      select: {
-        id: true,
-        email: true,
-        fullName: true,
-        donorProfile: { select: { id: true, bloodType: true } },
-      },
-    });
-
-    donorProfiles.push({
-      id: user.donorProfile!.id,
-      userId: user.id,
-      email: user.email,
-      bloodType: user.donorProfile!.bloodType,
-      fullName: user.fullName,
-    });
+          select: {
+            id: true,
+            email: true,
+            fullName: true,
+            donorProfile: { select: { id: true, bloodType: true } },
+          },
+        });
+        return {
+          id: user.donorProfile!.id,
+          userId: user.id,
+          email: user.email,
+          bloodType: user.donorProfile!.bloodType,
+          fullName: user.fullName,
+        };
+      }),
+    );
+    donorProfiles.push(...created);
   }
   console.info(`Đã tạo thành công 150 Người hiến máu.`);
 
@@ -807,88 +851,112 @@ async function seedRichData() {
         status: spec.status,
         targetDonors: spec.targetDonors,
         targetBloodVolumeMl: spec.targetBloodVolumeMl,
-        registrationOpensAt: new Date(startsAt.getTime() - 21 * 24 * 3600 * 1000),
-        registrationClosesAt: new Date(endsAt.getTime() - 12 * 3600 * 1000),
+        registrationOpensAt:
+          spec.registrationOpensAt ??
+          new Date(startsAt.getTime() - 21 * 24 * 3600 * 1000),
+        registrationClosesAt:
+          spec.registrationClosesAt ??
+          new Date(endsAt.getTime() - 12 * 3600 * 1000),
         startsAt,
         endsAt,
       },
     });
 
-    // Create 4 standard time slots
-    const sYear = startsAt.getFullYear();
-    const sMonth = startsAt.getMonth();
-    const sDate = startsAt.getDate();
+    // Create 4 standard time slots strictly bounded within [startsAt, endsAt]
+    const sYear = startsAt.getUTCFullYear();
+    const sMonth = startsAt.getUTCMonth();
+    const sDate = startsAt.getUTCDate();
+
+    const formatVnHm = (d: Date) =>
+      new Intl.DateTimeFormat('vi-VN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+        timeZone: 'Asia/Ho_Chi_Minh',
+      }).format(d);
+
+    const ca1Start = new Date(
+      Math.max(startsAt.getTime(), Date.UTC(sYear, sMonth, sDate, 0, 30)),
+    );
+    const ca1End = new Date(Date.UTC(sYear, sMonth, sDate, 2, 30));
+
+    const ca2Start = new Date(Date.UTC(sYear, sMonth, sDate, 2, 30));
+    const ca2End = new Date(Date.UTC(sYear, sMonth, sDate, 4, 30));
+
+    const endsBy15 = endsAt.getTime() <= Date.UTC(sYear, sMonth, sDate, 8, 0);
+    const ca3Start = new Date(Date.UTC(sYear, sMonth, sDate, 6, 0));
+    const ca3End = endsBy15
+      ? new Date(Date.UTC(sYear, sMonth, sDate, 7, 0))
+      : new Date(Date.UTC(sYear, sMonth, sDate, 8, 0));
+
+    const ca4Start = ca3End;
+    const ca4End = new Date(
+      Math.min(endsAt.getTime(), Date.UTC(sYear, sMonth, sDate, 9, 30)),
+    );
 
     const slotConfigs = [
       {
-        label: 'Ca 1: Sáng sớm (07:30 - 09:30)',
-        startsAt: new Date(Date.UTC(sYear, sMonth, sDate, 0, 30)),
-        endsAt: new Date(Date.UTC(sYear, sMonth, sDate, 2, 30)),
+        label: `Ca 1: Sáng sớm (${formatVnHm(ca1Start)} - ${formatVnHm(ca1End)})`,
+        startsAt: ca1Start,
+        endsAt: ca1End,
         capacity: 80,
       },
       {
-        label: 'Ca 2: Sáng muộn (09:30 - 11:30)',
-        startsAt: new Date(Date.UTC(sYear, sMonth, sDate, 2, 30)),
-        endsAt: new Date(Date.UTC(sYear, sMonth, sDate, 4, 30)),
+        label: `Ca 2: Sáng muộn (${formatVnHm(ca2Start)} - ${formatVnHm(ca2End)})`,
+        startsAt: ca2Start,
+        endsAt: ca2End,
         capacity: 80,
       },
       {
-        label: 'Ca 3: Đầu chiều (13:00 - 15:00)',
-        startsAt: new Date(Date.UTC(sYear, sMonth, sDate, 6, 0)),
-        endsAt: new Date(Date.UTC(sYear, sMonth, sDate, 8, 0)),
+        label: `Ca 3: Đầu chiều (${formatVnHm(ca3Start)} - ${formatVnHm(ca3End)})`,
+        startsAt: ca3Start,
+        endsAt: ca3End,
         capacity: 60,
       },
       {
-        label: 'Ca 4: Cuối chiều (15:00 - 16:30)',
-        startsAt: new Date(Date.UTC(sYear, sMonth, sDate, 8, 0)),
-        endsAt: new Date(Date.UTC(sYear, sMonth, sDate, 9, 30)),
+        label: `Ca 4: Cuối chiều (${formatVnHm(ca4Start)} - ${formatVnHm(ca4End)})`,
+        startsAt: ca4Start,
+        endsAt: ca4End,
         capacity: 40,
       },
     ];
 
-    const timeSlots = [];
-    for (const sc of slotConfigs) {
-      const slot = await database.campaignTimeSlot.create({
-        data: {
-          campaignId: campaign.id,
-          label: sc.label,
-          startsAt: sc.startsAt,
-          endsAt: sc.endsAt,
-          capacity: sc.capacity,
-          isActive: true,
-        },
-      });
-      timeSlots.push(slot);
-    }
+    const timeSlots = await Promise.all(
+      slotConfigs.map((sc) =>
+        database.campaignTimeSlot.create({
+          data: {
+            campaignId: campaign.id,
+            label: sc.label,
+            startsAt: sc.startsAt,
+            endsAt: sc.endsAt,
+            capacity: sc.capacity,
+            isActive: true,
+          },
+        }),
+      ),
+    );
 
-    // Assign 1 coordinator and 5 staff to this campaign
-    const assignedCoordinator = coordinatorUsers[cIdx % coordinatorUsers.length]!;
-    await database.campaignStaff.create({
-      data: {
-        campaignId: campaign.id,
-        userId: assignedCoordinator.id,
-        assignment: 'SUPPORT',
-      },
-    });
+    // Assign 5 DONATION_STAFF across the 3 operational positions (CHECK_IN, SCREENING, COLLECTION)
+    const checkInPool = staffUsers.filter((s) => s.defaultAssignment === 'CHECK_IN');
+    const screeningPool = staffUsers.filter((s) => s.defaultAssignment === 'SCREENING');
+    const collectionPool = staffUsers.filter((s) => s.defaultAssignment === 'COLLECTION');
 
-    const staffOffset = (cIdx * 4) % staffUsers.length;
     const assignedStaffList = [
-      staffUsers[staffOffset % staffUsers.length]!,
-      staffUsers[(staffOffset + 1) % staffUsers.length]!,
-      staffUsers[(staffOffset + 2) % staffUsers.length]!,
-      staffUsers[(staffOffset + 3) % staffUsers.length]!,
-      staffUsers[(staffOffset + 4) % staffUsers.length]!,
+      checkInPool[cIdx % checkInPool.length]!,
+      screeningPool[(cIdx * 2) % screeningPool.length]!,
+      collectionPool[(cIdx * 2) % collectionPool.length]!,
+      collectionPool[(cIdx * 2 + 1) % collectionPool.length]!,
+      screeningPool[(cIdx * 2 + 1) % screeningPool.length]!,
     ];
 
-    for (const staff of assignedStaffList) {
-      await database.campaignStaff.create({
-        data: {
-          campaignId: campaign.id,
-          userId: staff.id,
-          assignment: staff.defaultAssignment,
-        },
-      });
-    }
+    await database.campaignStaff.createMany({
+      data: assignedStaffList.map((staff) => ({
+        campaignId: campaign.id,
+        userId: staff.id,
+        assignment: staff.defaultAssignment,
+      })),
+      skipDuplicates: true,
+    });
 
     // 8. Generate Realistic Registrations & Clinical Records based on status
     if (spec.status === 'COMPLETED') {
@@ -899,201 +967,202 @@ async function seedRichData() {
         campaignDonors.push(donorProfiles[(donorSliceStart + k) % donorProfiles.length]!);
       }
 
-      for (let dK = 0; dK < campaignDonors.length; dK++) {
-        const donor = campaignDonors[dK]!;
-        const slot = timeSlots[dK % timeSlots.length]!;
-        const isDeferred = dK === 3;
-        const hasReaction = dK === 7;
+      await Promise.all(
+        campaignDonors.map(async (donor, dK) => {
+          const slot = timeSlots[dK % timeSlots.length]!;
+          const isDeferred = dK === 3;
+          const hasReaction = dK === 7;
+          const localBagSeq = 100 + cIdx * 20 + dK + 1;
 
-        // Registration
-        const registration = await database.registration.create({
-          data: {
-            donorId: donor.id,
-            campaignId: campaign.id,
-            timeSlotId: slot.id,
-            status: 'COMPLETED',
-            createdAt: new Date(startsAt.getTime() - 7 * 24 * 3600 * 1000),
-          },
-        });
-
-        // Health declaration
-        await database.healthDeclaration.create({
-          data: {
-            registrationId: registration.id,
-            submittedAt: new Date(startsAt.getTime() - 24 * 3600 * 1000),
-            questionnaireVersion: 'v2026.1',
-            answers: {
-              feelingWell: true,
-              recentIllness: false,
-              chronicConditions: false,
-              travelHistory: false,
-              medications: isDeferred ? ['Kháng sinh trị viêm họng'] : [],
-            },
-          },
-        });
-
-        // CheckIn
-        const checkInStaff = assignedStaffList.find((s) => s.defaultAssignment === 'CHECK_IN') ?? assignedStaffList[0]!;
-        const checkedInAt = new Date(slot.startsAt.getTime() + dK * 8 * 60 * 1000);
-        const checkIn = await database.checkIn.create({
-          data: {
-            registrationId: registration.id,
-            checkedInAt,
-            checkedInById: checkInStaff.id,
-            notes: 'Đã xuất trình CCCD gắn chip gốc, nhận diện khuôn mặt hợp lệ',
-          },
-        });
-
-        // Screening
-        const doctorStaff = assignedStaffList.find((s) => s.defaultAssignment === 'SCREENING') ?? assignedStaffList[1]!;
-        const screeningAt = new Date(checkedInAt.getTime() + 10 * 60 * 1000);
-
-        if (isDeferred) {
-          const screening = await database.screening.create({
+          // Registration
+          const registration = await database.registration.create({
             data: {
-              checkInId: checkIn.id,
-              status: 'DEFERRED',
-              screenedById: doctorStaff.id,
-              weightKg: 46.5,
-              systolicBp: 145,
-              diastolicBp: 95,
-              pulse: 88,
-              temperatureC: 37.1,
-              hemoglobin: 116.0,
-              decisionReason: 'Huyết áp tăng nhẹ lúc khám (145/95 mmHg) kèm vừa dùng kháng sinh, tư vấn nghỉ ngơi 2 tuần',
-              deferredUntil: new Date(startsAt.getTime() + 14 * 24 * 3600 * 1000),
-              createdAt: screeningAt,
-            },
-          });
-
-          await database.screeningTest.createMany({
-            data: [
-              {
-                screeningId: screening.id,
-                code: 'TEST_HB',
-                result: '116 g/L (Dưới ngưỡng 120 g/L)',
-                numericValue: 116.0,
-                unit: 'g/L',
-                referenceRange: '>= 120 g/L',
-                isPassed: false,
-              },
-              {
-                screeningId: screening.id,
-                code: 'TEST_HBSAG',
-                result: 'Âm tính (Negative)',
-                unit: 'rapid_strip',
-                isPassed: true,
-              },
-            ],
-          });
-        } else {
-          const weight = 50 + (dK * 3) % 25;
-          const systolic = 112 + (dK * 2) % 18;
-          const diastolic = 70 + (dK * 2) % 14;
-          const pulse = 68 + (dK * 3) % 14;
-          const hb = 128 + (dK * 3) % 25;
-
-          const screening = await database.screening.create({
-            data: {
-              checkInId: checkIn.id,
-              status: 'ELIGIBLE',
-              screenedById: doctorStaff.id,
-              weightKg: weight,
-              systolicBp: systolic,
-              diastolicBp: diastolic,
-              pulse,
-              temperatureC: 36.8,
-              hemoglobin: hb,
-              decisionReason: 'Đủ điều kiện hiến máu toàn phần',
-              createdAt: screeningAt,
-            },
-          });
-
-          const bloodGroupTestResult = donor.bloodType ? donor.bloodType.replace('_', ' ') : 'Chờ định nhóm tại Lab';
-          await database.screeningTest.createMany({
-            data: [
-              {
-                screeningId: screening.id,
-                code: 'TEST_HB',
-                result: `${hb} g/L (Đạt chuẩn)`,
-                numericValue: hb,
-                unit: 'g/L',
-                referenceRange: '>= 120 g/L',
-                isPassed: true,
-              },
-              {
-                screeningId: screening.id,
-                code: 'TEST_HBSAG',
-                result: 'Âm tính (Negative)',
-                unit: 'rapid_strip',
-                isPassed: true,
-              },
-              {
-                screeningId: screening.id,
-                code: 'TEST_ABO_RAPID',
-                result: bloodGroupTestResult,
-                unit: 'serum_test',
-                isPassed: true,
-              },
-            ],
-          });
-
-          // Donation
-          const technicianStaff = assignedStaffList.find((s) => s.defaultAssignment === 'COLLECTION') ?? assignedStaffList[2]!;
-          const donationStart = new Date(screeningAt.getTime() + 15 * 60 * 1000);
-          const donationEnd = new Date(donationStart.getTime() + 10 * 60 * 1000);
-          const volumeMl = weight >= 60 ? 450 : weight >= 50 ? 350 : 250;
-
-          const donation = await database.donation.create({
-            data: {
-              screeningId: screening.id,
+              donorId: donor.id,
+              campaignId: campaign.id,
+              timeSlotId: slot.id,
               status: 'COMPLETED',
-              donationType: 'WHOLE_BLOOD',
-              performedById: technicianStaff.id,
-              startedAt: donationStart,
-              completedAt: donationEnd,
-              donatedAt: donationEnd,
-              volumeMl,
-              notes: 'Quá trình chọc tĩnh mạch và lấy máu diễn ra thuận lợi, dòng chảy đều.',
+              createdAt: new Date(startsAt.getTime() - 7 * 24 * 3600 * 1000),
             },
           });
 
-          // Blood Bag
-          bagGlobalCounter++;
-          const bagCode = `${spec.hospitalPrefix}-2026-WB-${String(bagGlobalCounter).padStart(5, '0')}`;
-          const expiresAt = new Date(donationEnd.getTime() + 35 * 24 * 3600 * 1000);
-
-          await database.bloodBag.create({
+          // Health declaration
+          await database.healthDeclaration.create({
             data: {
-              donationId: donation.id,
-              code: bagCode,
-              status: 'ACCEPTED',
-              bloodType: donor.bloodType,
-              component: 'WHOLE_BLOOD',
-              volumeMl,
-              collectedAt: donationEnd,
-              expiresAt,
-              storageLocation: `Kho lạnh trung tâm ${spec.hospitalPrefix} - Tủ 2-6°C`,
+              registrationId: registration.id,
+              submittedAt: new Date(startsAt.getTime() - 24 * 3600 * 1000),
+              questionnaireVersion: 'v2026.1',
+              answers: {
+                FEVER: false,
+                INFECTION: isDeferred,
+                MEDICATION: false,
+                RECENT_DONATION: false,
+                PREGNANCY: false,
+                SURGERY: false,
+              },
             },
           });
 
-          // Optional Mild Reaction
-          if (hasReaction) {
-            await database.postDonationReaction.create({
+          // CheckIn
+          const checkInStaff = assignedStaffList.find((s) => s.defaultAssignment === 'CHECK_IN') ?? assignedStaffList[0]!;
+          const checkedInAt = new Date(slot.startsAt.getTime() + dK * 8 * 60 * 1000);
+          const checkIn = await database.checkIn.create({
+            data: {
+              registrationId: registration.id,
+              checkedInAt,
+              checkedInById: checkInStaff.id,
+              notes: 'Đã xuất trình CCCD gắn chip gốc, nhận diện khuôn mặt hợp lệ',
+            },
+          });
+
+          // Screening
+          const doctorStaff = assignedStaffList.find((s) => s.defaultAssignment === 'SCREENING') ?? assignedStaffList[1]!;
+          const screeningAt = new Date(checkedInAt.getTime() + 10 * 60 * 1000);
+
+          if (isDeferred) {
+            const screening = await database.screening.create({
               data: {
-                donationId: donation.id,
-                occurredAt: new Date(donationEnd.getTime() + 5 * 60 * 1000),
-                severity: 'MILD',
-                description: 'Người hiến cảm thấy choáng váng nhẹ khi ngồi dậy nhanh khỏi giường hiến.',
-                actionTaken: 'Nằm đầu thấp, kê chân cao, uống 200ml trà đường ấm. Nghỉ ngơi 20 phút, huyết áp đo lại 120/80 mmHg, phục hồi hoàn toàn.',
-                resolvedAt: new Date(donationEnd.getTime() + 25 * 60 * 1000),
+                checkInId: checkIn.id,
+                status: 'DEFERRED',
+                screenedById: doctorStaff.id,
+                weightKg: 46.5,
+                systolicBp: 145,
+                diastolicBp: 95,
+                pulse: 88,
+                temperatureC: 37.1,
+                hemoglobin: 116.0,
+                decisionReason: 'Huyết áp tăng nhẹ lúc khám (145/95 mmHg) kèm vừa dùng kháng sinh, tư vấn nghỉ ngơi 2 tuần',
+                deferredUntil: new Date(startsAt.getTime() + 14 * 24 * 3600 * 1000),
+                createdAt: screeningAt,
               },
             });
-          }
 
-          // NO electronic certificate issued! Physical paper certificate is handed directly at the reception desk.
-        }
-      }
+            await database.screeningTest.createMany({
+              data: [
+                {
+                  screeningId: screening.id,
+                  code: 'TEST_HB',
+                  result: '116 g/L (Dưới ngưỡng 120 g/L)',
+                  numericValue: 116.0,
+                  unit: 'g/L',
+                  referenceRange: '>= 120 g/L',
+                  isPassed: false,
+                },
+                {
+                  screeningId: screening.id,
+                  code: 'TEST_HBSAG',
+                  result: 'Âm tính (Negative)',
+                  unit: 'rapid_strip',
+                  isPassed: true,
+                },
+              ],
+            });
+          } else {
+            const weight = 50 + (dK * 3) % 25;
+            const systolic = 112 + (dK * 2) % 18;
+            const diastolic = 70 + (dK * 2) % 14;
+            const pulse = 68 + (dK * 3) % 14;
+            const hb = 128 + (dK * 3) % 25;
+
+            const screening = await database.screening.create({
+              data: {
+                checkInId: checkIn.id,
+                status: 'ELIGIBLE',
+                screenedById: doctorStaff.id,
+                weightKg: weight,
+                systolicBp: systolic,
+                diastolicBp: diastolic,
+                pulse,
+                temperatureC: 36.8,
+                hemoglobin: hb,
+                decisionReason: 'Đủ điều kiện hiến máu toàn phần',
+                createdAt: screeningAt,
+              },
+            });
+
+            const bloodGroupTestResult = donor.bloodType ? donor.bloodType.replace('_', ' ') : 'Chờ định nhóm tại Lab';
+            await database.screeningTest.createMany({
+              data: [
+                {
+                  screeningId: screening.id,
+                  code: 'TEST_HB',
+                  result: `${hb} g/L (Đạt chuẩn)`,
+                  numericValue: hb,
+                  unit: 'g/L',
+                  referenceRange: '>= 120 g/L',
+                  isPassed: true,
+                },
+                {
+                  screeningId: screening.id,
+                  code: 'TEST_HBSAG',
+                  result: 'Âm tính (Negative)',
+                  unit: 'rapid_strip',
+                  isPassed: true,
+                },
+                {
+                  screeningId: screening.id,
+                  code: 'TEST_ABO_RAPID',
+                  result: bloodGroupTestResult,
+                  unit: 'serum_test',
+                  isPassed: true,
+                },
+              ],
+            });
+
+            // Donation
+            const technicianStaff = assignedStaffList.find((s) => s.defaultAssignment === 'COLLECTION') ?? assignedStaffList[2]!;
+            const donationStart = new Date(screeningAt.getTime() + 15 * 60 * 1000);
+            const donationEnd = new Date(donationStart.getTime() + 10 * 60 * 1000);
+            const volumeMl = weight >= 60 ? 450 : weight >= 50 ? 350 : 250;
+
+            const donation = await database.donation.create({
+              data: {
+                screeningId: screening.id,
+                status: 'COMPLETED',
+                donationType: 'WHOLE_BLOOD',
+                performedById: technicianStaff.id,
+                startedAt: donationStart,
+                completedAt: donationEnd,
+                donatedAt: donationEnd,
+                volumeMl,
+                notes: 'Quá trình chọc tĩnh mạch và lấy máu diễn ra thuận lợi, dòng chảy đều.',
+              },
+            });
+
+            // Blood Bag
+            const bagCode = `${spec.hospitalPrefix}-2026-WB-${String(localBagSeq).padStart(5, '0')}`;
+            const expiresAt = new Date(donationEnd.getTime() + 35 * 24 * 3600 * 1000);
+
+            await database.bloodBag.create({
+              data: {
+                donationId: donation.id,
+                code: bagCode,
+                status: 'ACCEPTED',
+                bloodType: donor.bloodType,
+                component: 'WHOLE_BLOOD',
+                volumeMl,
+                collectedAt: donationEnd,
+                expiresAt,
+                storageLocation: `Kho lạnh trung tâm ${spec.hospitalPrefix} - Tủ 2-6°C`,
+              },
+            });
+
+            // Optional Mild Reaction
+            if (hasReaction) {
+              await database.postDonationReaction.create({
+                data: {
+                  donationId: donation.id,
+                  occurredAt: new Date(donationEnd.getTime() + 5 * 60 * 1000),
+                  severity: 'MILD',
+                  description: 'Người hiến cảm thấy choáng váng nhẹ khi ngồi dậy nhanh khỏi giường hiến.',
+                  actionTaken: 'Nằm đầu thấp, kê chân cao, uống 200ml trà đường ấm. Nghỉ ngơi 20 phút, huyết áp đo lại 120/80 mmHg, phục hồi hoàn toàn.',
+                  resolvedAt: new Date(donationEnd.getTime() + 25 * 60 * 1000),
+                },
+              });
+            }
+          }
+        }),
+      );
+      bagGlobalCounter += 20;
     } else if (spec.status === 'OPEN') {
       const donorSliceStart = (cIdx * 10 + 20) % donorProfiles.length;
       const campaignDonors = [
@@ -1107,173 +1176,209 @@ async function seedRichData() {
         donorProfiles[(donorSliceStart + 7) % donorProfiles.length]!,
       ];
 
-      // Stage 1: Completed donation earlier today (Donors 0 & 1)
-      for (let s1 = 0; s1 < 2; s1++) {
-        const donor = campaignDonors[s1]!;
-        const reg = await database.registration.create({
-          data: {
-            donorId: donor.id,
-            campaignId: campaign.id,
-            timeSlotId: timeSlots[0]!.id,
-            status: 'COMPLETED',
-            createdAt: new Date(startsAt.getTime() - 3 * 24 * 3600 * 1000),
-          },
-        });
-        await database.healthDeclaration.create({
-          data: {
-            registrationId: reg.id,
-            submittedAt: new Date(startsAt.getTime() - 12 * 3600 * 1000),
-            questionnaireVersion: 'v2026.1',
-            answers: { feelingWell: true, recentIllness: false },
-          },
-        });
-        const chk = await database.checkIn.create({
-          data: {
-            registrationId: reg.id,
-            checkedInAt: new Date(startsAt.getTime() + 15 * 60 * 1000),
-            checkedInById: assignedStaffList[0]!.id,
-          },
-        });
-        const scr = await database.screening.create({
-          data: {
-            checkInId: chk.id,
-            status: 'ELIGIBLE',
-            screenedById: assignedStaffList[1]!.id,
-            weightKg: 62.0,
-            systolicBp: 120,
-            diastolicBp: 80,
-            pulse: 74,
-            temperatureC: 36.7,
-            hemoglobin: 142.0,
-            decisionReason: 'Đủ điều kiện hiến máu',
-          },
-        });
-        const dnt = await database.donation.create({
-          data: {
-            screeningId: scr.id,
-            status: 'COMPLETED',
-            volumeMl: 350,
-            performedById: assignedStaffList[2]!.id,
-            startedAt: new Date(startsAt.getTime() + 45 * 60 * 1000),
-            completedAt: new Date(startsAt.getTime() + 55 * 60 * 1000),
-            donatedAt: new Date(startsAt.getTime() + 55 * 60 * 1000),
-          },
-        });
-        bagGlobalCounter++;
-        await database.bloodBag.create({
-          data: {
-            donationId: dnt.id,
-            code: `${spec.hospitalPrefix}-2026-WB-${String(bagGlobalCounter).padStart(5, '0')}`,
-            status: 'COLLECTED',
-            bloodType: donor.bloodType,
-            component: 'WHOLE_BLOOD',
-            volumeMl: 350,
-            collectedAt: new Date(startsAt.getTime() + 55 * 60 * 1000),
-            expiresAt: new Date(startsAt.getTime() + (55 * 60 + 35 * 24 * 3600) * 1000),
-            storageLocation: 'Thùng bảo quản chuyên dụng tại điểm hiến (Đang chờ vận chuyển về Lab)',
-          },
-        });
-      }
+      const defaultAnswers = {
+        FEVER: false,
+        INFECTION: false,
+        MEDICATION: false,
+        RECENT_DONATION: false,
+        PREGNANCY: false,
+        SURGERY: false,
+      };
 
-      // Stage 2: Screened ELIGIBLE, currently waiting in queue for collection! (Donors 2 & 3)
-      for (let s2 = 2; s2 < 4; s2++) {
-        const donor = campaignDonors[s2]!;
-        const reg = await database.registration.create({
-          data: {
-            donorId: donor.id,
-            campaignId: campaign.id,
-            timeSlotId: timeSlots[1]!.id,
-            status: 'CONFIRMED',
-            createdAt: new Date(startsAt.getTime() - 2 * 24 * 3600 * 1000),
-          },
-        });
-        await database.healthDeclaration.create({
-          data: {
-            registrationId: reg.id,
-            submittedAt: new Date(startsAt.getTime() - 6 * 3600 * 1000),
-            questionnaireVersion: 'v2026.1',
-            answers: { feelingWell: true, recentIllness: false },
-          },
-        });
-        const chk = await database.checkIn.create({
-          data: {
-            registrationId: reg.id,
-            checkedInAt: new Date(startsAt.getTime() + 90 * 60 * 1000),
-            checkedInById: assignedStaffList[0]!.id,
-          },
-        });
-        await database.screening.create({
-          data: {
-            checkInId: chk.id,
-            status: 'ELIGIBLE',
-            screenedById: assignedStaffList[1]!.id,
-            weightKg: 58.0,
-            systolicBp: 118,
-            diastolicBp: 76,
-            pulse: 72,
-            temperatureC: 36.6,
-            hemoglobin: 135.0,
-            decisionReason: 'Sức khỏe tốt, đủ điều kiện hiến 350ml máu toàn phần. Đã hướng dẫn chuyển bàn lấy máu.',
-          },
-        });
-      }
+      const isHappeningNow = startsAt.getTime() <= Date.now();
 
-      // Stage 3: Checked In, waiting for Doctor Screening (Donors 4 & 5)
-      for (let s3 = 4; s3 < 6; s3++) {
-        const donor = campaignDonors[s3]!;
-        const reg = await database.registration.create({
-          data: {
-            donorId: donor.id,
-            campaignId: campaign.id,
-            timeSlotId: timeSlots[1]!.id,
-            status: 'CONFIRMED',
-            createdAt: new Date(startsAt.getTime() - 24 * 3600 * 1000),
-          },
-        });
-        await database.healthDeclaration.create({
-          data: {
-            registrationId: reg.id,
-            submittedAt: new Date(startsAt.getTime() - 2 * 3600 * 1000),
-            questionnaireVersion: 'v2026.1',
-            answers: { feelingWell: true, recentIllness: false },
-          },
-        });
-        const chk = await database.checkIn.create({
-          data: {
-            registrationId: reg.id,
-            checkedInAt: new Date(startsAt.getTime() + 110 * 60 * 1000),
-            checkedInById: assignedStaffList[0]!.id,
-            notes: 'Người hiến đã đo thân nhiệt, đang ngồi ghế chờ gọi số vào bàn khám số 1',
-          },
-        });
-        await database.screening.create({
-          data: {
-            checkInId: chk.id,
-            status: 'PENDING',
-          },
-        });
-      }
+      if (isHappeningNow) {
+        // Stage 1: Completed donation earlier today (Donors 0 & 1)
+        for (let s1 = 0; s1 < 2; s1++) {
+          const donor = campaignDonors[s1]!;
+          const reg = await database.registration.create({
+            data: {
+              donorId: donor.id,
+              campaignId: campaign.id,
+              timeSlotId: timeSlots[0]!.id,
+              status: 'COMPLETED',
+              createdAt: new Date(startsAt.getTime() - 3 * 24 * 3600 * 1000),
+            },
+          });
+          await database.healthDeclaration.create({
+            data: {
+              registrationId: reg.id,
+              submittedAt: new Date(startsAt.getTime() - 12 * 3600 * 1000),
+              questionnaireVersion: 'v2026.1',
+              answers: defaultAnswers,
+            },
+          });
+          const chk = await database.checkIn.create({
+            data: {
+              registrationId: reg.id,
+              checkedInAt: new Date(startsAt.getTime() + 15 * 60 * 1000),
+              checkedInById: assignedStaffList[0]!.id,
+            },
+          });
+          const scr = await database.screening.create({
+            data: {
+              checkInId: chk.id,
+              status: 'ELIGIBLE',
+              screenedById: assignedStaffList[1]!.id,
+              weightKg: 62.0,
+              systolicBp: 120,
+              diastolicBp: 80,
+              pulse: 74,
+              temperatureC: 36.7,
+              hemoglobin: 142.0,
+              decisionReason: 'Đủ điều kiện hiến máu',
+            },
+          });
+          const dnt = await database.donation.create({
+            data: {
+              screeningId: scr.id,
+              status: 'COMPLETED',
+              volumeMl: 350,
+              performedById: assignedStaffList[2]!.id,
+              startedAt: new Date(startsAt.getTime() + 45 * 60 * 1000),
+              completedAt: new Date(startsAt.getTime() + 55 * 60 * 1000),
+              donatedAt: new Date(startsAt.getTime() + 55 * 60 * 1000),
+            },
+          });
+          bagGlobalCounter++;
+          await database.bloodBag.create({
+            data: {
+              donationId: dnt.id,
+              code: `${spec.hospitalPrefix}-2026-WB-${String(bagGlobalCounter).padStart(5, '0')}`,
+              status: 'COLLECTED',
+              bloodType: donor.bloodType,
+              component: 'WHOLE_BLOOD',
+              volumeMl: 350,
+              collectedAt: new Date(startsAt.getTime() + 55 * 60 * 1000),
+              expiresAt: new Date(startsAt.getTime() + (55 * 60 + 35 * 24 * 3600) * 1000),
+              storageLocation: 'Thùng bảo quản chuyên dụng tại điểm hiến (Đang chờ vận chuyển về Lab)',
+            },
+          });
+        }
 
-      // Stage 4: Scheduled for afternoon ca, not checked in yet (Donors 6 & 7)
-      for (let s4 = 6; s4 < 8; s4++) {
-        const donor = campaignDonors[s4]!;
-        const reg = await database.registration.create({
-          data: {
-            donorId: donor.id,
-            campaignId: campaign.id,
-            timeSlotId: timeSlots[2]!.id,
-            status: 'SCHEDULED',
-            createdAt: new Date(startsAt.getTime() - 24 * 3600 * 1000),
-          },
-        });
-        await database.healthDeclaration.create({
-          data: {
-            registrationId: reg.id,
-            submittedAt: new Date(startsAt.getTime() - 1 * 3600 * 1000),
-            questionnaireVersion: 'v2026.1',
-            answers: { feelingWell: true, recentIllness: false },
-          },
-        });
+        // Stage 2: Screened ELIGIBLE, currently waiting in queue for collection! (Donors 2 & 3)
+        for (let s2 = 2; s2 < 4; s2++) {
+          const donor = campaignDonors[s2]!;
+          const reg = await database.registration.create({
+            data: {
+              donorId: donor.id,
+              campaignId: campaign.id,
+              timeSlotId: timeSlots[1]!.id,
+              status: 'CONFIRMED',
+              createdAt: new Date(startsAt.getTime() - 2 * 24 * 3600 * 1000),
+            },
+          });
+          await database.healthDeclaration.create({
+            data: {
+              registrationId: reg.id,
+              submittedAt: new Date(startsAt.getTime() - 6 * 3600 * 1000),
+              questionnaireVersion: 'v2026.1',
+              answers: defaultAnswers,
+            },
+          });
+          const chk = await database.checkIn.create({
+            data: {
+              registrationId: reg.id,
+              checkedInAt: new Date(startsAt.getTime() + 90 * 60 * 1000),
+              checkedInById: assignedStaffList[0]!.id,
+            },
+          });
+          await database.screening.create({
+            data: {
+              checkInId: chk.id,
+              status: 'ELIGIBLE',
+              screenedById: assignedStaffList[1]!.id,
+              weightKg: 58.0,
+              systolicBp: 118,
+              diastolicBp: 76,
+              pulse: 72,
+              temperatureC: 36.6,
+              hemoglobin: 135.0,
+              decisionReason: 'Sức khỏe tốt, đủ điều kiện hiến 350ml máu toàn phần. Đã hướng dẫn chuyển bàn lấy máu.',
+            },
+          });
+        }
+
+        // Stage 3: Checked In, waiting for Doctor Screening (Donors 4 & 5)
+        for (let s3 = 4; s3 < 6; s3++) {
+          const donor = campaignDonors[s3]!;
+          const reg = await database.registration.create({
+            data: {
+              donorId: donor.id,
+              campaignId: campaign.id,
+              timeSlotId: timeSlots[1]!.id,
+              status: 'CONFIRMED',
+              createdAt: new Date(startsAt.getTime() - 24 * 3600 * 1000),
+            },
+          });
+          await database.healthDeclaration.create({
+            data: {
+              registrationId: reg.id,
+              submittedAt: new Date(startsAt.getTime() - 2 * 3600 * 1000),
+              questionnaireVersion: 'v2026.1',
+              answers: defaultAnswers,
+            },
+          });
+          const chk = await database.checkIn.create({
+            data: {
+              registrationId: reg.id,
+              checkedInAt: new Date(startsAt.getTime() + 110 * 60 * 1000),
+              checkedInById: assignedStaffList[0]!.id,
+              notes: 'Người hiến đã đo thân nhiệt, đang ngồi ghế chờ gọi số vào bàn khám số 1',
+            },
+          });
+          await database.screening.create({
+            data: {
+              checkInId: chk.id,
+              status: 'PENDING',
+            },
+          });
+        }
+
+        // Stage 4: Scheduled for afternoon ca, not checked in yet (Donors 6 & 7)
+        for (let s4 = 6; s4 < 8; s4++) {
+          const donor = campaignDonors[s4]!;
+          const reg = await database.registration.create({
+            data: {
+              donorId: donor.id,
+              campaignId: campaign.id,
+              timeSlotId: timeSlots[2]!.id,
+              status: 'SCHEDULED',
+              createdAt: new Date(startsAt.getTime() - 24 * 3600 * 1000),
+            },
+          });
+          await database.healthDeclaration.create({
+            data: {
+              registrationId: reg.id,
+              submittedAt: new Date(startsAt.getTime() - 1 * 3600 * 1000),
+              questionnaireVersion: 'v2026.1',
+              answers: defaultAnswers,
+            },
+          });
+        }
+      } else {
+        // Upcoming OPEN campaign: ONLY pre-booked registrations (no CheckIn/Screening/Donation/BloodBag!)
+        for (let uIdx = 0; uIdx < 6; uIdx++) {
+          const donor = campaignDonors[uIdx]!;
+          const slot = timeSlots[uIdx % timeSlots.length]!;
+          const reg = await database.registration.create({
+            data: {
+              donorId: donor.id,
+              campaignId: campaign.id,
+              timeSlotId: slot.id,
+              status: 'SCHEDULED',
+              createdAt: new Date(Date.now() - (6 - uIdx) * 12 * 3600 * 1000),
+            },
+          });
+          await database.healthDeclaration.create({
+            data: {
+              registrationId: reg.id,
+              submittedAt: new Date(Date.now() - (6 - uIdx) * 12 * 3600 * 1000),
+              questionnaireVersion: 'v2026.1',
+              answers: defaultAnswers,
+            },
+          });
+        }
       }
     } else if (spec.status === 'CLOSED') {
       const donorSliceStart = (cIdx * 7 + 60) % donorProfiles.length;
@@ -1289,16 +1394,21 @@ async function seedRichData() {
             createdAt: new Date(startsAt.getTime() - 14 * 24 * 3600 * 1000),
           },
         });
-        if (uK % 2 === 0) {
-          await database.healthDeclaration.create({
-            data: {
-              registrationId: reg.id,
-              submittedAt: new Date(startsAt.getTime() - 10 * 24 * 3600 * 1000),
-              questionnaireVersion: 'v2026.1',
-              answers: { feelingWell: true, recentIllness: false },
+        await database.healthDeclaration.create({
+          data: {
+            registrationId: reg.id,
+            submittedAt: new Date(startsAt.getTime() - 10 * 24 * 3600 * 1000),
+            questionnaireVersion: 'v2026.1',
+            answers: {
+              FEVER: false,
+              INFECTION: false,
+              MEDICATION: false,
+              RECENT_DONATION: false,
+              PREGNANCY: false,
+              SURGERY: false,
             },
-          });
-        }
+          },
+        });
       }
     } else if (spec.status === 'CANCELLED') {
       const donorSliceStart = (cIdx * 5 + 90) % donorProfiles.length;

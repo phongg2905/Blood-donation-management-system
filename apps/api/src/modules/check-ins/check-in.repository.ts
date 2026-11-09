@@ -13,6 +13,9 @@ export const checkInRepository = {
     data: Prisma.CheckInUncheckedCreateInput,
   ) => tx.checkIn.create({ data }),
 
+  markCheckedIn: (tx: Prisma.TransactionClient, id: string) =>
+    tx.registration.update({ where: { id }, data: { status: 'CONFIRMED' } }),
+
   markNoShow: (tx: Prisma.TransactionClient, id: string) =>
     tx.registration.update({ where: { id }, data: { status: 'NO_SHOW' } }),
 };

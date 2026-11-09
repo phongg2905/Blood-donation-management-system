@@ -54,6 +54,19 @@ export const userRepository = {
       update: {},
     }),
 
+  updateTx: (
+    tx: Prisma.TransactionClient,
+    id: string,
+    data: { fullName?: string; isActive?: boolean },
+  ) =>
+    tx.user.update({
+      where: { id },
+      data,
+      include: {
+        roles: { include: { role: { select: { code: true, name: true } } } },
+      },
+    }),
+
   transaction: <T>(work: (tx: Prisma.TransactionClient) => Promise<T>) =>
     database.$transaction(work),
 };

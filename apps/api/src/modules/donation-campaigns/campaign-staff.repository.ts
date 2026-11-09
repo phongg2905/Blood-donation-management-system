@@ -5,11 +5,37 @@ export const campaignStaffRepository = {
   transaction: <T>(work: (tx: Prisma.TransactionClient) => Promise<T>) =>
     database.$transaction(work),
 
-  listByCampaign: (campaignId: string) =>
-    database.campaignStaff.findMany({
+  listByCampaign: async (campaignId: string) => {
+    const rows = await database.campaignStaff.findMany({
       where: { campaignId },
-      include: { user: { select: { id: true, fullName: true, email: true } } },
-    }),
+      include: {
+        user: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+            roles: {
+              include: {
+                role: { select: { code: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      campaignId: row.campaignId,
+      userId: row.userId,
+      assignment: row.assignment,
+      user: {
+        id: row.user.id,
+        fullName: row.user.fullName,
+        email: row.user.email,
+        roles: row.user.roles.map((r) => r.role.code),
+      },
+    }));
+  },
 
   campaignExistsTx: (tx: Prisma.TransactionClient, campaignId: string) =>
     tx.donationCampaign.findUnique({
@@ -26,22 +52,58 @@ export const campaignStaffRepository = {
       })
       .then((rows) => rows.map((r) => r.role.code)),
 
-  create: (
+  create: async (
     tx: Prisma.TransactionClient,
     data: Prisma.CampaignStaffUncheckedCreateInput,
-  ) => tx.campaignStaff.create({ data }),
+  ) => {
+    const record = await tx.campaignStaff.create({
+      data,
+      include: {
+        user: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+            roles: {
+              include: {
+                role: { select: { code: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+    return {
+      id: record.id,
+      campaignId: record.campaignId,
+      userId: record.userId,
+      assignment: record.assignment,
+      user: {
+        id: record.user.id,
+        fullName: record.user.fullName,
+        email: record.user.email,
+        roles: record.user.roles.map((r) => r.role.code),
+      },
+    };
+  },
 
   findAssignmentTx: (
     tx: Prisma.TransactionClient,
     campaignId: string,
-    userId: string,
+    userOrAssignmentId: string,
   ) =>
-    tx.campaignStaff.findUnique({
-      where: { campaignId_userId: { campaignId, userId } },
+    tx.campaignStaff.findFirst({
+      where: {
+        campaignId,
+        OR: [{ userId: userOrAssignmentId }, { id: userOrAssignmentId }],
+      },
     }),
 
-  remove: (tx: Prisma.TransactionClient, campaignId: string, userId: string) =>
-    tx.campaignStaff.delete({
-      where: { campaignId_userId: { campaignId, userId } },
+  remove: (tx: Prisma.TransactionClient, campaignId: string, userOrAssignmentId: string) =>
+    tx.campaignStaff.deleteMany({
+      where: {
+        campaignId,
+        OR: [{ userId: userOrAssignmentId }, { id: userOrAssignmentId }],
+      },
     }),
 };

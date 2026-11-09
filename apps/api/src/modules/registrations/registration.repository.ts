@@ -30,7 +30,12 @@ export const registrationRepository = {
   findByIdTx: (tx: Prisma.TransactionClient, id: string) =>
     tx.registration.findUnique({
       where: { id },
-      include: { donor: { select: { userId: true } } },
+      include: {
+        donor: { select: { userId: true } },
+        checkIn: true,
+        timeSlot: true,
+        campaign: true,
+      },
     }),
 
   create: (
@@ -47,13 +52,27 @@ export const registrationRepository = {
   createHealthDeclaration: (
     tx: Prisma.TransactionClient,
     data: Prisma.HealthDeclarationUncheckedCreateInput,
-  ) => tx.healthDeclaration.create({ data }),
+  ) =>
+    tx.healthDeclaration.upsert({
+      where: { registrationId: data.registrationId },
+      create: data,
+      update: {
+        answers: data.answers,
+        questionnaireVersion: data.questionnaireVersion ?? null,
+        submittedAt: data.submittedAt ?? new Date(),
+      },
+    }),
 
   update: (
     tx: Prisma.TransactionClient,
     id: string,
     data: Prisma.RegistrationUncheckedUpdateInput,
   ) => tx.registration.update({ where: { id }, data }),
+
+  deleteCreated: async (tx: Prisma.TransactionClient, id: string) => {
+    await tx.healthDeclaration.deleteMany({ where: { registrationId: id } });
+    await tx.registration.delete({ where: { id } });
+  },
 
   async search(filter: {
     search?: string | undefined;
@@ -142,7 +161,17 @@ export const registrationRepository = {
           },
           timeSlot: true,
           healthDeclaration: true,
-          checkIn: true,
+          checkIn: {
+            include: {
+              screening: {
+                include: {
+                  donation: {
+                    include: { bloodBags: true, certificate: true },
+                  },
+                },
+              },
+            },
+          },
         },
         skip,
         take,

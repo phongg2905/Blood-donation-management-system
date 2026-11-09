@@ -231,6 +231,7 @@ const DONATION_STAFF_PERMISSIONS = [
 const COORDINATOR_PERMISSIONS = [
   'auth.profile.read',
   'auth.profile.update',
+  'user.read',
   'campaign.read',
   'campaign.create',
   'campaign.update',
@@ -261,6 +262,9 @@ const COORDINATOR_PERMISSIONS = [
 const SYSTEM_ADMIN_PERMISSIONS = [
   'auth.profile.read',
   'auth.profile.update',
+  'campaign.read',
+  'timeslot.read',
+  'campaign_staff.read',
   'user.read',
   'user.manage',
   'role.read',
@@ -518,6 +522,7 @@ export const ERROR_CODES = {
   AUTH_INVALID_CREDENTIALS: 'AUTH_INVALID_CREDENTIALS',
   AUTH_ACCOUNT_INACTIVE: 'AUTH_ACCOUNT_INACTIVE',
   AUTH_EMAIL_EXISTS: 'AUTH_EMAIL_EXISTS',
+  AUTH_CITIZEN_ID_EXISTS: 'AUTH_CITIZEN_ID_EXISTS',
   AUTH_SESSION_INVALID: 'AUTH_SESSION_INVALID',
   AUTH_RESET_TOKEN_INVALID: 'AUTH_RESET_TOKEN_INVALID',
 
@@ -588,6 +593,7 @@ export const ERROR_MESSAGES: Readonly<Record<ErrorCode, string>> = {
   AUTH_INVALID_CREDENTIALS: 'Email hoặc mật khẩu không đúng',
   AUTH_ACCOUNT_INACTIVE: 'Tài khoản đã bị khoá',
   AUTH_EMAIL_EXISTS: 'Email đã được sử dụng',
+  AUTH_CITIZEN_ID_EXISTS: 'Số CCCD đã được đăng ký trong hệ thống',
   AUTH_SESSION_INVALID: 'Phiên đăng nhập không hợp lệ hoặc đã hết hạn',
   AUTH_RESET_TOKEN_INVALID:
     'Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn',
@@ -698,6 +704,8 @@ export const AUDIT_ACTIONS = {
 
   CERTIFICATE_ISSUED: 'CERTIFICATE_ISSUED',
   CERTIFICATE_REVOKED: 'CERTIFICATE_REVOKED',
+
+  SYSTEM_SETTING_UPDATED: 'SYSTEM_SETTING_UPDATED',
 } as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];
 
@@ -778,6 +786,7 @@ export interface CurrentUser {
   email: string;
   fullName: string;
   /** DONOR contact details; null for accounts without a donor profile. */
+  citizenId?: string | null;
   phone?: string | null;
   address?: string | null;
   roles: AllRoleCode[];

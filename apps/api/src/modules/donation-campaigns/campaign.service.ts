@@ -53,6 +53,7 @@ async function transition(
 
 export const campaignService = {
   async list(query: unknown, canViewDraft: boolean = true) {
+    await repo.syncExpiredCampaigns();
     const filters = validateCampaignListQuery(query);
     const pagination = resolvePagination(filters);
     const effectiveStatus = canViewDraft
@@ -73,6 +74,7 @@ export const campaignService = {
   },
 
   async getById(id: string) {
+    await repo.syncExpiredCampaigns();
     const campaign = await repo.findById(id);
     if (!campaign) throw AppError.notFound(ERROR_CODES.CAMPAIGN_NOT_FOUND);
     return campaign;
