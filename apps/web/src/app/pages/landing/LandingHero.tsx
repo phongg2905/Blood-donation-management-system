@@ -7,10 +7,8 @@ import { LANDING_ANCHORS } from './landing-content';
 import { RegistrationAction } from './RegistrationAction';
 
 export function LandingHero() {
-  const { currentUser, hasPermission } = useAuth();
+  const { hasPermission } = useAuth();
   const navigate = useNavigate();
-
-  const firstName = currentUser?.fullName?.trim().split(/\s+/).at(-1) || 'bạn';
 
   return (
     <section

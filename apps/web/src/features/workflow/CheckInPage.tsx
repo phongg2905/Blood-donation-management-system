@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { MapPin, Clock, Check, Lock, X } from 'lucide-react';
 import { Button, FormField, Input } from '@/components/ui';
+import { AuthContext } from '@/features/auth/context/auth-context';
 import { Feedback, QueryState } from '@/features/campaigns/components';
 import { useCampaignRepository } from '@/features/campaigns/repository';
 import { useCampaignQuery } from '@/features/campaigns/hooks';
@@ -11,6 +12,8 @@ import {
   formatDate,
   formatSlotRange,
   getOperationalWindow,
+  getStaffStationInCampaign,
+  isAssignedToCampaignStation,
   sortCampaignsForOperationalStation,
   sortRegistrationsForCheckIn,
 } from './domain';
@@ -177,6 +180,7 @@ function CheckInModal({
 
 export function CheckInPage() {
   const { campaignId } = useParams<{ campaignId?: string }>();
+  const user = useContext(AuthContext)?.currentUser ?? null;
   const workflow = useWorkflowRepository();
   const campaignRepo = useCampaignRepository();
   const mutation = useWorkflowMutation();
@@ -323,10 +327,21 @@ export function CheckInPage() {
 
   function confirmCheckIn() {
     if (!selected) return;
+    const prevSelected = selected;
     void mutation.run(
-      () => workflow.checkIn(selected.id),
+      () => workflow.checkIn(prevSelected.id),
       (registration) => {
-        setSelected(registration);
+        setSelected({
+          ...prevSelected,
+          ...registration,
+          donorName: registration.donorName || prevSelected.donorName,
+          donorPhone: registration.donorPhone ?? prevSelected.donorPhone,
+          donorIdentity: registration.donorIdentity ?? prevSelected.donorIdentity,
+          campaignName: registration.campaignName || prevSelected.campaignName,
+          location: registration.location || prevSelected.location,
+          slotStartsAt: registration.slotStartsAt || prevSelected.slotStartsAt,
+          slotEndsAt: registration.slotEndsAt || prevSelected.slotEndsAt,
+        });
         campaignRegistrations.retry();
       },
       'Check-in thành công. Người hiến đã được đưa vào hàng chờ sàng lọc.',
@@ -335,10 +350,21 @@ export function CheckInPage() {
 
   function confirmNoShow() {
     if (!selected || !workflow.markNoShow) return;
+    const prevSelected = selected;
     void mutation.run(
-      () => workflow.markNoShow!(selected.id),
+      () => workflow.markNoShow!(prevSelected.id),
       (registration) => {
-        setSelected(registration);
+        setSelected({
+          ...prevSelected,
+          ...registration,
+          donorName: registration.donorName || prevSelected.donorName,
+          donorPhone: registration.donorPhone ?? prevSelected.donorPhone,
+          donorIdentity: registration.donorIdentity ?? prevSelected.donorIdentity,
+          campaignName: registration.campaignName || prevSelected.campaignName,
+          location: registration.location || prevSelected.location,
+          slotStartsAt: registration.slotStartsAt || prevSelected.slotStartsAt,
+          slotEndsAt: registration.slotEndsAt || prevSelected.slotEndsAt,
+        });
         campaignRegistrations.retry();
       },
       'Đã ghi nhận người hiến vắng mặt (No-show).',
@@ -347,12 +373,16 @@ export function CheckInPage() {
 
   // 1. If accessed without a campaignId (via /clinic/check-in):
   if (!campaignId) {
-    const rawCampaignsWithWindow = (campaignsListQuery.data?.items ?? []).map((campaign) => ({
-      campaign,
-      window: getOperationalWindow(campaign.startsAt, campaign.endsAt, {
-        campaignStatus: campaign.status,
-      }),
-    }));
+    const rawCampaignsWithWindow = (campaignsListQuery.data?.items ?? [])
+      .filter((campaign) =>
+        isAssignedToCampaignStation(campaign, user?.id, 'CHECK_IN'),
+      )
+      .map((campaign) => ({
+        campaign,
+        window: getOperationalWindow(campaign.startsAt, campaign.endsAt, {
+          campaignStatus: campaign.status,
+        }),
+      }));
 
     const campaignsWithWindow = sortCampaignsForOperationalStation(rawCampaignsWithWindow);
 
@@ -419,12 +449,12 @@ export function CheckInPage() {
             {filteredCampaigns.length === 0 && (
               <p className="workflow-empty">
                 {statusFilter === 'ACTIVE'
-                  ? 'Hiện không có đợt hiến máu nào đang trong giờ mở quầy.'
+                  ? 'Hiện không có đợt hiến máu nào bạn được phân công Tiếp nhận đang trong giờ mở quầy.'
                   : statusFilter === 'UPCOMING'
-                    ? 'Không có đợt hiến nào chưa mở.'
+                    ? 'Không có đợt hiến nào chưa mở mà bạn được phân công Tiếp nhận.'
                     : statusFilter === 'CLOSED'
-                      ? 'Không có đợt hiến nào đã đóng.'
-                      : 'Hiện không có đợt hiến máu nào.'}
+                      ? 'Không có đợt hiến nào đã đóng mà bạn được phân công Tiếp nhận.'
+                      : 'Bạn hiện chưa được phân công nhiệm vụ Tiếp nhận ở đợt hiến máu nào.'}
               </p>
             )}
 
@@ -471,9 +501,6 @@ export function CheckInPage() {
                             {formatDate(campaign.startsAt)}
                           </span>
                         </p>
-                        <p className="workflow-muted" style={{ fontSize: '0.8rem' }}>
-                          {window.message}
-                        </p>
                       </div>
                       <div className="workflow-list__side">
                         {isOpen ? (
@@ -509,6 +536,42 @@ export function CheckInPage() {
             />
           </>
         )}
+      </WorkflowShell>
+    );
+  }
+
+  if (
+    campaignQuery.data &&
+    !isAssignedToCampaignStation(campaignQuery.data, user?.id, 'CHECK_IN')
+  ) {
+    const myStation = getStaffStationInCampaign(campaignQuery.data, user?.id);
+    return (
+      <WorkflowShell
+        title="Không thuộc phân công Tiếp nhận"
+        back="/clinic/check-in"
+        backLabel="Chọn đợt hiến khác"
+      >
+        <div className="station-blocked">
+          <div className="station-blocked__icon">
+            <Lock size={48} color="#dc2626" />
+          </div>
+          <h2 className="station-blocked__title">
+            {campaignQuery.data.name}
+          </h2>
+          <p className="station-blocked__desc">
+            {myStation === 'UNASSIGNED'
+              ? 'Tài khoản của bạn chưa được điều phối viên phân công làm việc tại đợt hiến máu này.'
+              : 'Trong đợt hiến máu này, bạn đã được phân công ở vị trí khác nên không thể đồng thời thực hiện nhiệm vụ Tiếp nhận.'}
+          </p>
+          <div className="station-blocked__actions">
+            <Link className="btn btn--primary" to="/clinic/check-in">
+              Về danh sách đợt Tiếp nhận của tôi
+            </Link>
+            <Link className="btn btn--secondary" to={`/campaigns/${campaignId}`}>
+              Xem chi tiết đợt hiến
+            </Link>
+          </div>
+        </div>
       </WorkflowShell>
     );
   }

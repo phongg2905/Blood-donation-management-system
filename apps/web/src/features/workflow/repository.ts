@@ -296,22 +296,37 @@ export class ApiWorkflowRepository implements WorkflowRepository {
       const list = response.data ?? [];
       return list
         .filter((c) => !campaignId || c.registration?.campaignId === campaignId)
-        .map((c) => ({
-          registration: mapRegistration(c.registration),
-          screening: {
-            id: '',
-            registrationId: c.registrationId ?? c.registration?.id,
-            checkInId: c.id,
-            status: 'PENDING',
-            measurements: {},
-            reason: null,
-            createdAt: c.checkedInAt,
-            reviewedAt: null,
-            bloodGroup: null,
-            rh: null,
-            infectiousTest: null,
-          },
-        }));
+        .map((c) => {
+          const registration = mapRegistration({
+            ...c.registration,
+            checkIn: c.registration?.checkIn ?? {
+              id: c.id,
+              registrationId: c.registrationId ?? c.registration?.id,
+              checkedInAt: c.checkedInAt,
+              checkedInById: c.checkedInById,
+            },
+          });
+          const screening: ScreeningRecord = c.screening
+            ? mapScreening(
+                c.screening,
+                c.registrationId ?? c.registration?.id,
+                c.id,
+              )
+            : {
+                id: '',
+                registrationId: c.registrationId ?? c.registration?.id,
+                checkInId: c.id,
+                status: 'PENDING',
+                measurements: {},
+                reason: null,
+                createdAt: c.checkedInAt,
+                reviewedAt: null,
+                bloodGroup: null,
+                rh: null,
+                infectiousTest: null,
+              };
+          return { registration, screening };
+        });
     } catch {
       return [];
     }
@@ -478,9 +493,30 @@ export class ApiWorkflowRepository implements WorkflowRepository {
   }
 
   async createBloodBag(input: BloodBagInput): Promise<BloodBag> {
-    const screeningId = input.screeningId;
+    let screeningId = input.screeningId;
+    if (!screeningId && input.registrationId) {
+      const eligible = await this.eligibleForBag(input.campaignId);
+      const matchedEligible = eligible.find(
+        (item) => item.registration.id === input.registrationId,
+      );
+      if (matchedEligible?.screening.id) {
+        screeningId = matchedEligible.screening.id;
+      } else {
+        const queueList = await this.screeningQueue(input.campaignId);
+        const matchedQueue = queueList.find(
+          (item) => item.registration.id === input.registrationId,
+        );
+        if (matchedQueue?.screening.id) {
+          screeningId = matchedQueue.screening.id;
+        }
+      }
+    }
     if (!screeningId) {
-      throw new ApiRequestError('REQUEST_INVALID', 'screeningId là bắt buộc', 400);
+      throw new ApiRequestError(
+        'REQUEST_INVALID',
+        'Người hiến này chưa có kết luận sàng lọc đủ điều kiện để lấy máu.',
+        400,
+      );
     }
 
     const response = await apiPost<BackendBloodBagRecordDto>(
@@ -507,8 +543,8 @@ export class ApiWorkflowRepository implements WorkflowRepository {
       code: bag.code,
       registrationId: input.registrationId,
       donorId: '',
-      donorName: '',
-      campaignName: '',
+      donorName: input.donorName ?? '',
+      campaignName: input.campaignName ?? '',
       volumeMl: bag.volumeMl,
       bloodGroup: input.bloodGroup,
       bloodType: bag.bloodType ?? null,

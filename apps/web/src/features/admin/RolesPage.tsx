@@ -39,10 +39,6 @@ export function RolesPage() {
             </article>
           ))}
         </div>
-        <p className="admin-muted">
-          Không có API chỉnh sửa vai trò/quyền trong hợp đồng hiện tại. Thay đổi
-          ma trận thuộc backend.
-        </p>
       </section>
 
       {hasPermission('permission.read') && (

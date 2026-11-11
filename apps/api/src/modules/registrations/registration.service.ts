@@ -14,7 +14,12 @@ import {
 import { database } from '../../config/database';
 import type { AuditContext } from '../audit-logs/audit.service';
 import { auditLogService } from '../audit-logs/audit.service';
+import {
+  assertCampaignAcceptsRegistration,
+  assertRegistrationWindowOpen,
+} from '../donation-campaigns/campaign.validation';
 import { notificationService } from '../notifications/notification.service';
+import { timeSlotRepository } from '../time-slots/time-slot.repository';
 import { timeSlotService } from '../time-slots/time-slot.service';
 import { registrationRepository as repo } from './registration.repository';
 import {
@@ -42,12 +47,57 @@ export const registrationService = {
       if (!donor)
         throw AppError.internal('DonorProfile missing for a DONOR account');
 
+      const campaign = await tx.donationCampaign.findUnique({
+        where: { id: data.campaignId },
+      });
+      if (!campaign) throw AppError.notFound(ERROR_CODES.CAMPAIGN_NOT_FOUND);
+      assertCampaignAcceptsRegistration(campaign.status);
+      assertRegistrationWindowOpen(campaign);
+
       const existing = await repo.findByDonorAndCampaign(
         tx,
         donor.id,
         data.campaignId,
       );
       const { reuse } = assertSingleRegistrationPerCampaign(existing);
+
+      const activeDeferral = await timeSlotRepository.activeDeferralTx(
+        tx,
+        donor.id,
+        campaign.startsAt,
+      );
+      if (activeDeferral) {
+        throw AppError.conflict(
+          ERROR_CODES.SCREENING_NOT_ELIGIBLE,
+          'Bạn đang trong thời gian tạm hoãn hiến máu theo chỉ định y tế',
+        );
+      }
+
+      const recentDonation = await timeSlotRepository.recentCompletedDonationTx(
+        tx,
+        donor.id,
+        campaign.startsAt,
+      );
+      if (recentDonation) {
+        throw AppError.conflict(
+          ERROR_CODES.REGISTRATION_OVERLAP,
+          'Khoảng cách tối thiểu giữa 2 lần hiến máu toàn phần là 84 ngày (12 tuần)',
+        );
+      }
+
+      const activeOtherRegistration =
+        await timeSlotRepository.activeRegistrationsWithinIntervalTx(
+          tx,
+          donor.id,
+          existing?.id ?? '',
+          campaign.startsAt,
+        );
+      if (activeOtherRegistration) {
+        throw AppError.conflict(
+          ERROR_CODES.REGISTRATION_OVERLAP,
+          `Bạn đã có lịch đăng ký đang hoạt động tại "${activeOtherRegistration.campaign.name}" trong vòng 84 ngày`,
+        );
+      }
 
       const row = reuse
         ? await repo.reuse(tx, existing!.id, {

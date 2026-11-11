@@ -14,6 +14,28 @@ import type {
  * returns 503 until it exists.
  */
 
+export interface AdminUserProfileInfo {
+  phone?: string | null;
+  citizenId?: string | null;
+  dateOfBirth?: string | null;
+  gender?: string | null;
+  bloodType?: string | null;
+  address?: string | null;
+  emergencyName?: string | null;
+  emergencyPhone?: string | null;
+}
+
+export interface AdminUserCampaignAssignment {
+  id: string;
+  assignment: string;
+  campaign?: {
+    id: string;
+    name: string;
+    startsAt?: string;
+    status?: string;
+  } | null;
+}
+
 export interface AdminUser {
   id: string;
   email: string;
@@ -23,6 +45,8 @@ export interface AdminUser {
   roles: ActorCode[];
   lastLoginAt: string | null;
   createdAt: string;
+  donorProfile?: AdminUserProfileInfo | null;
+  campaignAssignments?: AdminUserCampaignAssignment[];
 }
 
 export interface AdminUserQuery {
@@ -36,7 +60,14 @@ export interface AdminUserQuery {
 /** Body of `PATCH /users/:id`; omitted keys are left unchanged. */
 export interface AdminUserUpdate {
   fullName?: string;
+  email?: string;
   isActive?: boolean;
+  phone?: string | null;
+  citizenId?: string | null;
+  dateOfBirth?: string | null;
+  gender?: string | null;
+  bloodType?: string | null;
+  address?: string | null;
 }
 
 export interface RoleSummary {

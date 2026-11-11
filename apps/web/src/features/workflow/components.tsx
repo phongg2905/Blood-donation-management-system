@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useContext, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { MapPin, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -7,7 +7,12 @@ export function MockNote() {
   return null;
 }
 
-import { OPERATIONAL_STATUS_SHORT_LABELS, formatDate } from './domain';
+import { AuthContext } from '@/features/auth/context/auth-context';
+import {
+  OPERATIONAL_STATUS_SHORT_LABELS,
+  formatDate,
+  getStaffStationInCampaign,
+} from './domain';
 
 export function WorkflowShell({
   eyebrow,
@@ -72,7 +77,14 @@ export function StationCompactHeader({
   operationalWindow,
   actions,
 }: {
-  campaign: { id: string; name: string; location: string; startsAt: string; endsAt: string };
+  campaign: {
+    id: string;
+    name: string;
+    location: string;
+    startsAt: string;
+    endsAt: string;
+    staffAssignments?: Array<{ userId: string; assignment: string | null }>;
+  };
   activeStation: 'checkin' | 'screening' | 'bloodbags';
   operationalWindow?: {
     status: 'ACTIVE' | 'UPCOMING' | 'CLOSED';
@@ -81,6 +93,9 @@ export function StationCompactHeader({
   } | null;
   actions?: ReactNode;
 }) {
+  const user = useContext(AuthContext)?.currentUser ?? null;
+  const assignedStation = getStaffStationInCampaign(campaign, user?.id);
+
   return (
     <section className="station-compact-header" aria-label="Thông tin đợt tác nghiệp">
       <div className="station-compact-header__main">
@@ -120,24 +135,30 @@ export function StationCompactHeader({
         {actions && <div className="station-compact-header__actions">{actions}</div>}
       </div>
       <nav className="station-compact-nav" aria-label="Điều hướng tác nghiệp tại điểm hiến">
-        <Link
-          className={`station-compact-tab ${activeStation === 'checkin' ? 'station-compact-tab--active' : ''}`}
-          to={`/campaigns/${campaign.id}/check-in`}
-        >
-          Quầy tiếp nhận
-        </Link>
-        <Link
-          className={`station-compact-tab ${activeStation === 'screening' ? 'station-compact-tab--active' : ''}`}
-          to={`/campaigns/${campaign.id}/screening`}
-        >
-          Hàng chờ sàng lọc
-        </Link>
-        <Link
-          className={`station-compact-tab ${activeStation === 'bloodbags' ? 'station-compact-tab--active' : ''}`}
-          to={`/campaigns/${campaign.id}/blood-bags`}
-        >
-          Quản lý túi máu
-        </Link>
+        {(assignedStation === 'UNSCOPED' || assignedStation === 'CHECK_IN') && (
+          <Link
+            className={`station-compact-tab ${activeStation === 'checkin' ? 'station-compact-tab--active' : ''}`}
+            to={`/campaigns/${campaign.id}/check-in`}
+          >
+            Quầy tiếp nhận
+          </Link>
+        )}
+        {(assignedStation === 'UNSCOPED' || assignedStation === 'SCREENING') && (
+          <Link
+            className={`station-compact-tab ${activeStation === 'screening' ? 'station-compact-tab--active' : ''}`}
+            to={`/campaigns/${campaign.id}/screening`}
+          >
+            Hàng chờ sàng lọc
+          </Link>
+        )}
+        {(assignedStation === 'UNSCOPED' || assignedStation === 'COLLECTION') && (
+          <Link
+            className={`station-compact-tab ${activeStation === 'bloodbags' ? 'station-compact-tab--active' : ''}`}
+            to={`/campaigns/${campaign.id}/blood-bags`}
+          >
+            Quản lý túi máu
+          </Link>
+        )}
         <Link
           className="station-compact-tab station-compact-tab--link"
           to={`/campaigns/${campaign.id}`}

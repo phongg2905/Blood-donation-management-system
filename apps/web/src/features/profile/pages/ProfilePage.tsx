@@ -107,14 +107,12 @@ function ProfileEditor({
         <FormField
           id="profile-email"
           label="Email"
-          hint="Email được dùng để đăng nhập và không thể sửa tại đây."
         >
           <Input name="email" type="email" value={user.email} readOnly />
         </FormField>
         <FormField
           id="profile-citizenid"
           label="Số CCCD"
-          hint="Số CCCD định danh không thể thay đổi sau khi đăng ký."
         >
           <Input
             name="citizenId"
@@ -205,9 +203,6 @@ function ProfileContent({ user }: { user: CurrentUser }) {
           <h1 className="profile-desktop-header__title">
             Thông tin cá nhân
           </h1>
-          <p className="profile-desktop-header__subtitle">
-            Xin chào, {user.fullName}! Quản lý thông tin tài khoản cá nhân & thông tin người hiến máu
-          </p>
         </div>
         {canEdit && !editing ? (
           <Button

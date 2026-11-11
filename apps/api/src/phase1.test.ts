@@ -511,6 +511,10 @@ test('campaign rejects invalid dates, targets and frozen transitions', () => {
     () => assertCampaignEditable('COMPLETED'),
     'CAMPAIGN_NOT_EDITABLE',
   );
+  throwsCode(
+    () => assertCampaignEditable('CANCELLED'),
+    'CAMPAIGN_NOT_EDITABLE',
+  );
 
   const now = new Date('2030-01-01T09:00:00Z');
   assertRegistrationWindowOpen(

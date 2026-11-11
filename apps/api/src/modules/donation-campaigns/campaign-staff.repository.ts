@@ -40,7 +40,37 @@ export const campaignStaffRepository = {
   campaignExistsTx: (tx: Prisma.TransactionClient, campaignId: string) =>
     tx.donationCampaign.findUnique({
       where: { id: campaignId },
-      select: { id: true },
+      select: {
+        id: true,
+        name: true,
+        startsAt: true,
+        endsAt: true,
+        status: true,
+      },
+    }),
+
+  findOverlappingAssignmentTx: (
+    tx: Prisma.TransactionClient,
+    userId: string,
+    excludeCampaignId: string,
+    startsAt: Date,
+    endsAt: Date,
+  ) =>
+    tx.campaignStaff.findFirst({
+      where: {
+        userId,
+        campaignId: { not: excludeCampaignId },
+        campaign: {
+          status: { not: 'CANCELLED' },
+          startsAt: { lt: endsAt },
+          endsAt: { gt: startsAt },
+        },
+      },
+      include: {
+        campaign: {
+          select: { id: true, name: true, startsAt: true, endsAt: true },
+        },
+      },
     }),
 
   /** A user's role codes, to reject assigning a DONOR account as staff. */

@@ -25,7 +25,12 @@ const unavailable = (): never => {
   throw new ApiRequestError('ROUTE_NOT_FOUND', '', 503);
 };
 /** Named mapper boundary: adjust response DTO mapping here when BE publishes it. */
-export const mapCampaign = (dto: Campaign): Campaign => ({ ...dto });
+export const mapCampaign = (
+  dto: Campaign & { staff?: Campaign['staffAssignments'] },
+): Campaign => ({
+  ...dto,
+  ...(dto.staff && !dto.staffAssignments ? { staffAssignments: dto.staff } : {}),
+});
 export const mapSlot = (dto: TimeSlot): TimeSlot => ({ ...dto });
 export class ApiCampaignRepository implements CampaignRepository {
   constructor(private staffAdapter?: StaffAdapter, private enableDirectApi: boolean = false) {}

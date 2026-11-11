@@ -96,6 +96,8 @@ async function cleanupPreviousRichData(): Promise<void> {
     'admin@example.local',
     'donor.demo@example.local',
     'donation-staff.demo@example.local',
+    'donation-staff-2.demo@example.local',
+    'donation-staff-3.demo@example.local',
     'coordinator.demo@example.local',
     env.ADMIN_EMAIL ?? '',
   ].filter(Boolean);
@@ -115,12 +117,16 @@ async function cleanupPreviousRichData(): Promise<void> {
   await database.donationCampaign.deleteMany({});
   await database.notification.deleteMany({});
 
-  // Ensure core donor demo profile has complete contact info
+  // Ensure core demo accounts have realistic names and complete contact info
   const coreDonorUser = await database.user.findUnique({
     where: { email: 'donor.demo@example.local' },
     select: { id: true },
   });
   if (coreDonorUser) {
+    await database.user.update({
+      where: { id: coreDonorUser.id },
+      data: { fullName: 'Nguyễn Minh Quân' },
+    });
     await database.donorProfile.updateMany({
       where: { userId: coreDonorUser.id },
       data: {
@@ -129,6 +135,148 @@ async function cleanupPreviousRichData(): Promise<void> {
         gender: 'MALE',
         dateOfBirth: new Date('1995-05-15T00:00:00.000Z'),
         bloodType: 'O_POSITIVE',
+      },
+    });
+  }
+
+  const coreStaffUser = await database.user.findUnique({
+    where: { email: 'donation-staff.demo@example.local' },
+    select: { id: true },
+  });
+  if (coreStaffUser) {
+    await database.user.update({
+      where: { id: coreStaffUser.id },
+      data: { fullName: 'CN. Nguyễn Hoàng Minh' },
+    });
+    await database.donorProfile.updateMany({
+      where: { userId: coreStaffUser.id },
+      data: {
+        phone: '0901001003',
+        address: '456 Hai Bà Trưng, Quận 1, TP.HCM',
+        gender: 'MALE',
+        dateOfBirth: new Date('1995-08-20T00:00:00.000Z'),
+      },
+    });
+  }
+
+  // Ensure the 2nd demo staff account (donation-staff-2.demo@example.local) exists with Demo@Password1
+  const demoStaff2PasswordHash = await hashPassword('Demo@Password1');
+  const staffRoleRecord = await database.role.findUnique({
+    where: { code: 'DONATION_STAFF' },
+    select: { id: true },
+  });
+  if (staffRoleRecord) {
+    const coreStaff2User = await database.user.upsert({
+      where: { email: 'donation-staff-2.demo@example.local' },
+      create: {
+        email: 'donation-staff-2.demo@example.local',
+        fullName: 'BS. Trần Minh Đức',
+        passwordHash: demoStaff2PasswordHash,
+        isActive: true,
+        emailVerifiedAt: new Date('2025-12-01T08:00:00Z'),
+      },
+      update: {
+        fullName: 'BS. Trần Minh Đức',
+        passwordHash: demoStaff2PasswordHash,
+        isActive: true,
+      },
+    });
+    await database.userRole.upsert({
+      where: {
+        userId_roleId: {
+          userId: coreStaff2User.id,
+          roleId: staffRoleRecord.id,
+        },
+      },
+      create: {
+        userId: coreStaff2User.id,
+        roleId: staffRoleRecord.id,
+      },
+      update: {},
+    });
+    await database.donorProfile.upsert({
+      where: { userId: coreStaff2User.id },
+      create: {
+        userId: coreStaff2User.id,
+        citizenId: '079091001005',
+        phone: '0901001005',
+        address: '88 Lý Tự Trọng, Quận 1, TP.HCM',
+        gender: 'MALE',
+        dateOfBirth: new Date('1991-04-12T00:00:00.000Z'),
+      },
+      update: {
+        citizenId: '079091001005',
+        phone: '0901001005',
+        address: '88 Lý Tự Trọng, Quận 1, TP.HCM',
+        gender: 'MALE',
+        dateOfBirth: new Date('1991-04-12T00:00:00.000Z'),
+      },
+    });
+
+    const coreStaff3User = await database.user.upsert({
+      where: { email: 'donation-staff-3.demo@example.local' },
+      create: {
+        email: 'donation-staff-3.demo@example.local',
+        fullName: 'KTV. Lê Thị Thu Hà',
+        passwordHash: demoStaff2PasswordHash,
+        isActive: true,
+        emailVerifiedAt: new Date('2025-12-01T08:00:00Z'),
+      },
+      update: {
+        fullName: 'KTV. Lê Thị Thu Hà',
+        passwordHash: demoStaff2PasswordHash,
+        isActive: true,
+      },
+    });
+    await database.userRole.upsert({
+      where: {
+        userId_roleId: {
+          userId: coreStaff3User.id,
+          roleId: staffRoleRecord.id,
+        },
+      },
+      create: {
+        userId: coreStaff3User.id,
+        roleId: staffRoleRecord.id,
+      },
+      update: {},
+    });
+    await database.donorProfile.upsert({
+      where: { userId: coreStaff3User.id },
+      create: {
+        userId: coreStaff3User.id,
+        citizenId: '079194001006',
+        phone: '0901001006',
+        address: '152 Điện Biên Phủ, Quận 3, TP.HCM',
+        gender: 'FEMALE',
+        dateOfBirth: new Date('1994-09-18T00:00:00.000Z'),
+      },
+      update: {
+        citizenId: '079194001006',
+        phone: '0901001006',
+        address: '152 Điện Biên Phủ, Quận 3, TP.HCM',
+        gender: 'FEMALE',
+        dateOfBirth: new Date('1994-09-18T00:00:00.000Z'),
+      },
+    });
+  }
+
+  const coreCoordUser = await database.user.findUnique({
+    where: { email: 'coordinator.demo@example.local' },
+    select: { id: true },
+  });
+  if (coreCoordUser) {
+    await database.user.update({
+      where: { id: coreCoordUser.id },
+      data: { fullName: 'ThS. Trần Minh Khôi' },
+    });
+    await database.donorProfile.updateMany({
+      where: { userId: coreCoordUser.id },
+      data: {
+        phone: '0901001004',
+        address: '201B Nguyễn Chí Thanh, Quận 5, TP.HCM',
+        gender: 'MALE',
+        dateOfBirth: new Date('1990-03-10T00:00:00.000Z'),
       },
     });
   }
@@ -834,6 +982,33 @@ async function seedRichData() {
   // 7. Create 20 Campaigns, TimeSlots, and Staff Assignments
   console.info('\nĐang tạo 20 Đợt hiến máu thực tế và cấu hình ca hiến, phân công nhân sự...');
   let bagGlobalCounter = 100;
+  let donorCursor = 0;
+  const donorDonationDates = new Map<string, Date[]>();
+  const donorActiveRegistration = new Set<string>();
+  const MIN_INTERVAL_MS = 84 * 24 * 3600 * 1000;
+
+  function pickEligibleDonors(
+    count: number,
+    campaignDate: Date,
+    holdsActiveBooking: boolean,
+  ) {
+    const picked: typeof donorProfiles = [];
+    const pickedIds = new Set<string>();
+    for (let step = 0; step < donorProfiles.length * 2 && picked.length < count; step++) {
+      const candidate = donorProfiles[(donorCursor + step) % donorProfiles.length]!;
+      if (pickedIds.has(candidate.id)) continue;
+      if (holdsActiveBooking && donorActiveRegistration.has(candidate.id)) continue;
+      const dates = donorDonationDates.get(candidate.id) ?? [];
+      const tooClose = dates.some(
+        (d) => Math.abs(campaignDate.getTime() - d.getTime()) < MIN_INTERVAL_MS,
+      );
+      if (tooClose) continue;
+      picked.push(candidate);
+      pickedIds.add(candidate.id);
+    }
+    donorCursor = (donorCursor + count) % donorProfiles.length;
+    return picked;
+  }
 
   for (let cIdx = 0; cIdx < CAMPAIGN_SPECS.length; cIdx++) {
     const spec = CAMPAIGN_SPECS[cIdx]!;
@@ -960,11 +1135,11 @@ async function seedRichData() {
 
     // 8. Generate Realistic Registrations & Clinical Records based on status
     if (spec.status === 'COMPLETED') {
-      const donorSliceStart = (cIdx * 12) % donorProfiles.length;
-      const donorSliceCount = 13;
-      const campaignDonors = [];
-      for (let k = 0; k < donorSliceCount; k++) {
-        campaignDonors.push(donorProfiles[(donorSliceStart + k) % donorProfiles.length]!);
+      const campaignDonors = pickEligibleDonors(13, startsAt, false);
+      for (const d of campaignDonors) {
+        const list = donorDonationDates.get(d.id) ?? [];
+        list.push(startsAt);
+        donorDonationDates.set(d.id, list);
       }
 
       await Promise.all(
@@ -974,13 +1149,13 @@ async function seedRichData() {
           const hasReaction = dK === 7;
           const localBagSeq = 100 + cIdx * 20 + dK + 1;
 
-          // Registration
+          // Registration: CONFIRMED if deferred at screening, COMPLETED if donated
           const registration = await database.registration.create({
             data: {
               donorId: donor.id,
               campaignId: campaign.id,
               timeSlotId: slot.id,
-              status: 'COMPLETED',
+              status: isDeferred ? 'CONFIRMED' : 'COMPLETED',
               createdAt: new Date(startsAt.getTime() - 7 * 24 * 3600 * 1000),
             },
           });
@@ -1164,17 +1339,14 @@ async function seedRichData() {
       );
       bagGlobalCounter += 20;
     } else if (spec.status === 'OPEN') {
-      const donorSliceStart = (cIdx * 10 + 20) % donorProfiles.length;
-      const campaignDonors = [
-        donorProfiles[(donorSliceStart) % donorProfiles.length]!,
-        donorProfiles[(donorSliceStart + 1) % donorProfiles.length]!,
-        donorProfiles[(donorSliceStart + 2) % donorProfiles.length]!,
-        donorProfiles[(donorSliceStart + 3) % donorProfiles.length]!,
-        donorProfiles[(donorSliceStart + 4) % donorProfiles.length]!,
-        donorProfiles[(donorSliceStart + 5) % donorProfiles.length]!,
-        donorProfiles[(donorSliceStart + 6) % donorProfiles.length]!,
-        donorProfiles[(donorSliceStart + 7) % donorProfiles.length]!,
-      ];
+      const isHappeningNow = startsAt.getTime() <= Date.now();
+      const campaignDonors = pickEligibleDonors(isHappeningNow ? 8 : 6, startsAt, true);
+      for (const d of campaignDonors) {
+        const list = donorDonationDates.get(d.id) ?? [];
+        list.push(startsAt);
+        donorDonationDates.set(d.id, list);
+        donorActiveRegistration.add(d.id);
+      }
 
       const defaultAnswers = {
         FEVER: false,
@@ -1184,8 +1356,6 @@ async function seedRichData() {
         PREGNANCY: false,
         SURGERY: false,
       };
-
-      const isHappeningNow = startsAt.getTime() <= Date.now();
 
       if (isHappeningNow) {
         // Stage 1: Completed donation earlier today (Donors 0 & 1)
@@ -1381,16 +1551,20 @@ async function seedRichData() {
         }
       }
     } else if (spec.status === 'CLOSED') {
-      const donorSliceStart = (cIdx * 7 + 60) % donorProfiles.length;
-      for (let uK = 0; uK < 6; uK++) {
-        const donor = donorProfiles[(donorSliceStart + uK) % donorProfiles.length]!;
+      const closedDonors = pickEligibleDonors(6, startsAt, true);
+      for (let uK = 0; uK < closedDonors.length; uK++) {
+        const donor = closedDonors[uK]!;
+        const list = donorDonationDates.get(donor.id) ?? [];
+        list.push(startsAt);
+        donorDonationDates.set(donor.id, list);
+        donorActiveRegistration.add(donor.id);
         const slot = timeSlots[uK % timeSlots.length]!;
         const reg = await database.registration.create({
           data: {
             donorId: donor.id,
             campaignId: campaign.id,
             timeSlotId: slot.id,
-            status: 'CONFIRMED',
+            status: 'SCHEDULED',
             createdAt: new Date(startsAt.getTime() - 14 * 24 * 3600 * 1000),
           },
         });

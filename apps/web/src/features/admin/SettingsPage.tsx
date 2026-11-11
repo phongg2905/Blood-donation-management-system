@@ -159,12 +159,6 @@ export function SettingsPage() {
           </div>
         </section>
       ))}
-      {!canManage && (
-        <p className="admin-muted">
-          Bạn không có quyền <code>setting.manage</code> nên chỉ xem được cấu
-          hình.
-        </p>
-      )}
     </AdminShell>
   );
 }

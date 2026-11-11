@@ -44,8 +44,11 @@ export class AppError extends Error {
     return new AppError(code, 401);
   }
 
-  static forbidden(code: ErrorCode = ERROR_CODES.FORBIDDEN): AppError {
-    return new AppError(code, 403);
+  static forbidden(
+    code: ErrorCode = ERROR_CODES.FORBIDDEN,
+    message?: string,
+  ): AppError {
+    return new AppError(code, 403, message);
   }
 
   static notFound(code: ErrorCode, message?: string): AppError {

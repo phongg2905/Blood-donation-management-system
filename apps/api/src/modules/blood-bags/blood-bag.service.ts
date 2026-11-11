@@ -86,6 +86,13 @@ export const bloodBagService = {
     ctx: AuditContext,
   ) {
     const { bags } = parseDomain(recordSchema, input);
+    const normalizedCodes = bags.map((b) => b.code.trim().toUpperCase());
+    if (new Set(normalizedCodes).size !== normalizedCodes.length) {
+      throw AppError.conflict(
+        ERROR_CODES.VALIDATION_ERROR,
+        'Không được gán trùng mã barcode túi máu trong cùng một lượt thu nhận',
+      );
+    }
     const totalVolumeMl = bags.reduce((sum, b) => sum + b.volumeMl, 0);
     assertBagVolumesReconcile(
       totalVolumeMl,
@@ -95,11 +102,48 @@ export const bloodBagService = {
     const result = await repo.transaction(async (tx) => {
       const screening = await repo.findScreeningTx(tx, screeningId);
       if (!screening) throw AppError.notFound(ERROR_CODES.SCREENING_NOT_FOUND);
+      if (screening.checkIn.registration.donor.userId === staffUserId) {
+        throw AppError.forbidden(
+          ERROR_CODES.FORBIDDEN,
+          'Nhân viên lấy máu không được phép tự thu nhận túi máu của chính mình',
+        );
+      }
+      const staffAssignment = await tx.campaignStaff.findUnique({
+        where: {
+          campaignId_userId: {
+            campaignId: screening.checkIn.registration.campaignId,
+            userId: staffUserId,
+          },
+        },
+      });
+      if (!staffAssignment) {
+        throw AppError.forbidden(
+          ERROR_CODES.FORBIDDEN,
+          'Bạn chưa được điều phối viên phân công làm việc tại đợt hiến máu này',
+        );
+      }
+      if (staffAssignment.assignment !== 'COLLECTION') {
+        throw AppError.forbidden(
+          ERROR_CODES.FORBIDDEN,
+          'Bạn được phân công vị trí khác trong đợt hiến này, không thể thực hiện Thu nhận túi máu',
+        );
+      }
       assertScreeningEligibleForDonation(screening.status);
       if (screening.donation) {
         throw AppError.conflict(
           ERROR_CODES.CERTIFICATE_NOT_ALLOWED,
           'Lượt hiến máu này đã ghi nhận túi máu/chứng nhận',
+        );
+      }
+
+      const duplicateBag = await tx.bloodBag.findFirst({
+        where: { code: { in: bags.map((b) => b.code) } },
+        select: { code: true },
+      });
+      if (duplicateBag) {
+        throw AppError.conflict(
+          ERROR_CODES.VALIDATION_ERROR,
+          `Mã barcode túi máu "${duplicateBag.code}" đã tồn tại trên hệ thống`,
         );
       }
 

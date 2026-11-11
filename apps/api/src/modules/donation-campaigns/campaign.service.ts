@@ -112,6 +112,50 @@ export const campaignService = {
       const merged = { ...existing, ...patch };
       const data = validateCampaign(merged);
 
+      if (patch.startsAt || patch.endsAt) {
+        const outOfBoundsSlot = await tx.campaignTimeSlot.findFirst({
+          where: {
+            campaignId: id,
+            isActive: true,
+            OR: [
+              { startsAt: { lt: data.startsAt } },
+              { endsAt: { gt: data.endsAt } },
+            ],
+          },
+        });
+        if (outOfBoundsSlot) {
+          throw AppError.badRequest(
+            ERROR_CODES.TIME_SLOT_OUTSIDE_CAMPAIGN,
+            'Không thể đổi thời gian đợt hiến khi có khung giờ hoạt động nằm ngoài khoảng mới',
+          );
+        }
+
+        const staffConflict = await tx.campaignStaff.findFirst({
+          where: {
+            campaignId: id,
+            user: {
+              campaignAssignments: {
+                some: {
+                  campaignId: { not: id },
+                  campaign: {
+                    status: { not: 'CANCELLED' },
+                    startsAt: { lt: data.endsAt },
+                    endsAt: { gt: data.startsAt },
+                  },
+                },
+              },
+            },
+          },
+          include: { user: { select: { fullName: true } } },
+        });
+        if (staffConflict) {
+          throw AppError.conflict(
+            ERROR_CODES.CAMPAIGN_STAFF_ALREADY_ASSIGNED,
+            `Nhân sự "${staffConflict.user.fullName}" bị trùng lịch với đợt hiến máu khác trong khung giờ mới`,
+          );
+        }
+      }
+
       const updated = await repo.update(tx, id, data);
       await auditLogService.record(
         {

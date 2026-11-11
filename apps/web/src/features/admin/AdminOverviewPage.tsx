@@ -155,7 +155,7 @@ function AdminOverviewContent({ data }: { data: AdminOverviewData }) {
         <div className="admin-glass-kpi-card">
           <div className="admin-kpi-header">
             <span className="admin-kpi-title">Tổng người hiến</span>
-            <span className="admin-kpi-icon-badge" style={{ background: 'rgba(0, 240, 255, 0.15)', color: '#00f0ff' }} aria-hidden="true">
+            <span className="admin-kpi-icon-badge" style={{ background: 'rgba(124, 98, 255, 0.14)', color: '#6c52ff' }} aria-hidden="true">
               <Users size={16} />
             </span>
           </div>
@@ -168,7 +168,7 @@ function AdminOverviewContent({ data }: { data: AdminOverviewData }) {
         <div className="admin-glass-kpi-card">
           <div className="admin-kpi-header">
             <span className="admin-kpi-title">Đơn vị máu thu</span>
-            <span className="admin-kpi-icon-badge" style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8' }} aria-hidden="true">
+            <span className="admin-kpi-icon-badge" style={{ background: 'rgba(67, 191, 177, 0.16)', color: '#0d9488' }} aria-hidden="true">
               <Droplets size={16} />
             </span>
           </div>
@@ -181,12 +181,12 @@ function AdminOverviewContent({ data }: { data: AdminOverviewData }) {
         <div className="admin-glass-kpi-card">
           <div className="admin-kpi-header">
             <span className="admin-kpi-title">Lịch hẹn hôm nay</span>
-            <span className="admin-kpi-icon-badge" style={{ background: 'rgba(34, 197, 94, 0.15)', color: '#4ade80' }} aria-hidden="true">
+            <span className="admin-kpi-icon-badge" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#059669' }} aria-hidden="true">
               <Calendar size={16} />
             </span>
           </div>
           <div className="admin-kpi-value">{kpi.todayAppointments} lượt</div>
-          <div className="admin-kpi-trend" style={{ color: '#4ade80' }}>
+          <div className="admin-kpi-trend" style={{ color: '#059669' }}>
             <span>● {kpi.todayCheckedIn} lượt đã hoàn thành</span>
           </div>
         </div>
@@ -194,12 +194,12 @@ function AdminOverviewContent({ data }: { data: AdminOverviewData }) {
         <div className="admin-glass-kpi-card">
           <div className="admin-kpi-header">
             <span className="admin-kpi-title">Tồn kho an toàn</span>
-            <span className="admin-kpi-icon-badge" style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#f87171' }} aria-hidden="true">
+            <span className="admin-kpi-icon-badge" style={{ background: 'rgba(244, 63, 94, 0.14)', color: '#e11d48' }} aria-hidden="true">
               <AlertTriangle size={16} />
             </span>
           </div>
           <div className="admin-kpi-value">{kpi.safeInventoryDays} ngày</div>
-          <div className="admin-kpi-trend" style={{ color: '#38bdf8' }}>
+          <div className="admin-kpi-trend" style={{ color: '#0d9488' }}>
             <span>Theo chuẩn dự trữ y tế</span>
           </div>
         </div>
@@ -207,11 +207,11 @@ function AdminOverviewContent({ data }: { data: AdminOverviewData }) {
         <div className="admin-glass-kpi-card">
           <div className="admin-kpi-header">
             <span className="admin-kpi-title">Trạng thái API</span>
-            <span className="admin-kpi-icon-badge" style={{ background: 'rgba(168, 85, 247, 0.15)', color: '#c084fc' }} aria-hidden="true">
+            <span className="admin-kpi-icon-badge" style={{ background: 'rgba(124, 98, 255, 0.15)', color: '#6c52ff' }} aria-hidden="true">
               <Activity size={16} />
             </span>
           </div>
-          <div className="admin-kpi-value" style={{ fontSize: '1.05rem', color: '#4ade80' }}>Trực tuyến (200 OK)</div>
+          <div className="admin-kpi-value" style={{ fontSize: '1.05rem', color: '#059669' }}>Trực tuyến (200 OK)</div>
           <div className="admin-kpi-trend admin-kpi-trend--purple">
             <span>● Database PostgreSQL</span>
           </div>
@@ -225,8 +225,8 @@ function AdminOverviewContent({ data }: { data: AdminOverviewData }) {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h2>Xu hướng tiếp nhận máu qua các tháng</h2>
             <div style={{ display: 'flex', gap: '12px', fontSize: '0.74rem' }}>
-              <span style={{ color: '#00f0ff', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#00f0ff' }}></span>
+              <span style={{ color: '#6c52ff', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#6c52ff' }}></span>
                 Số lượt hiến thực tế
               </span>
             </div>
@@ -236,11 +236,11 @@ function AdminOverviewContent({ data }: { data: AdminOverviewData }) {
             <svg viewBox="0 0 600 180" preserveAspectRatio="none">
               <defs>
                 <linearGradient id="cyanArea" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#00f0ff" stopOpacity="0.35" />
-                  <stop offset="100%" stopColor="#00f0ff" stopOpacity="0.0" />
+                  <stop offset="0%" stopColor="#7c62ff" stopOpacity="0.28" />
+                  <stop offset="100%" stopColor="#56d4c6" stopOpacity="0.02" />
                 </linearGradient>
                 <filter id="neonGlow">
-                  <feGaussianBlur stdDeviation="3" result="coloredBlur" />
+                  <feGaussianBlur stdDeviation="2.5" result="coloredBlur" />
                   <feMerge>
                     <feMergeNode in="coloredBlur" />
                     <feMergeNode in="SourceGraphic" />
@@ -249,9 +249,9 @@ function AdminOverviewContent({ data }: { data: AdminOverviewData }) {
               </defs>
 
               {/* Grid Lines */}
-              <line x1="30" y1="30" x2="570" y2="30" stroke="rgba(255,255,255,0.06)" strokeDasharray="3 3" />
-              <line x1="30" y1="85" x2="570" y2="85" stroke="rgba(255,255,255,0.06)" strokeDasharray="3 3" />
-              <line x1="30" y1="140" x2="570" y2="140" stroke="rgba(255,255,255,0.12)" />
+              <line x1="30" y1="30" x2="570" y2="30" stroke="rgba(148, 163, 184, 0.25)" strokeDasharray="3 3" />
+              <line x1="30" y1="85" x2="570" y2="85" stroke="rgba(148, 163, 184, 0.25)" strokeDasharray="3 3" />
+              <line x1="30" y1="140" x2="570" y2="140" stroke="rgba(148, 163, 184, 0.4)" />
 
               {/* Area Gradient (Computed from DB data) */}
               {areaPath && <path d={areaPath} fill="url(#cyanArea)" />}
@@ -261,7 +261,7 @@ function AdminOverviewContent({ data }: { data: AdminOverviewData }) {
                 <path
                   d={curvePath}
                   fill="none"
-                  stroke="#00f0ff"
+                  stroke="#7c62ff"
                   strokeWidth="3"
                   filter="url(#neonGlow)"
                 />
@@ -275,16 +275,15 @@ function AdminOverviewContent({ data }: { data: AdminOverviewData }) {
                     cy={pt.y}
                     r="4.5"
                     fill="#ffffff"
-                    stroke="#00f0ff"
+                    stroke="#6c52ff"
                     strokeWidth="2.5"
-                    filter="url(#neonGlow)"
                   />
                   {pt.item.donations > 0 && (
                     <text
                       x={pt.x}
                       y={pt.y - 10}
                       textAnchor="middle"
-                      fill="#00f0ff"
+                      fill="#5b3ff8"
                       fontSize="10"
                       fontWeight="700"
                     >
@@ -296,7 +295,7 @@ function AdminOverviewContent({ data }: { data: AdminOverviewData }) {
             </svg>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#94a3b8', fontSize: '0.74rem', padding: '0 8px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#5a6478', fontSize: '0.74rem', padding: '0 8px' }}>
             {monthlyTrend.length > 0 ? (
               monthlyTrend.map((m) => (
                 <span key={m.month} style={{ fontWeight: 600 }}>
@@ -314,8 +313,8 @@ function AdminOverviewContent({ data }: { data: AdminOverviewData }) {
         {/* Right: Blood Inventory Stock Meters */}
         <section className="admin-card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h2>Tồn kho 8 nhóm máu (Database)</h2>
-            <span style={{ fontSize: '0.72rem', color: '#00f0ff', fontWeight: 600 }}>Thời gian thực</span>
+            <h2>Tồn kho 8 nhóm máu</h2>
+            <span style={{ fontSize: '0.72rem', color: '#0d9488', fontWeight: 700 }}>Thời gian thực</span>
           </div>
 
           <div className="admin-inventory-grid">
@@ -341,14 +340,15 @@ function AdminOverviewContent({ data }: { data: AdminOverviewData }) {
                   <span
                     style={{
                       fontSize: '0.64rem',
+                      fontWeight: 600,
                       color:
                         item.status === 'safe'
-                          ? '#4ade80'
+                          ? '#059669'
                           : item.status === 'warning'
-                            ? '#fbbf24'
+                            ? '#d97706'
                             : item.status === 'critical'
-                              ? '#f87171'
-                              : '#c084fc',
+                              ? '#e11d48'
+                              : '#6c52ff',
                     }}
                   >
                     {item.status === 'safe'
@@ -369,8 +369,8 @@ function AdminOverviewContent({ data }: { data: AdminOverviewData }) {
       {/* Bottom: Live Activity Table */}
       <section className="admin-card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2>Nhật ký hoạt động hệ thống gần nhất (Audit Log)</h2>
-          <Link to="/admin/audit-logs" style={{ fontSize: '0.78rem', color: '#00f0ff', textDecoration: 'none', fontWeight: 600 }}>
+          <h2>Nhật ký hoạt động gần nhất</h2>
+          <Link to="/admin/audit-logs" style={{ fontSize: '0.78rem', color: '#6c52ff', textDecoration: 'none', fontWeight: 700 }}>
             Xem toàn bộ nhật ký →
           </Link>
         </div>
@@ -430,7 +430,6 @@ export function AdminOverviewPage() {
   return (
     <AdminShell
       title="Tổng quan hệ thống"
-      lead="Bảng điều khiển trung tâm giám sát hoạt động tiếp nhận máu, chỉ số vận hành và tình trạng kho lưu trữ thời gian thực kết nối Backend."
       actions={
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <Link to="/admin/reports" className="btn btn--secondary">

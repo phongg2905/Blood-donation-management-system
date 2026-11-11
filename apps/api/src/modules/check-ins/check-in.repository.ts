@@ -6,7 +6,15 @@ export const checkInRepository = {
     database.$transaction(work),
 
   findRegistrationTx: (tx: Prisma.TransactionClient, id: string) =>
-    tx.registration.findUnique({ where: { id }, include: { checkIn: true } }),
+    tx.registration.findUnique({
+      where: { id },
+      include: {
+        checkIn: true,
+        donor: { select: { userId: true } },
+        campaign: { select: { id: true, status: true } },
+        healthDeclaration: { select: { id: true } },
+      },
+    }),
 
   create: (
     tx: Prisma.TransactionClient,

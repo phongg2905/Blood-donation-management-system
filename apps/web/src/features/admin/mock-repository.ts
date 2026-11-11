@@ -320,7 +320,28 @@ export class MockAdminRepository implements AdminRepository {
     const user = this.userStore.find((candidate) => candidate.id === id);
     if (!user) throw NOT_FOUND();
     if (input.fullName !== undefined) user.fullName = input.fullName.trim();
+    if (input.email !== undefined) user.email = input.email.trim();
     if (input.isActive !== undefined) user.isActive = input.isActive;
+    if (
+      input.phone !== undefined ||
+      input.citizenId !== undefined ||
+      input.dateOfBirth !== undefined ||
+      input.gender !== undefined ||
+      input.bloodType !== undefined ||
+      input.address !== undefined
+    ) {
+      user.donorProfile = {
+        ...user.donorProfile,
+        ...(input.phone !== undefined ? { phone: input.phone } : {}),
+        ...(input.citizenId !== undefined ? { citizenId: input.citizenId } : {}),
+        ...(input.dateOfBirth !== undefined
+          ? { dateOfBirth: input.dateOfBirth }
+          : {}),
+        ...(input.gender !== undefined ? { gender: input.gender } : {}),
+        ...(input.bloodType !== undefined ? { bloodType: input.bloodType } : {}),
+        ...(input.address !== undefined ? { address: input.address } : {}),
+      };
+    }
     return { ...user, roles: [...user.roles] };
   }
 

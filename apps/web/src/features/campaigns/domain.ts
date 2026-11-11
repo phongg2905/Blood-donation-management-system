@@ -205,10 +205,17 @@ export function describeError(error: unknown): {
       409: 'Dữ liệu đã thay đổi hoặc bị trùng. Vui lòng tải lại và thử lại.',
       503: 'Chức năng đang được chuẩn bị. Vui lòng thử lại sau.',
     };
+    const specific =
+      (error.status < 500 &&
+      error.message &&
+      !error.message.startsWith('HTTP ')
+        ? error.message
+        : null) ||
+      (error.code && ERROR_MESSAGES[error.code as ErrorCode]);
     return {
       message:
+        specific ??
         generic[error.status] ??
-        ERROR_MESSAGES[error.code as ErrorCode] ??
         'Không thể xử lý yêu cầu. Vui lòng thử lại.',
       fields: error.fields ?? {},
     };

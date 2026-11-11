@@ -257,9 +257,6 @@ describe('clinic check-in page', () => {
         name: 'Túi máu đã tiếp nhận',
       }),
     ).toBeInTheDocument();
-    expect(
-      await screen.findByText(/Vui lòng chọn đợt hiến máu để quản lý và gắn mã túi máu theo đợt/),
-    ).toBeInTheDocument();
 
     const campaignLinks = await screen.findAllByRole('link', {
       name: 'Vào quản lý túi máu',
