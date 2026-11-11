@@ -101,7 +101,6 @@ export function ResetPasswordPage() {
       <AuthCard
         eyebrow="Đặt lại mật khẩu"
         title="Mật khẩu mới"
-        subtitle="Liên kết đặt lại mật khẩu chỉ dùng được một lần."
         footer={
           <div className="auth-card__links">
             <Link to={AUTH_ROUTES.login}>← Quay lại đăng nhập</Link>

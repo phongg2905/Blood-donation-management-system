@@ -145,7 +145,7 @@ export function ReportsPage() {
           <div className="admin-glass-kpi-card">
             <div className="admin-kpi-header">
               <span className="admin-kpi-title">Tổng lượt hiến</span>
-              <span className="admin-kpi-icon-badge" style={{ background: 'rgba(0, 240, 255, 0.15)', color: '#00f0ff' }} aria-hidden="true">
+              <span className="admin-kpi-icon-badge" style={{ background: 'rgba(124, 98, 255, 0.14)', color: '#6c52ff' }} aria-hidden="true">
                 <Droplets size={16} />
               </span>
             </div>
@@ -157,7 +157,7 @@ export function ReportsPage() {
           <div className="admin-glass-kpi-card">
             <div className="admin-kpi-header">
               <span className="admin-kpi-title">Đơn vị máu</span>
-              <span className="admin-kpi-icon-badge" style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8' }} aria-hidden="true">
+              <span className="admin-kpi-icon-badge" style={{ background: 'rgba(67, 191, 177, 0.16)', color: '#0d9488' }} aria-hidden="true">
                 <Package size={16} />
               </span>
             </div>
@@ -169,7 +169,7 @@ export function ReportsPage() {
           <div className="admin-glass-kpi-card">
             <div className="admin-kpi-header">
               <span className="admin-kpi-title">Tổng thể tích</span>
-              <span className="admin-kpi-icon-badge" style={{ background: 'rgba(168, 85, 247, 0.15)', color: '#c084fc' }} aria-hidden="true">
+              <span className="admin-kpi-icon-badge" style={{ background: 'rgba(124, 98, 255, 0.15)', color: '#6c52ff' }} aria-hidden="true">
                 <FlaskConical size={16} />
               </span>
             </div>
@@ -181,12 +181,12 @@ export function ReportsPage() {
           <div className="admin-glass-kpi-card">
             <div className="admin-kpi-header">
               <span className="admin-kpi-title">Người hiến duy nhất</span>
-              <span className="admin-kpi-icon-badge" style={{ background: 'rgba(34, 197, 94, 0.15)', color: '#4ade80' }} aria-hidden="true">
+              <span className="admin-kpi-icon-badge" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#059669' }} aria-hidden="true">
                 <Users size={16} />
               </span>
             </div>
             <div className="admin-kpi-value">{formatNumber(totals.uniqueDonors)}</div>
-            <div className="admin-kpi-trend" style={{ color: '#4ade80' }}>
+            <div className="admin-kpi-trend" style={{ color: '#059669' }}>
               <span>Tình nguyện viên</span>
             </div>
           </div>
@@ -237,10 +237,6 @@ export function ReportsPage() {
             </div>
           </section>
         ))}
-      <p className="admin-muted">
-        Tệp xuất dùng định dạng CSV do backend cung cấp; cơ chế tải tệp đang chờ
-        BE xác nhận.
-      </p>
     </AdminShell>
   );
 }

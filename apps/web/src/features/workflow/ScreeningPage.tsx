@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useContext, useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -11,6 +11,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { Button, FormField, Input } from '@/components/ui';
+import { AuthContext } from '@/features/auth/context/auth-context';
 import { ConfirmDialog, Feedback, QueryState } from '@/features/campaigns/components';
 import { useCampaignRepository } from '@/features/campaigns/repository';
 import { useCampaignQuery } from '@/features/campaigns/hooks';
@@ -25,12 +26,19 @@ import {
   formatDate,
   formatSlotRange,
   getOperationalWindow,
+  getStaffStationInCampaign,
+  isAssignedToCampaignStation,
   sortCampaignsForOperationalStation,
   parseMeasurements,
   validateScreening,
   type FieldErrors,
 } from './domain';
-import { useWorkflowMutation, useWorkflowQuery, usePageTransition } from './hooks';
+import {
+  clearWorkflowQueryCache,
+  useWorkflowMutation,
+  useWorkflowQuery,
+  usePageTransition,
+} from './hooks';
 import { useWorkflowRepository } from './repository';
 import {
   DetailList,
@@ -58,6 +66,7 @@ const screeningTone: Record<ScreeningQueueItem['screening']['status'], PillTone>
 
 export function ScreeningQueuePage() {
   const { campaignId } = useParams<{ campaignId?: string }>();
+  const user = useContext(AuthContext)?.currentUser ?? null;
   const workflow = useWorkflowRepository();
   const campaignRepo = useCampaignRepository();
 
@@ -146,12 +155,16 @@ export function ScreeningQueuePage() {
 
   // 1. If accessed without a campaignId (via /clinic/screening):
   if (!campaignId) {
-    const rawCampaignsWithWindow = (campaignsListQuery.data?.items ?? []).map((campaign) => ({
-      campaign,
-      window: getOperationalWindow(campaign.startsAt, campaign.endsAt, {
-        campaignStatus: campaign.status,
-      }),
-    }));
+    const rawCampaignsWithWindow = (campaignsListQuery.data?.items ?? [])
+      .filter((campaign) =>
+        isAssignedToCampaignStation(campaign, user?.id, 'SCREENING'),
+      )
+      .map((campaign) => ({
+        campaign,
+        window: getOperationalWindow(campaign.startsAt, campaign.endsAt, {
+          campaignStatus: campaign.status,
+        }),
+      }));
 
     const campaignsWithWindow = sortCampaignsForOperationalStation(rawCampaignsWithWindow);
 
@@ -220,12 +233,12 @@ export function ScreeningQueuePage() {
             {filteredCampaigns.length === 0 && (
               <p className="workflow-empty">
                 {statusFilter === 'ACTIVE'
-                  ? 'Hiện không có đợt hiến máu nào đang trong giờ mở quầy.'
+                  ? 'Hiện không có đợt hiến máu nào bạn được phân công Sàng lọc đang trong giờ mở quầy.'
                   : statusFilter === 'UPCOMING'
-                    ? 'Không có đợt hiến nào chưa mở.'
+                    ? 'Không có đợt hiến nào chưa mở mà bạn được phân công Sàng lọc.'
                     : statusFilter === 'CLOSED'
-                      ? 'Không có đợt hiến nào đã đóng.'
-                      : 'Hiện không có đợt hiến máu nào.'}
+                      ? 'Không có đợt hiến nào đã đóng mà bạn được phân công Sàng lọc.'
+                      : 'Bạn hiện chưa được phân công nhiệm vụ Sàng lọc ở đợt hiến máu nào.'}
               </p>
             )}
 
@@ -272,9 +285,6 @@ export function ScreeningQueuePage() {
                             {formatDate(campaign.startsAt)}
                           </span>
                         </p>
-                        <p className="workflow-muted" style={{ fontSize: '0.8rem' }}>
-                          {window.message}
-                        </p>
                       </div>
                       <div className="workflow-list__side">
                         {isOpen ? (
@@ -310,6 +320,42 @@ export function ScreeningQueuePage() {
             />
           </>
         )}
+      </WorkflowShell>
+    );
+  }
+
+  if (
+    campaignQuery.data &&
+    !isAssignedToCampaignStation(campaignQuery.data, user?.id, 'SCREENING')
+  ) {
+    const myStation = getStaffStationInCampaign(campaignQuery.data, user?.id);
+    return (
+      <WorkflowShell
+        title="Không thuộc phân công Khám sàng lọc"
+        back="/clinic/screening"
+        backLabel="Chọn đợt hiến khác"
+      >
+        <div className="station-blocked">
+          <div className="station-blocked__icon">
+            <Lock size={48} color="#dc2626" />
+          </div>
+          <h2 className="station-blocked__title">
+            {campaignQuery.data.name}
+          </h2>
+          <p className="station-blocked__desc">
+            {myStation === 'UNASSIGNED'
+              ? 'Tài khoản của bạn chưa được điều phối viên phân công làm việc tại đợt hiến máu này.'
+              : 'Trong đợt hiến máu này, bạn đã được phân công ở vị trí khác nên không thể đồng thời thực hiện nhiệm vụ Khám sàng lọc.'}
+          </p>
+          <div className="station-blocked__actions">
+            <Link className="btn btn--primary" to="/clinic/screening">
+              Về danh sách đợt Sàng lọc của tôi
+            </Link>
+            <Link className="btn btn--secondary" to={`/campaigns/${campaignId}`}>
+              Xem chi tiết đợt hiến
+            </Link>
+          </div>
+        </div>
       </WorkflowShell>
     );
   }
@@ -535,7 +581,11 @@ export function ScreeningQueuePage() {
                           className="btn btn--primary"
                           to={`/campaigns/${campaignId}/screening/${registration.id}`}
                         >
-                          Mở phiếu
+                          {screening.status === 'ELIGIBLE' ||
+                          screening.status === 'INELIGIBLE' ||
+                          screening.status === 'DEFERRED'
+                            ? 'Xem phiếu'
+                            : 'Mở phiếu'}
                         </Link>
                       </div>
                     </li>
@@ -564,6 +614,8 @@ export function ScreeningPage() {
     campaignId?: string;
     registrationId?: string;
   }>();
+  const navigate = useNavigate();
+  const user = useContext(AuthContext)?.currentUser ?? null;
   const workflow = useWorkflowRepository();
   const campaignRepo = useCampaignRepository();
   const mutation = useWorkflowMutation();
@@ -592,7 +644,11 @@ export function ScreeningPage() {
       })
     : null;
 
-  const isLocked = operationalWindow ? !operationalWindow.isOpen && !bypassLock : false;
+  const isNotAssigned = campaignQuery.data
+    ? !isAssignedToCampaignStation(campaignQuery.data, user?.id, 'SCREENING')
+    : false;
+  const isLocked =
+    (operationalWindow ? !operationalWindow.isOpen && !bypassLock : false) || isNotAssigned;
 
   const [values, setValues] = useState<Record<string, string>>({});
   const [bloodGroup, setBloodGroup] = useState<BloodGroup | ''>('');
@@ -726,7 +782,12 @@ export function ScreeningPage() {
       },
       () => {
         setConfirmOpen(false);
-        queue.retry();
+        clearWorkflowQueryCache('screening-queue');
+        navigate(
+          campaignId
+            ? `/campaigns/${campaignId}/screening`
+            : '/clinic/screening',
+        );
       },
       outcome === 'ELIGIBLE'
         ? 'Đã kết luận: Đủ điều kiện. Người hiến đã được chuyển sang bước gắn mã túi máu.'
@@ -892,16 +953,14 @@ export function ScreeningPage() {
                 </div>
               </div>
 
-              {screening.status === 'ELIGIBLE' && (
-                <div className="workflow-actions" style={{ marginTop: '20px' }}>
-                  <Link
-                    className="btn btn--primary"
-                    to={campaignId ? `/campaigns/${campaignId}/blood-bags` : '/clinic/blood-bags'}
-                  >
-                    Chuyển sang bàn lấy máu →
-                  </Link>
-                </div>
-              )}
+              <div className="workflow-actions" style={{ marginTop: '20px' }}>
+                <Link
+                  className="btn btn--secondary"
+                  to={campaignId ? `/campaigns/${campaignId}/screening` : '/clinic/screening'}
+                >
+                  ← Quay lại hàng chờ sàng lọc
+                </Link>
+              </div>
             </section>
           ) : (
             <>
@@ -1105,13 +1164,6 @@ export function ScreeningPage() {
                           {vol} ml
                         </button>
                       ))}
-                      <span style={{ fontSize: '0.8rem', color: 'var(--color-ink-600)', marginLeft: '6px' }}>
-                        {Number(values.WEIGHT) < 45
-                          ? '(Cân nặng < 45kg: Quy định tối đa 250ml)'
-                          : Number(values.WEIGHT) >= 60
-                            ? '(Cân nặng ≥ 60kg: Đủ điều kiện hiến 350ml hoặc 450ml)'
-                            : '(Cân nặng 45 - 60kg: Khuyến nghị 350ml)'}
-                      </span>
                     </div>
                   </div>
                 )}
@@ -1194,15 +1246,10 @@ export function ScreeningPage() {
             <p>Tạm hoãn đến: {formatDate(deferredUntil)}</p>
           )}
           {outcome === 'ELIGIBLE' && (
-            <>
-              <p>
-                Chỉ định thể tích hiến máu:{' '}
-                <strong style={{ color: '#059669', fontSize: '1.05rem' }}>{indicatedVolume} ml</strong>
-              </p>
-              <p style={{ color: '#059669', fontWeight: 600 }}>
-                Sau khi xác nhận, người hiến sẽ tự động chuyển sang hàng chờ tại Bàn lấy máu với thể tích được định sẵn.
-              </p>
-            </>
+            <p>
+              Chỉ định thể tích hiến máu:{' '}
+              <strong style={{ color: '#059669', fontSize: '1.05rem' }}>{indicatedVolume} ml</strong>
+            </p>
           )}
         </ConfirmDialog>
       )}

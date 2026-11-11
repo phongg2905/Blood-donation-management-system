@@ -26,7 +26,12 @@ export interface NavItem {
  */
 export const APP_NAV_ITEMS: readonly NavItem[] = [
   { label: 'Trang chủ', to: AUTH_ROUTES.home },
-  { label: 'Đợt hiến máu', to: '/campaigns', permission: 'campaign.read' },
+  {
+    label: 'Đợt hiến máu',
+    to: '/campaigns',
+    permission: 'campaign.read',
+    roles: ['DONOR', 'DONATION_STAFF', 'COORDINATOR'],
+  },
   // Registration is reached from the campaign a donor picks ("Đợt hiến máu" →
   // "Đăng ký"), not as a second, duplicate campaign chooser in the masthead.
   {

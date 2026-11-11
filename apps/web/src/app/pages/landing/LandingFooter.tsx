@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Droplet, Heart, PhoneCall, ShieldCheck } from 'lucide-react';
+import { Droplet, Heart, PhoneCall } from 'lucide-react';
 
 export function LandingFooter() {
   return (

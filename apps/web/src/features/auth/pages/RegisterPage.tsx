@@ -104,7 +104,6 @@ export function RegisterPage() {
       <AuthCard
         eyebrow="Đăng ký"
         title="Tạo tài khoản người hiến"
-        subtitle="Bắt đầu hành trình sẻ chia cùng cộng đồng hiến máu."
         footer={
           <div className="auth-card__links">
             <span>Đã có tài khoản? </span>
@@ -220,11 +219,6 @@ export function RegisterPage() {
           >
             Tạo tài khoản
           </Button>
-
-          <p className="auth-card__note">
-            Thông tin sức khỏe của bạn chỉ được sử dụng cho mục đích sàng lọc
-            hiến máu.
-          </p>
         </form>
       </AuthCard>
     </AuthLayout>

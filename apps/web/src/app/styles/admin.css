@@ -1,33 +1,33 @@
 /* ==========================================================================
-   Admin Glassmorphism & Neon Glow Design System
-   Full-width Widescreen Layout, Frosted Glass, Specular Highlights & Neon Glow
+   Admin Soft Liquid Glass Design System ("Liquid Glass Kit" Pastel Aesthetic)
    ========================================================================== */
 
 /* --------------------------------------------------------------------------
    Layout: Widescreen Edge-to-Edge Portal Grid
    -------------------------------------------------------------------------- */
 .admin-portal-layout {
-  --color-surface: rgba(14, 21, 37, 0.75);
-  --color-surface-muted: rgba(10, 15, 29, 0.65);
-  --color-surface-sunken: rgba(5, 8, 16, 0.85);
-  --color-ink-900: #f8fafc;
-  --color-ink-800: #f1f5f9;
-  --color-ink-700: #e2e8f0;
-  --color-ink-600: #94a3b8;
-  --color-ink-500: #64748b;
-  --color-border: rgba(255, 255, 255, 0.12);
-  --color-border-strong: rgba(255, 255, 255, 0.2);
-  --color-brand-600: #00d2ff;
-  --color-brand-700: #0099cc;
+  --color-surface: rgba(255, 255, 255, 0.72);
+  --color-surface-muted: rgba(255, 255, 255, 0.56);
+  --color-surface-sunken: rgba(241, 244, 251, 0.78);
+  --color-ink-900: #1e2433;
+  --color-ink-800: #2c3548;
+  --color-ink-700: #3d485e;
+  --color-ink-600: #5a6478;
+  --color-ink-500: #7b869c;
+  --color-border: rgba(255, 255, 255, 0.86);
+  --color-border-strong: rgba(255, 255, 255, 0.96);
+  --color-brand-600: #7c62ff;
+  --color-brand-700: #6347f5;
   display: grid;
   grid-template-columns: 210px 1fr;
   min-height: 100vh;
   width: 100%;
   background:
-    radial-gradient(ellipse at 12% 15%, rgba(0, 240, 255, 0.08) 0%, transparent 45%),
-    radial-gradient(ellipse at 88% 65%, rgba(168, 85, 247, 0.08) 0%, transparent 50%),
-    #070a13;
-  color: #f1f5f9;
+    radial-gradient(ellipse at 14% 16%, rgba(255, 220, 206, 0.55) 0%, transparent 48%),
+    radial-gradient(ellipse at 86% 24%, rgba(182, 236, 235, 0.5) 0%, transparent 50%),
+    radial-gradient(ellipse at 78% 82%, rgba(205, 192, 255, 0.52) 0%, transparent 52%),
+    linear-gradient(135deg, #f4efe8 0%, #edeff6 52%, #e6eaf4 100%);
+  color: #1e2433;
   font-family: inherit;
 }
 
@@ -38,7 +38,7 @@
 }
 
 /* --------------------------------------------------------------------------
-   Sidebar: Frosted Dark Glass with Cyan Active Highlight
+   Sidebar: Soft Frosted Liquid Glass with Iris Active Pill
    -------------------------------------------------------------------------- */
 .admin-glass-sidebar {
   position: sticky;
@@ -47,11 +47,14 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  background: rgba(13, 19, 33, 0.75);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.4);
+  background:
+    linear-gradient(165deg, rgba(255, 255, 255, 0.78) 0%, rgba(246, 248, 254, 0.62) 100%);
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border-right: 1px solid rgba(255, 255, 255, 0.88);
+  box-shadow:
+    6px 0 28px -6px rgba(95, 108, 138, 0.12),
+    inset -1px 0 1px rgba(255, 255, 255, 0.9);
   padding: 14px 12px;
   z-index: 50;
   overflow-y: auto;
@@ -63,7 +66,7 @@
   gap: 10px;
   padding: 6px 10px 16px;
   text-decoration: none;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
   margin-bottom: 14px;
 }
 
@@ -74,10 +77,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(circle, rgba(239, 68, 68, 0.3) 0%, rgba(15, 23, 42, 0.8) 100%);
-  border: 1px solid rgba(239, 68, 68, 0.4);
-  box-shadow: 0 0 14px rgba(239, 68, 68, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.5);
-  color: #ef4444;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(254, 226, 226, 0.85) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  box-shadow:
+    0 6px 14px -2px rgba(239, 68, 68, 0.22),
+    inset 0 1.5px 2px #ffffff;
+  color: #e11d48;
 }
 
 .admin-brand-text {
@@ -89,22 +95,22 @@
   font-size: 0.95rem;
   font-weight: 800;
   letter-spacing: -0.01em;
-  color: #f8fafc;
+  color: #1e2433;
 }
 
 .admin-brand-subtitle {
   font-size: 0.7rem;
-  font-weight: 600;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #00f0ff;
+  color: #6c52ff;
 }
 
 /* Sidebar Nav Items */
 .admin-sidebar-nav {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
   flex: 1;
 }
 
@@ -115,32 +121,33 @@
   padding: 8px 12px;
   border-radius: 9999px;
   font-size: 0.82rem;
-  font-weight: 500;
-  color: #94a3b8;
+  font-weight: 600;
+  color: #5a6478;
   text-decoration: none;
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   border: 1px solid transparent;
 }
 
 .admin-nav-item:hover {
-  color: #f1f5f9;
-  background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 255, 255, 0.08);
+  color: #1e2433;
+  background: rgba(255, 255, 255, 0.72);
+  border-color: rgba(255, 255, 255, 0.92);
+  box-shadow:
+    0 4px 12px rgba(95, 108, 138, 0.08),
+    inset 0 1px 1.5px #ffffff;
 }
 
 .admin-nav-item--active {
   color: #ffffff !important;
   background:
-    linear-gradient(115deg, rgba(255, 255, 255, 0.22) 0%, rgba(0, 240, 255, 0.1) 32%, transparent 36%),
-    rgba(0, 240, 255, 0.18) !important;
-  border: 1px solid rgba(0, 240, 255, 0.5) !important;
-  border-bottom: 2px solid #00f0ff !important;
+    linear-gradient(180deg, #8b6eff 0%, #6c52ff 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.65) !important;
   box-shadow:
-    0 0 22px rgba(0, 240, 255, 0.45),
-    0 4px 14px rgba(0, 240, 255, 0.3),
-    inset 0 1px 1.5px rgba(255, 255, 255, 0.5) !important;
-  font-weight: 600;
-  text-shadow: 0 0 10px rgba(0, 240, 255, 0.7);
+    0 8px 18px -4px rgba(108, 82, 255, 0.42),
+    0 2px 6px rgba(108, 82, 255, 0.2),
+    inset 0 1.5px 2px rgba(255, 255, 255, 0.75) !important;
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(62, 40, 160, 0.25);
 }
 
 .admin-nav-icon {
@@ -152,7 +159,7 @@
 /* Sidebar Footer User Area */
 .admin-sidebar-footer {
   padding-top: 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  border-top: 1px solid rgba(148, 163, 184, 0.2);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -162,24 +169,29 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 6px 8px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 7px 10px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.92);
+  box-shadow:
+    0 4px 12px rgba(95, 108, 138, 0.08),
+    inset 0 1px 1.5px #ffffff;
 }
 
 .admin-user-avatar {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #00f0ff, #a855f7);
+  background: linear-gradient(135deg, #8b6eff 0%, #56d4c6 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #0b0f19;
+  color: #ffffff;
   font-weight: 700;
   font-size: 0.72rem;
-  box-shadow: 0 0 10px rgba(0, 240, 255, 0.4);
+  box-shadow:
+    0 4px 10px rgba(108, 82, 255, 0.28),
+    inset 0 1px 1.5px rgba(255, 255, 255, 0.75);
 }
 
 .admin-user-info {
@@ -191,8 +203,8 @@
 
 .admin-user-name {
   font-size: 0.78rem;
-  font-weight: 600;
-  color: #f1f5f9;
+  font-weight: 700;
+  color: #1e2433;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -200,7 +212,7 @@
 
 .admin-user-role {
   font-size: 0.68rem;
-  color: #c084fc;
+  color: #6c52ff;
   font-weight: 600;
 }
 
@@ -212,23 +224,29 @@
   width: 100%;
   height: 30px;
   border-radius: 9999px;
-  background: rgba(239, 68, 68, 0.12);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  color: #fca5a5;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(244, 63, 94, 0.28);
+  color: #e11d48;
   font-size: 0.74rem;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
+  box-shadow:
+    0 4px 10px rgba(225, 29, 72, 0.08),
+    inset 0 1px 1.5px #ffffff;
   transition: all 0.2s ease;
 }
 
 .admin-logout-btn:hover {
-  background: rgba(239, 68, 68, 0.22);
-  box-shadow: 0 0 12px rgba(239, 68, 68, 0.35);
-  color: #fff;
+  background: linear-gradient(180deg, #fb7185 0%, #e11d48 100%);
+  border-color: rgba(255, 255, 255, 0.65);
+  box-shadow:
+    0 6px 14px rgba(225, 29, 72, 0.28),
+    inset 0 1px 1.5px rgba(255, 255, 255, 0.7);
+  color: #ffffff;
 }
 
 /* --------------------------------------------------------------------------
-   Header: Slim 44px Full-Width Frosted Glass Top Bar
+   Header: Slim 44px Full-Width Frosted Liquid Glass Top Bar
    -------------------------------------------------------------------------- */
 .admin-glass-header {
   position: sticky;
@@ -238,11 +256,13 @@
   align-items: center;
   justify-content: space-between;
   padding: 0 24px;
-  background: rgba(13, 19, 33, 0.75);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25);
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.88);
+  box-shadow:
+    0 6px 20px -6px rgba(95, 108, 138, 0.1),
+    inset 0 1px 1px #ffffff;
   z-index: 40;
 }
 
@@ -251,22 +271,23 @@
   align-items: center;
   gap: 8px;
   font-size: 0.82rem;
-  color: #94a3b8;
+  color: #64748b;
 }
 
 .admin-header-breadcrumbs a {
-  color: #94a3b8;
+  color: #64748b;
   text-decoration: none;
+  font-weight: 500;
   transition: color 0.15s ease;
 }
 
 .admin-header-breadcrumbs a:hover {
-  color: #f1f5f9;
+  color: #1e2433;
 }
 
 .admin-header-breadcrumbs span {
-  color: #00f0ff;
-  font-weight: 600;
+  color: #6c52ff;
+  font-weight: 700;
 }
 
 .admin-header-actions {
@@ -286,31 +307,30 @@
   width: 220px;
   padding: 0 14px 0 32px;
   border-radius: 9999px;
-  background:
-    linear-gradient(115deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.02) 28%, transparent 32%),
-    rgba(10, 16, 32, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-bottom: 2px solid rgba(0, 240, 255, 0.4);
-  color: #f1f5f9;
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.96);
+  color: #1e2433;
   font-size: 0.8rem;
   box-shadow:
-    0 4px 12px -2px rgba(0, 240, 255, 0.25),
-    inset 0 1px 1px rgba(255, 255, 255, 0.35);
+    0 6px 16px -4px rgba(95, 108, 138, 0.14),
+    0 2px 5px rgba(95, 108, 138, 0.06),
+    inset 0 1.5px 2px #ffffff;
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.admin-header-search input::placeholder {
+  color: #8490a6;
 }
 
 .admin-header-search input:focus {
   width: 280px;
   outline: none;
-  border-color: #00f0ff;
-  border-bottom: 2px solid #00f0ff;
-  background:
-    linear-gradient(115deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.05) 30%, transparent 35%),
-    rgba(13, 21, 40, 0.95);
+  border-color: rgba(124, 98, 255, 0.65);
+  background: #ffffff;
   box-shadow:
-    0 0 24px rgba(0, 240, 255, 0.65),
-    0 4px 14px -2px rgba(0, 240, 255, 0.4),
-    inset 0 1px 2px rgba(255, 255, 255, 0.5);
+    0 0 0 3px rgba(124, 98, 255, 0.16),
+    0 8px 20px -4px rgba(108, 82, 255, 0.2),
+    inset 0 1px 2px #ffffff;
 }
 
 .admin-header-search svg {
@@ -318,9 +338,8 @@
   left: 10px;
   width: 14px;
   height: 14px;
-  color: #00f0ff;
+  color: #6c52ff;
   pointer-events: none;
-  filter: drop-shadow(0 0 4px rgba(0, 240, 255, 0.6));
 }
 
 /* Glass Circle Icon Button */
@@ -329,14 +348,13 @@
   height: 32px;
   border-radius: 50%;
   background:
-    radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.25) 0%, rgba(15, 23, 42, 0.85) 70%);
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  border-bottom: 2px solid rgba(0, 240, 255, 0.5);
+    radial-gradient(circle at 35% 25%, #ffffff 0%, rgba(244, 246, 252, 0.9) 75%);
+  border: 1px solid rgba(255, 255, 255, 0.95);
   box-shadow:
-    0 0 16px rgba(0, 240, 255, 0.3),
-    0 4px 10px rgba(0, 0, 0, 0.5),
-    inset 0 1px 2px rgba(255, 255, 255, 0.7);
-  color: #cbd5e1;
+    0 6px 14px -3px rgba(95, 108, 138, 0.16),
+    0 2px 5px rgba(95, 108, 138, 0.08),
+    inset 0 1.5px 2px #ffffff;
+  color: #475569;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -345,14 +363,12 @@
 }
 
 .admin-icon-btn:hover {
-  color: #00f0ff;
-  border-color: #00f0ff;
-  border-bottom: 2px solid #00f0ff;
+  color: #6c52ff;
+  border-color: #ffffff;
   box-shadow:
-    0 0 24px rgba(0, 240, 255, 0.7),
-    0 6px 14px rgba(0, 0, 0, 0.6),
-    inset 0 1px 2px #ffffff;
-  transform: translateY(-2px) scale(1.05);
+    0 8px 18px -3px rgba(108, 82, 255, 0.25),
+    inset 0 1.5px 2px #ffffff;
+  transform: translateY(-2px) scale(1.04);
 }
 
 /* --------------------------------------------------------------------------
@@ -390,9 +406,8 @@
   font-size: clamp(1.25rem, 1.8vw, 1.55rem);
   margin: 0;
   font-weight: 800;
-  color: #f8fafc;
+  color: #1e2433;
   letter-spacing: -0.02em;
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
 }
 
 .admin-eyebrow {
@@ -401,19 +416,19 @@
 
 .admin-lead {
   margin: 2px 0 0;
-  color: #94a3b8;
+  color: #5a6478;
   font-size: 0.84rem;
   max-width: 80ch;
 }
 
 .admin-muted {
   margin: 2px 0;
-  color: #94a3b8;
+  color: #64748b;
   font-size: 0.82rem;
 }
 
 /* --------------------------------------------------------------------------
-   KPI Grid: 5 Widescreen Frosted Glass KPI Cards
+   KPI Grid: 5 Widescreen Pastel Liquid Glass KPI Cards
    -------------------------------------------------------------------------- */
 .admin-glass-kpi-grid {
   display: grid;
@@ -424,18 +439,17 @@
 
 .admin-glass-kpi-card {
   background:
-    linear-gradient(115deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.015) 35%, transparent 40%),
-    rgba(14, 21, 37, 0.7);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-bottom: 2px solid rgba(0, 240, 255, 0.5);
-  border-radius: 14px;
-  padding: 12px 16px;
+    linear-gradient(135deg, rgba(255, 226, 214, 0.36) 0%, rgba(210, 198, 255, 0.34) 52%, rgba(176, 238, 240, 0.38) 100%),
+    rgba(255, 255, 255, 0.68);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.92);
+  border-radius: 18px;
+  padding: 13px 16px;
   box-shadow:
-    0 10px 28px rgba(0, 0, 0, 0.45),
-    0 4px 16px -2px rgba(0, 240, 255, 0.25),
-    inset 0 1px 1px rgba(255, 255, 255, 0.3);
+    0 14px 32px -8px rgba(95, 108, 138, 0.14),
+    0 4px 12px rgba(95, 108, 138, 0.06),
+    inset 0 1.5px 2px rgba(255, 255, 255, 0.96);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -446,12 +460,11 @@
 
 .admin-glass-kpi-card:hover {
   transform: translateY(-3px);
-  border-color: rgba(0, 240, 255, 0.6);
-  border-bottom: 2px solid #00f0ff;
+  border-color: #ffffff;
   box-shadow:
-    0 16px 36px rgba(0, 0, 0, 0.55),
-    0 0 28px rgba(0, 240, 255, 0.45),
-    inset 0 1px 2px rgba(255, 255, 255, 0.45);
+    0 18px 38px -8px rgba(108, 82, 255, 0.18),
+    0 6px 16px rgba(95, 108, 138, 0.09),
+    inset 0 2px 3px #ffffff;
 }
 
 .admin-kpi-header {
@@ -462,27 +475,31 @@
 
 .admin-kpi-title {
   font-size: 0.74rem;
-  font-weight: 600;
-  color: #94a3b8;
+  font-weight: 700;
+  color: #5a6478;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
 .admin-kpi-icon-badge {
-  width: 24px;
-  height: 24px;
-  border-radius: 8px;
+  width: 26px;
+  height: 26px;
+  border-radius: 9px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 0.75rem;
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  box-shadow:
+    0 4px 10px rgba(95, 108, 138, 0.1),
+    inset 0 1px 1.5px #ffffff;
 }
 
 .admin-kpi-value {
   font-size: 1.35rem;
   font-weight: 800;
-  color: #f8fafc;
+  color: #1e2433;
   margin: 4px 0 2px;
   letter-spacing: -0.02em;
 }
@@ -496,34 +513,30 @@
 }
 
 .admin-kpi-trend--up {
-  color: #38bdf8;
-  text-shadow: 0 0 8px rgba(56, 189, 248, 0.5);
+  color: #0d9488;
 }
 
 .admin-kpi-trend--purple {
-  color: #c084fc;
-  text-shadow: 0 0 8px rgba(192, 132, 252, 0.5);
+  color: #6c52ff;
 }
 
 /* --------------------------------------------------------------------------
-   Cards: Frosted Glass Containers with Top Highlight & Neon Underglow
+   Cards: Soft Frosted Liquid Glass Containers
    -------------------------------------------------------------------------- */
 .admin-card {
   background:
-    linear-gradient(115deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.01) 32%, transparent 36%),
-    rgba(14, 21, 37, 0.7);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-bottom: 2px solid rgba(0, 240, 255, 0.35);
-  border-radius: 16px;
+    linear-gradient(145deg, rgba(255, 255, 255, 0.78) 0%, rgba(255, 255, 255, 0.58) 100%);
+  backdrop-filter: blur(26px) saturate(160%);
+  -webkit-backdrop-filter: blur(26px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  border-radius: 20px;
   padding: 16px 20px;
   display: grid;
   gap: 14px;
   box-shadow:
-    0 12px 36px rgba(0, 0, 0, 0.5),
-    0 4px 20px -2px rgba(0, 240, 255, 0.2),
-    inset 0 1px 1px rgba(255, 255, 255, 0.25);
+    0 16px 36px -10px rgba(95, 108, 138, 0.14),
+    0 4px 14px rgba(95, 108, 138, 0.06),
+    inset 0 1.5px 2px rgba(255, 255, 255, 0.95);
   position: relative;
 }
 
@@ -531,12 +544,12 @@
   margin: 0;
   font-size: 1rem;
   font-weight: 700;
-  color: #f1f5f9;
+  color: #1e2433;
   letter-spacing: -0.01em;
 }
 
 /* --------------------------------------------------------------------------
-   Filter Toolbar: Compact Frosted Glass with Neon Rim
+   Filter Toolbar: Compact Frosted Liquid Glass Bar
    -------------------------------------------------------------------------- */
 .admin-filters {
   display: flex;
@@ -544,18 +557,16 @@
   gap: 10px;
   flex-wrap: wrap;
   background:
-    linear-gradient(115deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.01) 30%, transparent 35%),
-    rgba(14, 21, 37, 0.65);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-bottom: 2px solid rgba(0, 240, 255, 0.4);
-  border-radius: 14px;
-  padding: 10px 14px;
+    linear-gradient(135deg, rgba(255, 255, 255, 0.76) 0%, rgba(248, 250, 255, 0.62) 100%);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.92);
+  border-radius: 18px;
+  padding: 12px 16px;
   box-shadow:
-    0 6px 20px rgba(0, 0, 0, 0.35),
-    0 2px 12px -2px rgba(0, 240, 255, 0.2),
-    inset 0 1px 1px rgba(255, 255, 255, 0.2);
+    0 12px 28px -8px rgba(95, 108, 138, 0.12),
+    0 3px 10px rgba(95, 108, 138, 0.05),
+    inset 0 1.5px 2px rgba(255, 255, 255, 0.95);
 }
 
 .admin-filters > * {
@@ -574,13 +585,13 @@
 
 .admin-filters .field__label {
   font-size: 0.74rem;
-  font-weight: 600;
-  color: #94a3b8;
+  font-weight: 700;
+  color: #475569;
   letter-spacing: 0.02em;
 }
 
 /* --------------------------------------------------------------------------
-   Form Controls: Frosted Glass Text Fields & Selects with Neon Underglow
+   Form Controls: Milky White Capsule / Rounded Inputs & Selects
    -------------------------------------------------------------------------- */
 .admin-filters .input,
 .admin-page select.input,
@@ -591,17 +602,22 @@
   min-height: 34px;
   padding: 0 12px;
   font-size: 0.82rem;
-  background:
-    linear-gradient(115deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.02) 28%, transparent 32%),
-    rgba(10, 16, 32, 0.75) !important;
-  border: 1px solid rgba(255, 255, 255, 0.15) !important;
-  border-bottom: 2px solid rgba(0, 240, 255, 0.45) !important;
-  border-radius: 10px;
-  color: #f8fafc !important;
+  background: rgba(255, 255, 255, 0.88) !important;
+  border: 1px solid rgba(255, 255, 255, 0.96) !important;
+  border-radius: 12px;
+  color: #1e2433 !important;
   box-shadow:
-    0 4px 14px -2px rgba(0, 240, 255, 0.25),
-    inset 0 1px 1px rgba(255, 255, 255, 0.3) !important;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    0 4px 12px -2px rgba(95, 108, 138, 0.1),
+    0 1px 3px rgba(95, 108, 138, 0.06),
+    inset 0 1.5px 2px #ffffff !important;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.admin-filters .input::placeholder,
+.admin-page input.input::placeholder,
+.admin-portal-layout .input::placeholder,
+.admin-dialog .input::placeholder {
+  color: #8490a6 !important;
 }
 
 .admin-filters .input:hover,
@@ -609,11 +625,11 @@
 .admin-page input.input:hover,
 .admin-portal-layout .input:hover,
 .admin-dialog .input:hover {
-  border-color: rgba(0, 240, 255, 0.5) !important;
-  border-bottom-color: #00f0ff !important;
+  background: #ffffff !important;
+  border-color: rgba(139, 110, 255, 0.45) !important;
   box-shadow:
-    0 0 18px rgba(0, 240, 255, 0.45),
-    inset 0 1px 2px rgba(255, 255, 255, 0.4) !important;
+    0 6px 16px -3px rgba(108, 82, 255, 0.14),
+    inset 0 1.5px 2px #ffffff !important;
 }
 
 .admin-filters .input:focus,
@@ -622,21 +638,18 @@
 .admin-portal-layout .input:focus,
 .admin-dialog .input:focus {
   outline: none !important;
-  border-color: #00f0ff !important;
-  border-bottom: 2px solid #00f0ff !important;
-  background:
-    linear-gradient(115deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.04) 30%, transparent 35%),
-    rgba(13, 21, 40, 0.95) !important;
+  border-color: #7c62ff !important;
+  background: #ffffff !important;
   box-shadow:
-    0 0 24px rgba(0, 240, 255, 0.65),
-    0 6px 16px -2px rgba(0, 240, 255, 0.35),
-    inset 0 1px 2px rgba(255, 255, 255, 0.5) !important;
+    0 0 0 3px rgba(124, 98, 255, 0.18),
+    0 6px 16px -2px rgba(108, 82, 255, 0.18),
+    inset 0 1px 2px #ffffff !important;
 }
 
 .admin-page option,
 .admin-portal-layout option {
-  background: #0b101d;
-  color: #f1f5f9;
+  background: #ffffff;
+  color: #1e2433;
 }
 
 .admin-filters__action {
@@ -648,7 +661,7 @@
 }
 
 /* --------------------------------------------------------------------------
-   Buttons: Pill Capsule with Specular Top Shine & Neon Glow (UI Kit Exact)
+   Buttons: Liquid Glass Pill Capsules ("Liquid Glass Kit" Reference Style)
    -------------------------------------------------------------------------- */
 .admin-portal-layout .btn,
 .admin-page .btn {
@@ -670,34 +683,33 @@
   white-space: nowrap;
 }
 
-/* Specular diagonal glare shine line on buttons */
+/* Specular top liquid highlight on buttons */
 .admin-portal-layout .btn::before,
 .admin-page .btn::before {
   content: '';
   position: absolute;
   top: 0;
-  left: 0;
-  right: 0;
-  height: 48%;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0.04) 100%);
-  border-radius: 9999px 9999px 0 0;
+  left: 4%;
+  right: 4%;
+  height: 46%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.45) 0%, rgba(255, 255, 255, 0.04) 100%);
+  border-radius: 9999px;
   pointer-events: none;
 }
 
-/* Primary Pill Button (Cyan Glow - "Create workspace" style) */
+/* Primary Pill Button (Soft Iris-Violet Liquid Capsule) */
 .admin-portal-layout .btn--primary,
 .admin-page .btn--primary,
 .admin-dialog .btn--primary,
 .glass-btn-pill-primary {
-  background: linear-gradient(180deg, #38bdf8 0%, #0284c7 50%, #0369a1 100%) !important;
+  background: linear-gradient(180deg, #8b6eff 0%, #6c52ff 100%) !important;
   color: #ffffff !important;
-  border: 1px solid rgba(255, 255, 255, 0.5) !important;
-  border-bottom: 2px solid #00f0ff !important;
+  border: 1px solid rgba(255, 255, 255, 0.65) !important;
   box-shadow:
-    0 0 25px rgba(0, 240, 255, 0.6),
-    0 8px 18px -4px rgba(0, 240, 255, 0.35),
-    inset 0 1px 2px #ffffff !important;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+    0 10px 22px -4px rgba(108, 82, 255, 0.4),
+    0 3px 8px rgba(108, 82, 255, 0.22),
+    inset 0 1.5px 2px rgba(255, 255, 255, 0.8) !important;
+  text-shadow: 0 1px 2px rgba(55, 34, 150, 0.25);
 }
 
 .admin-portal-layout .btn--primary:hover:not(:disabled),
@@ -706,25 +718,25 @@
 .glass-btn-pill-primary:hover {
   transform: translateY(-2px) !important;
   box-shadow:
-    0 0 35px rgba(0, 240, 255, 0.85),
-    0 10px 24px -2px rgba(0, 240, 255, 0.5),
-    inset 0 1px 2px #ffffff !important;
-  filter: brightness(1.1);
+    0 14px 26px -4px rgba(108, 82, 255, 0.52),
+    0 4px 10px rgba(108, 82, 255, 0.28),
+    inset 0 1.5px 2px #ffffff !important;
+  filter: brightness(1.05);
 }
 
-/* Secondary Pill Button (Purple Violet Glow - "Invite member" style) */
+/* Secondary Pill Button (Soft Mint-Teal Liquid Capsule) */
 .admin-portal-layout .btn--secondary,
 .admin-page .btn--secondary,
 .admin-dialog .btn--secondary,
 .glass-btn-pill-secondary {
-  background: linear-gradient(180deg, rgba(168, 85, 247, 0.3) 0%, rgba(126, 34, 206, 0.55) 100%) !important;
-  color: #f3e8ff !important;
-  border: 1px solid rgba(216, 180, 254, 0.45) !important;
-  border-bottom: 2px solid #c084fc !important;
+  background: linear-gradient(180deg, #64d8cb 0%, #43bfb1 100%) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.7) !important;
   box-shadow:
-    0 0 20px rgba(168, 85, 247, 0.4),
-    0 6px 14px -3px rgba(168, 85, 247, 0.25),
-    inset 0 1px 2px rgba(255, 255, 255, 0.5) !important;
+    0 10px 20px -4px rgba(67, 191, 177, 0.38),
+    0 3px 8px rgba(67, 191, 177, 0.2),
+    inset 0 1.5px 2px rgba(255, 255, 255, 0.82) !important;
+  text-shadow: 0 1px 2px rgba(15, 95, 86, 0.22);
 }
 
 .admin-portal-layout .btn--secondary:hover:not(:disabled),
@@ -732,67 +744,129 @@
 .admin-dialog .btn--secondary:hover:not(:disabled),
 .glass-btn-pill-secondary:hover {
   transform: translateY(-2px) !important;
-  background: linear-gradient(180deg, rgba(168, 85, 247, 0.45) 0%, rgba(126, 34, 206, 0.75) 100%) !important;
+  background: linear-gradient(180deg, #70e0d3 0%, #3ab3a5 100%) !important;
   color: #ffffff !important;
   box-shadow:
-    0 0 28px rgba(168, 85, 247, 0.65),
-    0 8px 20px -2px rgba(168, 85, 247, 0.4),
-    inset 0 1px 2px rgba(255, 255, 255, 0.7) !important;
+    0 12px 24px -4px rgba(67, 191, 177, 0.48),
+    0 4px 10px rgba(67, 191, 177, 0.25),
+    inset 0 1.5px 2px #ffffff !important;
 }
 
-/* Ghost Pill Button */
+/* Ghost Pill Button (Milky Frosted White Capsule) */
 .admin-portal-layout .btn--ghost,
 .admin-page .btn--ghost {
-  background: rgba(255, 255, 255, 0.05) !important;
-  border: 1px solid rgba(255, 255, 255, 0.15) !important;
-  border-bottom: 2px solid rgba(0, 240, 255, 0.4) !important;
-  color: #cbd5e1 !important;
+  background: rgba(255, 255, 255, 0.82) !important;
+  border: 1px solid rgba(255, 255, 255, 0.95) !important;
+  color: #2c3548 !important;
   box-shadow:
-    0 0 12px rgba(0, 240, 255, 0.15),
-    inset 0 1px 1px rgba(255, 255, 255, 0.25) !important;
+    0 6px 14px -3px rgba(95, 108, 138, 0.14),
+    0 2px 5px rgba(95, 108, 138, 0.06),
+    inset 0 1.5px 2px #ffffff !important;
 }
 
 .admin-portal-layout .btn--ghost:hover:not(:disabled),
 .admin-page .btn--ghost:hover:not(:disabled) {
   transform: translateY(-2px) !important;
-  background: rgba(0, 240, 255, 0.12) !important;
-  border-color: rgba(0, 240, 255, 0.6) !important;
-  border-bottom: 2px solid #00f0ff !important;
-  color: #ffffff !important;
+  background: #ffffff !important;
+  border-color: rgba(139, 110, 255, 0.45) !important;
+  color: #6c52ff !important;
   box-shadow:
-    0 0 22px rgba(0, 240, 255, 0.45),
-    inset 0 1px 2px rgba(255, 255, 255, 0.4) !important;
+    0 8px 18px -3px rgba(108, 82, 255, 0.2),
+    inset 0 1.5px 2px #ffffff !important;
 }
 
 /* Action buttons in table rows */
 .admin-row-actions .btn {
-  height: 30px !important;
-  min-height: 30px !important;
-  padding: 0 14px !important;
-  font-size: 0.78rem !important;
+  height: 28px !important;
+  min-height: 28px !important;
+  padding: 0 10px !important;
+  font-size: 0.74rem !important;
+}
+
+.admin-ban-btn {
+  height: 28px;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 9999px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.admin-ban-btn--dialog {
+  height: 34px;
+  min-height: 34px;
+  padding: 0 14px;
+  font-size: 0.8rem;
+}
+
+.admin-ban-btn--lock {
+  background: rgba(255, 228, 230, 0.85);
+  color: #be123c;
+  border: 1px solid rgba(251, 113, 133, 0.45);
+  box-shadow:
+    0 4px 10px rgba(225, 29, 72, 0.1),
+    inset 0 1px 1px #ffffff;
+}
+
+.admin-ban-btn--lock:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: linear-gradient(180deg, #fb7185 0%, #e11d48 100%);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.6);
+  box-shadow: 0 6px 14px rgba(225, 29, 72, 0.28);
+}
+
+.admin-ban-btn--unlock {
+  background: rgba(209, 250, 229, 0.85);
+  color: #047857;
+  border: 1px solid rgba(52, 211, 153, 0.45);
+  box-shadow:
+    0 4px 10px rgba(16, 185, 129, 0.1),
+    inset 0 1px 1px #ffffff;
+}
+
+.admin-ban-btn--unlock:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: linear-gradient(180deg, #34d399 0%, #059669 100%);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.6);
+  box-shadow: 0 6px 14px rgba(16, 185, 129, 0.28);
+}
+
+.admin-ban-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 /* --------------------------------------------------------------------------
-   Table: Full-Width High-Density Frosted Glass Table
+   Table: Full-Width High-Density Frosted Liquid Glass Table
    -------------------------------------------------------------------------- */
 .admin-table-wrap {
   overflow-x: auto;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(10, 15, 29, 0.4);
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.55);
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.9);
 }
 
 .admin-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.84rem;
+  color: #1e2433;
 }
 
 .admin-table th,
 .admin-table td {
   text-align: left;
-  padding: 8px 14px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 9px 14px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.16);
   vertical-align: middle;
   white-space: nowrap;
 }
@@ -801,11 +875,11 @@
   font-size: 0.74rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #94a3b8;
-  background: rgba(13, 19, 33, 0.85);
+  color: #5a6478;
+  background: rgba(255, 255, 255, 0.78);
   backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-  font-weight: 600;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+  font-weight: 700;
 }
 
 .admin-table tbody tr {
@@ -815,37 +889,34 @@
 
 .admin-table tbody tr:hover {
   background:
-    linear-gradient(90deg, rgba(0, 240, 255, 0.12) 0%, rgba(168, 85, 247, 0.08) 100%) !important;
-  border-left-color: #00f0ff;
-  box-shadow:
-    inset 0 0 18px rgba(0, 240, 255, 0.15),
-    0 2px 8px rgba(0, 240, 255, 0.1);
+    linear-gradient(90deg, rgba(139, 110, 255, 0.1) 0%, rgba(100, 216, 203, 0.1) 100%) !important;
+  border-left-color: #7c62ff;
 }
 
 .admin-table tbody tr:hover td {
-  border-bottom-color: rgba(0, 240, 255, 0.35);
-  color: #ffffff;
+  border-bottom-color: rgba(124, 98, 255, 0.2);
+  color: #111827;
 }
 
 .admin-table tfoot th,
 .admin-table tfoot td {
   font-weight: 700;
-  border-top: 2px solid rgba(255, 255, 255, 0.15);
+  border-top: 2px solid rgba(148, 163, 184, 0.25);
   border-bottom: none;
+  background: rgba(255, 255, 255, 0.65);
 }
 
 .admin-table code {
   font-size: 0.78rem;
-  background: rgba(0, 240, 255, 0.08);
-  padding: 2px 6px;
+  background: rgba(124, 98, 255, 0.1);
+  padding: 2px 7px;
   border-radius: 6px;
-  color: #38bdf8;
-  border: 1px solid rgba(0, 240, 255, 0.25);
-  box-shadow: 0 0 8px rgba(0, 240, 255, 0.2);
+  color: #5b3ff8;
+  border: 1px solid rgba(124, 98, 255, 0.22);
 }
 
 /* --------------------------------------------------------------------------
-   Badges: Pill Capsule with Glowing Neon Rim & Specular Top
+   Badges: Soft Pastel Liquid Pill Badges
    -------------------------------------------------------------------------- */
 .admin-badge {
   display: inline-flex;
@@ -853,59 +924,48 @@
   padding: 3px 12px;
   border-radius: 9999px;
   font-size: 0.74rem;
-  font-weight: 600;
+  font-weight: 700;
   white-space: nowrap;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.01em;
   position: relative;
   overflow: hidden;
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.35);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.85);
 }
 
 .admin-badge--neutral {
-  background: rgba(255, 255, 255, 0.08);
-  color: #cbd5e1;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-bottom: 2px solid rgba(255, 255, 255, 0.3);
+  background: rgba(241, 245, 249, 0.9);
+  color: #475569;
+  border: 1px solid rgba(203, 213, 225, 0.8);
 }
 
 .admin-badge--info {
-  background: rgba(0, 240, 255, 0.14);
-  color: #38bdf8;
-  border: 1px solid rgba(0, 240, 255, 0.45);
-  border-bottom: 2px solid #00f0ff;
-  box-shadow: 0 0 14px rgba(0, 240, 255, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+  background: rgba(204, 251, 241, 0.85);
+  color: #0f766e;
+  border: 1px solid rgba(94, 234, 212, 0.75);
 }
 
 .admin-badge--purple {
-  background: rgba(168, 85, 247, 0.18);
-  color: #d8b4fe;
-  border: 1px solid rgba(168, 85, 247, 0.5);
-  border-bottom: 2px solid #c084fc;
-  box-shadow: 0 0 14px rgba(168, 85, 247, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+  background: rgba(237, 233, 254, 0.9);
+  color: #5b21b6;
+  border: 1px solid rgba(196, 181, 253, 0.8);
 }
 
 .admin-badge--success {
-  background: rgba(34, 197, 94, 0.16);
-  color: #4ade80;
-  border: 1px solid rgba(34, 197, 94, 0.45);
-  border-bottom: 2px solid #22c55e;
-  box-shadow: 0 0 14px rgba(34, 197, 94, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+  background: rgba(209, 250, 229, 0.9);
+  color: #047857;
+  border: 1px solid rgba(110, 231, 183, 0.8);
 }
 
 .admin-badge--warning {
-  background: rgba(245, 158, 11, 0.16);
-  color: #fcd34d;
-  border: 1px solid rgba(245, 158, 11, 0.45);
-  border-bottom: 2px solid #f59e0b;
-  box-shadow: 0 0 14px rgba(245, 158, 11, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+  background: rgba(254, 243, 199, 0.92);
+  color: #b45309;
+  border: 1px solid rgba(252, 211, 77, 0.8);
 }
 
 .admin-badge--danger {
-  background: rgba(239, 68, 68, 0.16);
-  color: #fca5a5;
-  border: 1px solid rgba(239, 68, 68, 0.45);
-  border-bottom: 2px solid #ef4444;
-  box-shadow: 0 0 14px rgba(239, 68, 68, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+  background: rgba(255, 228, 230, 0.9);
+  color: #be123c;
+  border: 1px solid rgba(253, 164, 175, 0.8);
 }
 
 .admin-roles {
@@ -915,14 +975,47 @@
 }
 
 .admin-row-actions {
-  display: flex;
-  gap: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: nowrap;
 }
 
 .admin-actions {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
   gap: 8px;
+  flex-wrap: wrap;
+}
+
+.admin-actions--detail {
+  justify-content: space-between;
+  padding-top: 8px;
+  border-top: 1px solid rgba(148, 163, 184, 0.22);
+}
+
+.admin-actions__right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.admin-edit-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 12px;
+}
+
+.admin-edit-form-grid__full {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 540px) {
+  .admin-edit-form-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .admin-pagination,
@@ -937,51 +1030,55 @@
 
 .admin-portal-layout .workflow-pagination__page-btn,
 .admin-page .workflow-pagination__page-btn {
-  background: rgba(15, 23, 42, 0.65);
-  color: #e2e8f0;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  box-shadow: none;
+  background: rgba(255, 255, 255, 0.85);
+  color: #334155;
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  box-shadow:
+    0 3px 8px rgba(95, 108, 138, 0.1),
+    inset 0 1px 1.5px #ffffff;
 }
 
 .admin-portal-layout .workflow-pagination__page-btn:hover:not(:disabled),
 .admin-page .workflow-pagination__page-btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(14, 165, 233, 0.5);
-  color: #ffffff;
+  background: #ffffff;
+  border-color: rgba(124, 98, 255, 0.45);
+  color: #6c52ff;
 }
 
 .admin-portal-layout .workflow-pagination__page-btn--active,
 .admin-page .workflow-pagination__page-btn--active {
-  background: #0ea5e9 !important;
-  border-color: #0ea5e9 !important;
+  background: linear-gradient(180deg, #8b6eff 0%, #6c52ff 100%) !important;
+  border-color: rgba(255, 255, 255, 0.7) !important;
   color: #ffffff !important;
-  box-shadow: 0 2px 8px rgba(14, 165, 233, 0.35);
+  box-shadow:
+    0 6px 14px -2px rgba(108, 82, 255, 0.38),
+    inset 0 1px 1.5px rgba(255, 255, 255, 0.75);
 }
 
 .admin-portal-layout .workflow-pagination__ellipsis,
 .admin-page .workflow-pagination__ellipsis {
-  color: #94a3b8;
+  color: #64748b;
 }
 
 .admin-empty {
   margin: 0;
   padding: 24px;
-  border: 1px dashed rgba(255, 255, 255, 0.14);
-  border-radius: 12px;
-  background: rgba(14, 21, 37, 0.4);
-  color: #94a3b8;
+  border: 1px dashed rgba(148, 163, 184, 0.4);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.55);
+  color: #64748b;
   text-align: center;
 }
 
 /* --------------------------------------------------------------------------
-   Toast / Feedback: Frosted Glass Notification ("Profile updated successfully")
+   Toast / Feedback: Soft Pastel Liquid Glass Notification
    -------------------------------------------------------------------------- */
 .admin-portal-layout .campaign-success,
 .admin-portal-layout .campaign-error {
-  border-radius: 12px;
+  border-radius: 14px;
   padding: 10px 16px;
   font-size: 0.82rem;
-  font-weight: 500;
+  font-weight: 600;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   position: relative;
@@ -990,51 +1087,43 @@
 }
 
 .admin-portal-layout .campaign-success {
-  background:
-    linear-gradient(115deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.02) 28%, transparent 32%),
-    rgba(10, 24, 32, 0.85);
-  border: 1px solid rgba(0, 240, 255, 0.4);
-  border-bottom: 2px solid #00f0ff;
-  color: #e0f2fe;
+  background: rgba(209, 250, 229, 0.88);
+  border: 1px solid rgba(52, 211, 153, 0.6);
+  color: #065f46;
   box-shadow:
-    0 8px 24px rgba(0, 0, 0, 0.5),
-    0 4px 16px -2px rgba(0, 240, 255, 0.5),
-    inset 0 1px 1px rgba(255, 255, 255, 0.4);
+    0 8px 20px -4px rgba(16, 185, 129, 0.16),
+    inset 0 1px 1.5px #ffffff;
 }
 
 .admin-portal-layout .campaign-error {
-  background:
-    linear-gradient(115deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.02) 28%, transparent 32%),
-    rgba(32, 10, 16, 0.85);
-  border: 1px solid rgba(239, 68, 68, 0.4);
-  border-bottom: 2px solid #ef4444;
-  color: #fee2e2;
+  background: rgba(255, 228, 230, 0.9);
+  border: 1px solid rgba(251, 113, 133, 0.6);
+  color: #9f1239;
   box-shadow:
-    0 8px 24px rgba(0, 0, 0, 0.5),
-    0 4px 16px -2px rgba(239, 68, 68, 0.5),
-    inset 0 1px 1px rgba(255, 255, 255, 0.4);
+    0 8px 20px -4px rgba(225, 29, 72, 0.16),
+    inset 0 1px 1.5px #ffffff;
 }
 
 /* --------------------------------------------------------------------------
-   Dialog: Multi-Layer Frosted Glass Modal ("Upgrade Plan" UI Kit style)
+   Dialog: Multi-Layer Soft Pastel Liquid Glass Modal ("Upgrade Plan" Style)
    -------------------------------------------------------------------------- */
 .admin-dialog {
-  width: min(500px, 92vw);
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  border-bottom: 3px solid #00f0ff;
-  border-radius: 20px;
+  width: min(560px, 92vw);
+  max-height: 90vh;
+  overflow-y: auto;
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  border-radius: 24px;
   padding: 24px;
   background:
-    linear-gradient(115deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.02) 30%, transparent 35%),
-    rgba(13, 20, 36, 0.94);
-  backdrop-filter: blur(32px);
-  -webkit-backdrop-filter: blur(32px);
+    linear-gradient(135deg, rgba(255, 234, 224, 0.45) 0%, rgba(224, 216, 255, 0.42) 52%, rgba(196, 244, 244, 0.45) 100%),
+    rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(32px) saturate(170%);
+  -webkit-backdrop-filter: blur(32px) saturate(170%);
   box-shadow:
-    0 24px 70px rgba(0, 0, 0, 0.8),
-    0 0 40px rgba(0, 240, 255, 0.35),
-    0 8px 24px -2px rgba(0, 240, 255, 0.4),
-    inset 0 1px 2px rgba(255, 255, 255, 0.5);
-  color: #f8fafc;
+    0 28px 64px -12px rgba(72, 84, 118, 0.24),
+    0 8px 24px -4px rgba(108, 82, 255, 0.14),
+    inset 0 2px 3px #ffffff;
+  color: #1e2433;
   display: grid;
   gap: 16px;
   animation: admin-dialog-pop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
@@ -1052,21 +1141,20 @@
 }
 
 .admin-dialog::backdrop {
-  background: rgba(4, 7, 15, 0.75);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: rgba(148, 163, 184, 0.35);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .admin-dialog h2 {
   margin: 0;
   font-size: 1.05rem;
-  font-weight: 700;
-  color: #f8fafc;
-  text-shadow: 0 0 12px rgba(0, 240, 255, 0.4);
+  font-weight: 800;
+  color: #1e2433;
 }
 
 /* --------------------------------------------------------------------------
-   Role Grid & Settings Cards in Glass
+   Role Grid & Settings Cards in Soft Liquid Glass
    -------------------------------------------------------------------------- */
 .admin-role-grid {
   display: grid;
@@ -1075,14 +1163,17 @@
 }
 
 .admin-role-card {
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.92);
+  border-radius: 16px;
   padding: 16px;
   display: grid;
   gap: 10px;
-  background: rgba(14, 21, 37, 0.55);
-  backdrop-filter: blur(16px);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.82) 0%, rgba(246, 248, 255, 0.68) 100%);
+  backdrop-filter: blur(20px);
+  box-shadow:
+    0 10px 24px -6px rgba(95, 108, 138, 0.12),
+    inset 0 1.5px 2px #ffffff;
 }
 
 .admin-role-card header {
@@ -1097,7 +1188,7 @@
   margin: 0;
   font-size: 0.98rem;
   font-weight: 700;
-  color: #f8fafc;
+  color: #1e2433;
 }
 
 .admin-permission-list {
@@ -1111,16 +1202,290 @@
 
 .admin-permission-list code {
   font-size: 0.72rem;
-  background: rgba(0, 240, 255, 0.08);
-  color: #38bdf8;
-  border: 1px solid rgba(0, 240, 255, 0.2);
+  background: rgba(124, 98, 255, 0.1);
+  color: #5b3ff8;
+  border: 1px solid rgba(124, 98, 255, 0.22);
   padding: 2px 6px;
   border-radius: 6px;
+}
+
+.admin-table-row--clickable {
+  cursor: pointer;
+}
+
+.admin-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(148, 163, 184, 0.35);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.admin-user-detail-dialog {
+  position: relative;
+  margin: 0;
+  width: min(540px, 92vw);
+  max-height: 88vh;
+  overflow-y: auto;
+}
+
+.admin-user-detail-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+}
+
+.admin-user-detail-header__identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.admin-user-detail-avatar {
+  width: 42px;
+  height: 42px;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.admin-user-detail-header__text {
+  display: grid;
+  gap: 2px;
+}
+
+.admin-user-detail-email {
+  font-size: 0.8rem;
+  color: #5a6478;
+}
+
+.admin-user-detail-header__badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.admin-user-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+@media (max-width: 520px) {
+  .admin-user-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.admin-user-detail-item {
+  display: grid;
+  gap: 3px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.76);
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  box-shadow:
+    0 4px 10px rgba(95, 108, 138, 0.06),
+    inset 0 1px 1.5px #ffffff;
+}
+
+.admin-user-detail-item--full {
+  grid-column: 1 / -1;
+}
+
+.admin-user-detail-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+}
+
+.admin-user-detail-value {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: #1e2433;
+  word-break: break-word;
+}
+
+.admin-user-detail-assignments {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-user-detail-assignment-list {
+  display: grid;
+  gap: 6px;
+}
+
+.admin-user-detail-assignment-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(139, 110, 255, 0.25);
+  box-shadow: inset 0 1px 1.5px #ffffff;
+}
+
+.admin-user-detail-assignment-campaign {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #1e2433;
 }
 
 .admin-role-choices {
   display: grid;
   gap: 8px;
+}
+
+.admin-role-user-banner {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  box-shadow:
+    0 4px 12px rgba(95, 108, 138, 0.08),
+    inset 0 1px 1.5px #ffffff;
+}
+
+.admin-role-user-banner__info {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.admin-role-user-banner__name {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #1e2433;
+}
+
+.admin-role-user-banner__email {
+  font-size: 0.78rem;
+  color: #5a6478;
+}
+
+.admin-role-user-banner__current {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 6px;
+  border-top: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.admin-role-user-banner__label {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.admin-role-choice-card {
+  display: block;
+  padding: 11px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.74);
+  border: 1px solid rgba(255, 255, 255, 0.92);
+  box-shadow:
+    0 4px 10px rgba(95, 108, 138, 0.06),
+    inset 0 1px 1.5px #ffffff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.admin-role-choice-card:hover {
+  border-color: rgba(139, 110, 255, 0.45);
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.admin-role-choice-card--selected {
+  background:
+    linear-gradient(135deg, rgba(237, 233, 254, 0.85) 0%, rgba(204, 251, 241, 0.65) 100%);
+  border-color: #7c62ff;
+  box-shadow:
+    0 6px 16px -3px rgba(108, 82, 255, 0.2),
+    inset 0 1px 1.5px #ffffff;
+}
+
+.admin-role-choice-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.admin-role-choice-card__radio-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-role-radio {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  border-radius: 50%;
+  border: 2px solid #94a3b8;
+  background: #ffffff;
+  display: inline-grid;
+  place-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.18s ease;
+}
+
+.admin-role-radio::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #6c52ff;
+  transform: scale(0);
+  transition: transform 0.16s ease-in-out;
+}
+
+.admin-role-radio:checked {
+  border-color: #6c52ff;
+  box-shadow: 0 0 0 3px rgba(108, 82, 255, 0.18);
+}
+
+.admin-role-radio:checked::before {
+  transform: scale(1);
+}
+
+.admin-role-choice-card__title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #1e2433;
+}
+
+.admin-role-choice-card__current-tag {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background: rgba(209, 250, 229, 0.9);
+  color: #047857;
+  border: 1px solid rgba(52, 211, 153, 0.6);
 }
 
 @media (max-width: 720px) {
@@ -1173,20 +1538,25 @@
 }
 
 .admin-inventory-card {
-  background: rgba(10, 15, 29, 0.65);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.76);
+  border: 1px solid rgba(255, 255, 255, 0.94);
+  border-radius: 12px;
   padding: 8px 10px;
   display: flex;
   flex-direction: column;
   gap: 5px;
+  box-shadow:
+    0 4px 12px rgba(95, 108, 138, 0.07),
+    inset 0 1px 1.5px #ffffff;
   transition: all 0.2s ease;
 }
 
 .admin-inventory-card:hover {
-  border-color: rgba(0, 240, 255, 0.35);
-  background: rgba(14, 21, 37, 0.85);
-  box-shadow: 0 0 14px rgba(0, 240, 255, 0.15);
+  border-color: rgba(124, 98, 255, 0.45);
+  background: #ffffff;
+  box-shadow:
+    0 8px 18px -4px rgba(108, 82, 255, 0.16),
+    inset 0 1px 1.5px #ffffff;
 }
 
 .admin-inventory-top {
@@ -1198,20 +1568,20 @@
 .admin-inventory-type {
   font-size: 0.95rem;
   font-weight: 800;
-  color: #f8fafc;
+  color: #1e2433;
 }
 
 .admin-inventory-volume {
   font-size: 0.72rem;
   font-weight: 600;
-  color: #94a3b8;
+  color: #5a6478;
 }
 
 .admin-inventory-track {
   width: 100%;
-  height: 5px;
+  height: 6px;
   border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(203, 213, 225, 0.55);
   overflow: hidden;
 }
 
@@ -1222,27 +1592,23 @@
 }
 
 .admin-inventory-fill--safe {
-  background: linear-gradient(90deg, #00f0ff, #0284c7);
-  box-shadow: 0 0 8px rgba(0, 240, 255, 0.5);
+  background: linear-gradient(90deg, #56d4c6, #14b8a6);
 }
 
 .admin-inventory-fill--warning {
-  background: linear-gradient(90deg, #fbbf24, #d97706);
-  box-shadow: 0 0 8px rgba(245, 158, 11, 0.5);
+  background: linear-gradient(90deg, #fbbf24, #f59e0b);
 }
 
 .admin-inventory-fill--critical {
-  background: linear-gradient(90deg, #f87171, #dc2626);
-  box-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
+  background: linear-gradient(90deg, #fb7185, #e11d48);
 }
 
 .admin-inventory-fill--purple {
-  background: linear-gradient(90deg, #c084fc, #9333ea);
-  box-shadow: 0 0 8px rgba(168, 85, 247, 0.5);
+  background: linear-gradient(90deg, #a78bfa, #7c62ff);
 }
 
 /* --------------------------------------------------------------------------
-   Skeleton Loading: Dark Frosted Glass & GPU-Accelerated Neon Sweep
+   Skeleton Loading: Soft Frosted Glass & Pastel Shimmer Sweep
    -------------------------------------------------------------------------- */
 @keyframes skeleton-sweep-ltr {
   0% {
@@ -1256,10 +1622,9 @@
 .admin-portal-layout .skeleton {
   position: relative !important;
   overflow: hidden !important;
-  background: rgba(14, 21, 37, 0.75) !important;
+  background: rgba(226, 232, 240, 0.75) !important;
   border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 0 10px rgba(0, 240, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.8);
   display: block;
 }
 
@@ -1278,9 +1643,9 @@
   background: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(255, 255, 255, 0.04) 20%,
-    rgba(0, 240, 255, 0.45) 50%,
-    rgba(255, 255, 255, 0.04) 80%,
+    rgba(255, 255, 255, 0.4) 20%,
+    rgba(255, 255, 255, 0.85) 50%,
+    rgba(255, 255, 255, 0.4) 80%,
     transparent 100%
   ) !important;
   transform: translateX(-100%);
@@ -1289,12 +1654,12 @@
 }
 
 .admin-portal-layout .skeleton-table-wrap {
-  background: rgba(14, 21, 37, 0.65) !important;
+  background: rgba(255, 255, 255, 0.68) !important;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.9) !important;
   border-radius: 16px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  box-shadow: 0 12px 28px -8px rgba(95, 108, 138, 0.12), inset 0 1px 1.5px #ffffff;
   overflow: hidden;
   padding: 0;
 }
@@ -1304,35 +1669,33 @@
 }
 
 .admin-portal-layout .skeleton-table__header {
-  background: rgba(13, 19, 33, 0.85) !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12) !important;
+  background: rgba(255, 255, 255, 0.82) !important;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2) !important;
   padding: 10px 16px;
 }
 
 .admin-portal-layout .skeleton-table__row {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14) !important;
   padding: 10px 16px;
   height: 40px;
 }
 
 .admin-portal-layout .skeleton-table__row:hover {
-  background: rgba(0, 240, 255, 0.03);
+  background: rgba(124, 98, 255, 0.04);
 }
 
 .admin-portal-layout .skeleton-card,
 .admin-portal-layout .skeleton-card-item,
 .admin-portal-layout .skeleton-stats-card,
 .admin-portal-layout .skeleton-role-card {
-  background: rgba(14, 21, 37, 0.65) !important;
+  background: rgba(255, 255, 255, 0.68) !important;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
-  border-radius: 14px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.9) !important;
+  border-radius: 16px;
+  box-shadow: 0 12px 28px -8px rgba(95, 108, 138, 0.12), inset 0 1px 1.5px #ffffff;
 }
 
 .admin-portal-layout .skeleton-stats-grid {
   gap: 12px;
 }
-
-

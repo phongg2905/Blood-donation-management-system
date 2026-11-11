@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Lock, Shield, UserCheck, Users } from 'lucide-react';
 import { ACTOR_CODES, ROLE_NAMES, type ActorCode } from '@blood/shared-types';
-import { Button, Checkbox, FormField, Input } from '@/components/ui';
+import { Button, FormField, Input } from '@/components/ui';
 import { Feedback, QueryState } from '@/features/campaigns/components';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import {
@@ -17,6 +17,82 @@ import { useAdminRepository } from './repository';
 import type { AdminUser, AdminUserQuery } from './types';
 
 const PAGE_SIZE = 15;
+
+const GENDER_LABELS: Record<string, string> = {
+  MALE: 'Nam',
+  FEMALE: 'Nữ',
+  OTHER: 'Khác',
+};
+
+const BLOOD_TYPE_LABELS: Record<string, string> = {
+  A_POS: 'A+',
+  A_NEG: 'A-',
+  B_POS: 'B+',
+  B_NEG: 'B-',
+  AB_POS: 'AB+',
+  AB_NEG: 'AB-',
+  O_POS: 'O+',
+  O_NEG: 'O-',
+  A_POSITIVE: 'A+',
+  A_NEGATIVE: 'A-',
+  B_POSITIVE: 'B+',
+  B_NEGATIVE: 'B-',
+  AB_POSITIVE: 'AB+',
+  AB_NEGATIVE: 'AB-',
+  O_POSITIVE: 'O+',
+  O_NEGATIVE: 'O-',
+};
+
+const BLOOD_TYPE_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
+  { value: 'O_POSITIVE', label: 'O+' },
+  { value: 'O_NEGATIVE', label: 'O-' },
+  { value: 'A_POSITIVE', label: 'A+' },
+  { value: 'A_NEGATIVE', label: 'A-' },
+  { value: 'B_POSITIVE', label: 'B+' },
+  { value: 'B_NEGATIVE', label: 'B-' },
+  { value: 'AB_POSITIVE', label: 'AB+' },
+  { value: 'AB_NEGATIVE', label: 'AB-' },
+];
+
+function normalizeBloodTypeValue(raw?: string | null): string {
+  if (!raw) return '';
+  const map: Record<string, string> = {
+    A_POS: 'A_POSITIVE',
+    A_NEG: 'A_NEGATIVE',
+    B_POS: 'B_POSITIVE',
+    B_NEG: 'B_NEGATIVE',
+    AB_POS: 'AB_POSITIVE',
+    AB_NEG: 'AB_NEGATIVE',
+    O_POS: 'O_POSITIVE',
+    O_NEG: 'O_NEGATIVE',
+  };
+  return map[raw] ?? raw;
+}
+
+function toInputDate(iso?: string | null): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toISOString().slice(0, 10);
+}
+
+const STATION_LABELS: Record<string, string> = {
+  CHECK_IN: 'Tiếp nhận Check-in',
+  SCREENING: 'Khám sàng lọc',
+  COLLECTION: 'Ghi nhận túi máu',
+  SUPPORT: 'Hỗ trợ điều phối',
+};
+
+function formatDateOnly(iso?: string | null): string {
+  if (!iso) return '—';
+  const parsed = new Date(iso);
+  if (Number.isNaN(parsed.getTime())) return '—';
+  return new Intl.DateTimeFormat('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(parsed);
+}
 
 export function UsersPage() {
   const repository = useAdminRepository();
@@ -64,11 +140,21 @@ export function UsersPage() {
     return () => clearTimeout(timer);
   }, [searchInput]);
 
+  const [viewingUser, setViewingUser] = useState<AdminUser | null>(null);
+
   const [editing, setEditing] = useState<AdminUser | null>(null);
   const [draftName, setDraftName] = useState('');
+  const [draftEmail, setDraftEmail] = useState('');
+  const [draftPhone, setDraftPhone] = useState('');
+  const [draftCitizenId, setDraftCitizenId] = useState('');
+  const [draftDob, setDraftDob] = useState('');
+  const [draftGender, setDraftGender] = useState('');
+  const [draftBloodType, setDraftBloodType] = useState('');
+  const [draftAddress, setDraftAddress] = useState('');
   const [draftActive, setDraftActive] = useState(true);
   const [nameError, setNameError] = useState<string | undefined>();
   const editMutation = useAdminMutation();
+  const statusMutation = useAdminMutation();
 
   const [rolesFor, setRolesFor] = useState<AdminUser | null>(null);
   const [draftRoles, setDraftRoles] = useState<ActorCode[]>([]);
@@ -85,6 +171,13 @@ export function UsersPage() {
   function openEdit(user: AdminUser) {
     setEditing(user);
     setDraftName(user.fullName);
+    setDraftEmail(user.email);
+    setDraftPhone(user.donorProfile?.phone ?? '');
+    setDraftCitizenId(user.donorProfile?.citizenId ?? '');
+    setDraftDob(toInputDate(user.donorProfile?.dateOfBirth));
+    setDraftGender(user.donorProfile?.gender ?? '');
+    setDraftBloodType(normalizeBloodTypeValue(user.donorProfile?.bloodType));
+    setDraftAddress(user.donorProfile?.address ?? '');
     setDraftActive(user.isActive);
     setNameError(undefined);
   }
@@ -98,27 +191,57 @@ export function UsersPage() {
       () =>
         repository.updateUser(editing.id, {
           fullName: draftName.trim(),
+          email: draftEmail.trim() || editing.email,
           isActive: draftActive,
+          phone: draftPhone.trim() || null,
+          citizenId: draftCitizenId.trim() || null,
+          dateOfBirth: draftDob || null,
+          gender: draftGender || null,
+          bloodType: draftBloodType || null,
+          address: draftAddress.trim() || null,
         }),
-      () => {
+      (updated) => {
         setEditing(null);
+        setViewingUser((prev) =>
+          prev && prev.id === updated.id ? { ...prev, ...updated } : prev,
+        );
         result.retry();
       },
       'Đã cập nhật tài khoản.',
     );
   }
 
+  function toggleBanUser(user: AdminUser) {
+    const nextActive = !user.isActive;
+    void statusMutation.run(
+      () =>
+        repository.updateUser(user.id, {
+          isActive: nextActive,
+        }),
+      (updated) => {
+        setViewingUser((prev) =>
+          prev && prev.id === updated.id ? { ...prev, ...updated } : prev,
+        );
+        result.retry();
+      },
+      nextActive ? 'Đã mở khóa tài khoản.' : 'Đã khóa tài khoản.',
+    );
+  }
+
   function openRoles(user: AdminUser) {
     setRolesFor(user);
-    setDraftRoles([...user.roles]);
+    setDraftRoles(user.roles[0] ? [user.roles[0]] : ['DONOR']);
   }
 
   function saveRoles() {
     if (!rolesFor) return;
     void rolesMutation.run(
       () => repository.setUserRoles(rolesFor.id, draftRoles),
-      () => {
+      (updated) => {
         setRolesFor(null);
+        setViewingUser((prev) =>
+          prev && prev.id === updated.id ? { ...prev, ...updated } : prev,
+        );
         result.retry();
       },
       'Đã cập nhật vai trò.',
@@ -137,7 +260,7 @@ export function UsersPage() {
         <div className="admin-glass-kpi-card">
           <div className="admin-kpi-header">
             <span className="admin-kpi-title">Tổng tài khoản</span>
-            <span className="admin-kpi-icon-badge" style={{ background: 'rgba(0, 240, 255, 0.15)', color: '#00f0ff' }} aria-hidden="true">
+            <span className="admin-kpi-icon-badge" style={{ background: 'rgba(124, 98, 255, 0.14)', color: '#6c52ff' }} aria-hidden="true">
               <Users size={16} />
             </span>
           </div>
@@ -150,12 +273,12 @@ export function UsersPage() {
         <div className="admin-glass-kpi-card">
           <div className="admin-kpi-header">
             <span className="admin-kpi-title">Đang hoạt động</span>
-            <span className="admin-kpi-icon-badge" style={{ background: 'rgba(34, 197, 94, 0.15)', color: '#4ade80' }} aria-hidden="true">
+            <span className="admin-kpi-icon-badge" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#059669' }} aria-hidden="true">
               <UserCheck size={16} />
             </span>
           </div>
           <div className="admin-kpi-value">{activeCount}</div>
-          <div className="admin-kpi-trend" style={{ color: '#4ade80' }}>
+          <div className="admin-kpi-trend" style={{ color: '#059669' }}>
             <span>Trang hiện tại</span>
           </div>
         </div>
@@ -163,12 +286,12 @@ export function UsersPage() {
         <div className="admin-glass-kpi-card">
           <div className="admin-kpi-header">
             <span className="admin-kpi-title">Tạm khóa</span>
-            <span className="admin-kpi-icon-badge" style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#f87171' }} aria-hidden="true">
+            <span className="admin-kpi-icon-badge" style={{ background: 'rgba(244, 63, 94, 0.14)', color: '#e11d48' }} aria-hidden="true">
               <Lock size={16} />
             </span>
           </div>
           <div className="admin-kpi-value">{lockedCount}</div>
-          <div className="admin-kpi-trend" style={{ color: '#f87171' }}>
+          <div className="admin-kpi-trend" style={{ color: '#e11d48' }}>
             <span>Cần kiểm tra</span>
           </div>
         </div>
@@ -176,7 +299,7 @@ export function UsersPage() {
         <div className="admin-glass-kpi-card">
           <div className="admin-kpi-header">
             <span className="admin-kpi-title">Cán bộ & Quản trị</span>
-            <span className="admin-kpi-icon-badge" style={{ background: 'rgba(168, 85, 247, 0.15)', color: '#c084fc' }} aria-hidden="true">
+            <span className="admin-kpi-icon-badge" style={{ background: 'rgba(124, 98, 255, 0.15)', color: '#6c52ff' }} aria-hidden="true">
               <Shield size={16} />
             </span>
           </div>
@@ -236,8 +359,10 @@ export function UsersPage() {
       {/* The edit/roles dialogs unmount on success, so the confirmation is
           announced from the page instead. */}
       <Feedback
-        error={null}
-        success={editMutation.success || rolesMutation.success}
+        error={statusMutation.error}
+        success={
+          editMutation.success || rolesMutation.success || statusMutation.success
+        }
       />
       <QueryState {...result} variant="table" columns={5} />
       {result.data && (
@@ -262,7 +387,11 @@ export function UsersPage() {
                 </thead>
                 <tbody>
                   {result.data.items.map((user) => (
-                    <tr key={user.id}>
+                    <tr
+                      key={user.id}
+                      className="admin-table-row--clickable"
+                      onClick={() => setViewingUser(user)}
+                    >
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <span
@@ -294,7 +423,7 @@ export function UsersPage() {
                         </AdminBadge>
                       </td>
                       <td>{formatDateTime(user.lastLoginAt)}</td>
-                      <td>
+                      <td onClick={(event) => event.stopPropagation()}>
                         <div className="admin-row-actions">
                           {hasPermission('user.manage') && (
                             <Button
@@ -311,6 +440,20 @@ export function UsersPage() {
                             >
                               Phân quyền
                             </Button>
+                          )}
+                          {hasPermission('user.manage') && (
+                            <button
+                              type="button"
+                              className={`admin-ban-btn ${
+                                user.isActive
+                                  ? 'admin-ban-btn--lock'
+                                  : 'admin-ban-btn--unlock'
+                              }`}
+                              disabled={statusMutation.pending}
+                              onClick={() => toggleBanUser(user)}
+                            >
+                              {user.isActive ? 'Khóa' : 'Mở khóa'}
+                            </button>
                           )}
                         </div>
                       </td>
@@ -329,6 +472,156 @@ export function UsersPage() {
         </section>
       )}
 
+      {viewingUser && !editing && !rolesFor && (
+        <div
+          className="admin-dialog-backdrop"
+          onClick={() => setViewingUser(null)}
+        >
+          <dialog
+            open
+            className="admin-dialog admin-user-detail-dialog"
+            aria-label={`Chi tiết tài khoản · ${viewingUser.email}`}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="admin-user-detail-header">
+              <div className="admin-user-detail-header__identity">
+                <span className="admin-user-avatar admin-user-detail-avatar" aria-hidden="true">
+                  {(viewingUser.fullName || viewingUser.email).charAt(0).toUpperCase()}
+                </span>
+                <div className="admin-user-detail-header__text">
+                  <h2>{viewingUser.fullName || 'Chưa cập nhật họ tên'}</h2>
+                  <span className="admin-user-detail-email">{viewingUser.email}</span>
+                </div>
+              </div>
+              <div className="admin-user-detail-header__badges">
+                {viewingUser.roles.map((code) => (
+                  <AdminBadge
+                    key={code}
+                    tone={code === 'SYSTEM_ADMIN' || (code as string) === 'ADMIN' ? 'purple' : 'info'}
+                  >
+                    {ROLE_NAMES[code]}
+                  </AdminBadge>
+                ))}
+                <AdminBadge tone={viewingUser.isActive ? 'success' : 'danger'}>
+                  {viewingUser.isActive ? 'Hoạt động' : 'Đã khoá'}
+                </AdminBadge>
+              </div>
+            </div>
+
+            <div className="admin-user-detail-grid">
+              <div className="admin-user-detail-item">
+                <span className="admin-user-detail-label">Ngày tạo tài khoản</span>
+                <span className="admin-user-detail-value">
+                  {formatDateTime(viewingUser.createdAt)}
+                </span>
+              </div>
+              <div className="admin-user-detail-item">
+                <span className="admin-user-detail-label">Đăng nhập gần nhất</span>
+                <span className="admin-user-detail-value">
+                  {formatDateTime(viewingUser.lastLoginAt)}
+                </span>
+              </div>
+              <div className="admin-user-detail-item">
+                <span className="admin-user-detail-label">Số điện thoại</span>
+                <span className="admin-user-detail-value">
+                  {viewingUser.donorProfile?.phone || '—'}
+                </span>
+              </div>
+              <div className="admin-user-detail-item">
+                <span className="admin-user-detail-label">Số CCCD</span>
+                <span className="admin-user-detail-value">
+                  {viewingUser.donorProfile?.citizenId || '—'}
+                </span>
+              </div>
+              <div className="admin-user-detail-item">
+                <span className="admin-user-detail-label">Ngày sinh</span>
+                <span className="admin-user-detail-value">
+                  {formatDateOnly(viewingUser.donorProfile?.dateOfBirth)}
+                </span>
+              </div>
+              <div className="admin-user-detail-item">
+                <span className="admin-user-detail-label">Giới tính / Nhóm máu</span>
+                <span className="admin-user-detail-value">
+                  {[
+                    viewingUser.donorProfile?.gender
+                      ? (GENDER_LABELS[viewingUser.donorProfile.gender] ?? viewingUser.donorProfile.gender)
+                      : null,
+                    viewingUser.donorProfile?.bloodType
+                      ? `Nhóm ${BLOOD_TYPE_LABELS[viewingUser.donorProfile.bloodType] ?? viewingUser.donorProfile.bloodType}`
+                      : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ') || '—'}
+                </span>
+              </div>
+              <div className="admin-user-detail-item admin-user-detail-item--full">
+                <span className="admin-user-detail-label">Địa chỉ</span>
+                <span className="admin-user-detail-value">
+                  {viewingUser.donorProfile?.address || '—'}
+                </span>
+              </div>
+            </div>
+
+            {viewingUser.campaignAssignments &&
+              viewingUser.campaignAssignments.length > 0 && (
+                <div className="admin-user-detail-assignments">
+                  <span className="admin-user-detail-label">Đợt hiến máu được phân công</span>
+                  <div className="admin-user-detail-assignment-list">
+                    {viewingUser.campaignAssignments.map((item) => (
+                      <div key={item.id} className="admin-user-detail-assignment-row">
+                        <span className="admin-user-detail-assignment-campaign">
+                          {item.campaign?.name || 'Đợt hiến máu'}
+                        </span>
+                        <AdminBadge tone="info">
+                          {STATION_LABELS[item.assignment] ?? item.assignment}
+                        </AdminBadge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+            <div className="admin-actions admin-actions--detail">
+              <Button variant="secondary" onClick={() => setViewingUser(null)}>
+                Đóng
+              </Button>
+              <div className="admin-actions__right">
+                {hasPermission('user.manage') && (
+                  <button
+                    type="button"
+                    className={`admin-ban-btn admin-ban-btn--dialog ${
+                      viewingUser.isActive
+                        ? 'admin-ban-btn--lock'
+                        : 'admin-ban-btn--unlock'
+                    }`}
+                    disabled={statusMutation.pending}
+                    onClick={() => toggleBanUser(viewingUser)}
+                  >
+                    {viewingUser.isActive ? 'Khóa tài khoản' : 'Mở khóa'}
+                  </button>
+                )}
+                {hasPermission('user.manage') && (
+                  <Button
+                    variant="ghost"
+                    onClick={() => openEdit(viewingUser)}
+                  >
+                    Sửa
+                  </Button>
+                )}
+                {hasPermission('role.manage') && (
+                  <Button
+                    variant="primary"
+                    onClick={() => openRoles(viewingUser)}
+                  >
+                    Phân quyền
+                  </Button>
+                )}
+              </div>
+            </div>
+          </dialog>
+        </div>
+      )}
+
       {editing && (
         <AdminDialog
           title={`Sửa tài khoản · ${editing.email}`}
@@ -337,27 +630,98 @@ export function UsersPage() {
           onCancel={() => setEditing(null)}
           onConfirm={saveEdit}
         >
-          <FormField
-            id="admin-edit-name"
-            label="Họ và tên"
-            required
-            error={nameError}
-          >
-            <Input
-              value={draftName}
-              onChange={(event) => setDraftName(event.target.value)}
-            />
-          </FormField>
-          <Checkbox
-            id="admin-edit-active"
-            checked={draftActive}
-            onChange={(event) => setDraftActive(event.target.checked)}
-          >
-            Tài khoản đang hoạt động
-          </Checkbox>
-          <p className="admin-muted">
-            Tài khoản bị khoá không thể đăng nhập nhưng dữ liệu vẫn được giữ.
-          </p>
+          <div className="admin-edit-form-grid">
+            <FormField
+              id="admin-edit-name"
+              label="Họ và tên"
+              required
+              error={nameError}
+            >
+              <Input
+                value={draftName}
+                onChange={(event) => setDraftName(event.target.value)}
+              />
+            </FormField>
+            <FormField id="admin-edit-email" label="Email" required>
+              <Input
+                type="email"
+                value={draftEmail}
+                onChange={(event) => setDraftEmail(event.target.value)}
+              />
+            </FormField>
+            <FormField id="admin-edit-phone" label="Số điện thoại">
+              <Input
+                type="tel"
+                value={draftPhone}
+                placeholder="09xxxxxxxx"
+                onChange={(event) => setDraftPhone(event.target.value)}
+              />
+            </FormField>
+            <FormField id="admin-edit-citizen-id" label="Số CCCD">
+              <Input
+                value={draftCitizenId}
+                placeholder="12 chữ số"
+                onChange={(event) => setDraftCitizenId(event.target.value)}
+              />
+            </FormField>
+            <FormField id="admin-edit-dob" label="Ngày sinh">
+              <Input
+                type="date"
+                value={draftDob}
+                onChange={(event) => setDraftDob(event.target.value)}
+              />
+            </FormField>
+            <FormField id="admin-edit-gender" label="Giới tính">
+              <select
+                id="admin-edit-gender"
+                className="input"
+                value={draftGender}
+                onChange={(event) => setDraftGender(event.target.value)}
+              >
+                <option value="">Chưa cập nhật</option>
+                <option value="MALE">Nam</option>
+                <option value="FEMALE">Nữ</option>
+                <option value="OTHER">Khác</option>
+              </select>
+            </FormField>
+            <FormField id="admin-edit-blood-type" label="Nhóm máu">
+              <select
+                id="admin-edit-blood-type"
+                className="input"
+                value={draftBloodType}
+                onChange={(event) => setDraftBloodType(event.target.value)}
+              >
+                <option value="">Chưa cập nhật</option>
+                {BLOOD_TYPE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </FormField>
+            <FormField id="admin-edit-status" label="Trạng thái">
+              <select
+                id="admin-edit-status"
+                className="input"
+                value={draftActive ? 'true' : 'false'}
+                onChange={(event) =>
+                  setDraftActive(event.target.value === 'true')
+                }
+              >
+                <option value="true">Đang hoạt động</option>
+                <option value="false">Đã khóa</option>
+              </select>
+            </FormField>
+            <div className="admin-edit-form-grid__full">
+              <FormField id="admin-edit-address" label="Địa chỉ">
+                <Input
+                  value={draftAddress}
+                  placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành"
+                  onChange={(event) => setDraftAddress(event.target.value)}
+                />
+              </FormField>
+            </div>
+          </div>
         </AdminDialog>
       )}
 
@@ -366,32 +730,82 @@ export function UsersPage() {
           title={`Phân quyền · ${rolesFor.email}`}
           pending={rolesMutation.pending}
           error={rolesMutation.error}
+          confirmDisabled={draftRoles.length === 0}
           onCancel={() => setRolesFor(null)}
           onConfirm={saveRoles}
         >
-          <div className="admin-role-choices">
-            {ACTOR_CODES.map((code) => (
-              <Checkbox
-                key={code}
-                id={`admin-role-${code}`}
-                checked={draftRoles.includes(code)}
-                onChange={(event) =>
-                  setDraftRoles((previous) =>
-                    event.target.checked
-                      ? [...new Set([...previous, code])]
-                      : previous.filter((item) => item !== code),
-                  )
-                }
-              >
-                {ROLE_NAMES[code]}
-              </Checkbox>
-            ))}
+          <div className="admin-role-user-banner">
+            <div className="admin-role-user-banner__info">
+              <span className="admin-role-user-banner__name">
+                {rolesFor.fullName || rolesFor.email}
+              </span>
+              <span className="admin-role-user-banner__email">
+                {rolesFor.email}
+              </span>
+            </div>
+            <div className="admin-role-user-banner__current">
+              <span className="admin-role-user-banner__label">
+                Vai trò hiện tại:
+              </span>
+              {rolesFor.roles.length > 0 ? (
+                <div className="admin-roles">
+                  {rolesFor.roles.map((code) => (
+                    <AdminBadge
+                      key={code}
+                      tone={
+                        code === 'SYSTEM_ADMIN' || (code as string) === 'ADMIN'
+                          ? 'purple'
+                          : 'info'
+                      }
+                    >
+                      {ROLE_NAMES[code] ?? code}
+                    </AdminBadge>
+                  ))}
+                </div>
+              ) : (
+                <AdminBadge tone="warning">Chưa phân quyền</AdminBadge>
+              )}
+            </div>
           </div>
-          {draftRoles.length === 0 && (
-            <p className="admin-muted">
-              Tài khoản không có vai trò nào sẽ không dùng được hệ thống.
-            </p>
-          )}
+
+          <div className="admin-role-choices" role="radiogroup" aria-label="Chọn vai trò">
+            {ACTOR_CODES.map((code) => {
+              const isChecked = draftRoles[0] === code;
+              const isCurrent = rolesFor.roles.includes(code);
+              const inputId = `admin-role-${code}`;
+              return (
+                <label
+                  key={code}
+                  htmlFor={inputId}
+                  className={`admin-role-choice-card ${
+                    isChecked ? 'admin-role-choice-card--selected' : ''
+                  }`}
+                >
+                  <div className="admin-role-choice-card__top">
+                    <span className="admin-role-choice-card__radio-wrap">
+                      <input
+                        id={inputId}
+                        type="radio"
+                        name="admin-user-role-choice"
+                        className="admin-role-radio"
+                        aria-label={ROLE_NAMES[code]}
+                        checked={isChecked}
+                        onChange={() => setDraftRoles([code])}
+                      />
+                      <span className="admin-role-choice-card__title">
+                        {ROLE_NAMES[code]}
+                      </span>
+                    </span>
+                    {isCurrent && (
+                      <span className="admin-role-choice-card__current-tag">
+                        Hiện tại
+                      </span>
+                    )}
+                  </div>
+                </label>
+              );
+            })}
+          </div>
         </AdminDialog>
       )}
     </AdminShell>

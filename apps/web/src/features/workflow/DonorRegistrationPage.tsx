@@ -257,10 +257,6 @@ export function DonorRegistrationPage() {
       {step === 2 && (
         <section className="workflow-card" aria-labelledby="step-health">
           <h2 id="step-health">Bước 3 · Khai báo sức khỏe</h2>
-          <p className="workflow-muted">
-            Vui lòng trả lời trung thực. Thông tin này được nhân viên y tế dùng
-            khi sàng lọc.
-          </p>
           <div className="workflow-questions">
             {HEALTH_QUESTIONS.map((question) => (
               <fieldset key={question.code} className="workflow-question">
@@ -381,16 +377,6 @@ export function DonorRegistrationPage() {
                 },
               ]}
             />
-          </div>
-          <div className="status status--info" style={{ marginTop: '1.25rem', marginBottom: '1.5rem' }}>
-            <span className="status__icon" aria-hidden="true">ℹ</span>
-            <div className="status__body">
-              <strong>Cần thay đổi hoặc hủy lịch hẹn?</strong>
-              <span className="status__detail">
-                Nếu có việc bận không thể tham gia, bạn có thể dễ dàng quản lý và <strong>hủy lịch hẹn</strong> tại mục{' '}
-                <Link to="/donor/history" style={{ textDecoration: 'underline', fontWeight: 600 }}>Lịch hẹn của tôi</Link>.
-              </span>
-            </div>
           </div>
           <div className="workflow-actions">
             <Link className="btn btn--secondary" to="/donor/history">

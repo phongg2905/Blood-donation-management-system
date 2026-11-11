@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 import { ClipboardList, Droplet, Shield, Stethoscope, User } from 'lucide-react';
-import { ROLE_NAMES } from '@blood/shared-types';
 import { DEMO_LOGIN_ACCOUNTS, DEMO_LOGIN_PASSWORD } from './demo-accounts';
 import './demo-login.css';
 
@@ -29,7 +28,7 @@ export default function DemoAccountPicker({
         {DEMO_LOGIN_ACCOUNTS.map((account) => (
           <button
             type="button"
-            key={account.role}
+            key={account.email}
             className="demo-login__pill-btn"
             disabled={disabled}
             onClick={() =>
@@ -42,7 +41,7 @@ export default function DemoAccountPicker({
             <span className="demo-login__pill-icon" aria-hidden="true">
               {ROLE_ICONS[account.role] ?? <User size={14} />}
             </span>
-            <span className="demo-login__pill-text">{ROLE_NAMES[account.role]}</span>
+            <span className="demo-login__pill-text">{account.label}</span>
           </button>
         ))}
       </div>

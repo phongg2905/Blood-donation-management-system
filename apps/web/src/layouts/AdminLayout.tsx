@@ -8,11 +8,9 @@ import {
   FileText,
   Sliders,
   BarChart3,
-  Heart,
   LayoutDashboard,
   Search,
   LogOut,
-  Bell,
 } from 'lucide-react';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { visibleNavItems } from '@/features/auth/navigation';
@@ -28,7 +26,6 @@ const NAV_ICONS: Record<string, typeof Users> = {
   '/admin/audit-logs': FileText,
   '/admin/settings': Sliders,
   '/admin/reports': BarChart3,
-  '/campaigns': Heart,
   [AUTH_ROUTES.home]: LayoutDashboard,
 };
 
@@ -150,14 +147,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                 aria-label="Tìm kiếm quản trị"
               />
             </div>
-            <button
-              type="button"
-              className="admin-icon-btn"
-              title="Thông báo hệ thống"
-              aria-label="Thông báo"
-            >
-              <Bell size={15} />
-            </button>
           </div>
         </header>
 

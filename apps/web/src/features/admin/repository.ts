@@ -8,8 +8,10 @@ import {
 } from '@/services/api';
 import {
   ACTOR_CODES,
+  LEGACY_TO_ACTOR,
   ROLE_PERMISSIONS,
   type ActorCode,
+  type LegacyRoleCode,
   type PermissionCode,
 } from '@blood/shared-types';
 import type {
@@ -49,7 +51,30 @@ const query = (values: Record<string, unknown>): string => {
 };
 
 /** Named mapper boundaries: adjust DTO mapping here when BE publishes shapes. */
-export const mapAdminUser = (dto: AdminUser): AdminUser => ({ ...dto });
+export const mapAdminUser = (
+  dto: Omit<AdminUser, 'roles'> & {
+    roles?: ReadonlyArray<string | { role?: { code?: string }; code?: string }>;
+  },
+): AdminUser => {
+  const normalizedRoles: ActorCode[] = [];
+  for (const item of dto.roles ?? []) {
+    const rawCode =
+      typeof item === 'string' ? item : (item?.role?.code ?? item?.code ?? '');
+    if (!rawCode) continue;
+    const actorCode = (
+      (ACTOR_CODES as readonly string[]).includes(rawCode)
+        ? rawCode
+        : LEGACY_TO_ACTOR[rawCode as LegacyRoleCode]
+    ) as ActorCode | undefined;
+    if (actorCode && !normalizedRoles.includes(actorCode)) {
+      normalizedRoles.push(actorCode);
+    }
+  }
+  return {
+    ...dto,
+    roles: normalizedRoles,
+  };
+};
 
 export class ApiAdminRepository implements AdminRepository {
   async overview(): Promise<AdminOverviewData> {

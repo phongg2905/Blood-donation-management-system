@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { ROLE_NAMES } from '@blood/shared-types';
+import { ROLE_NAMES, type CampaignStatus } from '@blood/shared-types';
 import { Button, FormField, Input } from '@/components/ui';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import {
@@ -27,6 +27,7 @@ export function CampaignStaffPage() {
           key={campaignId}
           campaignId={campaignId}
           name={result.data.name}
+          status={result.data.status}
         />
       )}
     </CampaignShell>
@@ -35,9 +36,11 @@ export function CampaignStaffPage() {
 function StaffContent({
   campaignId,
   name,
+  status,
 }: {
   campaignId: string;
   name: string;
+  status: CampaignStatus;
 }) {
   const repository = useCampaignRepository();
   const { hasPermission } = useAuth();
@@ -49,7 +52,9 @@ function StaffContent({
   const [selected, setSelected] = useState('');
   const [assignment, setAssignment] = useState<Assignment>('CHECK_IN');
   const [remove, setRemove] = useState<CampaignStaff | null>(null);
-  const canAssign = hasPermission('campaign_staff.assign');
+  const isEditable = status !== 'COMPLETED' && status !== 'CANCELLED';
+  const canAssign = isEditable && hasPermission('campaign_staff.assign');
+  const canRemove = isEditable && hasPermission('campaign_staff.remove');
   const candidates = useCampaignQuery(
     `candidates:${campaignId}`,
     () => repository.searchStaff(campaignId, ''),
@@ -222,7 +227,6 @@ function StaffContent({
         <div className="campaign-toolbar">
           <div>
             <h2>{name}</h2>
-            <p>Nhân sự đã được phân công</p>
           </div>
           {canAssign && !assigning && (
             <Button onClick={() => setAssigning(true)}>
@@ -253,7 +257,7 @@ function StaffContent({
                         .join(', ') || ROLE_NAMES.DONATION_STAFF}
                     </p>
                   </div>
-                  {hasPermission('campaign_staff.remove') && (
+                  {canRemove && (
                     <Button
                       variant="secondary"
                       disabled={mutation.pending}
@@ -268,7 +272,6 @@ function StaffContent({
           ) : (
             <div className="campaign-empty">
               <h3>Chưa có nhân sự được phân công.</h3>
-              <p>Bổ sung nhân sự để chuẩn bị cho đợt hiến.</p>
             </div>
           ))}
       </section>

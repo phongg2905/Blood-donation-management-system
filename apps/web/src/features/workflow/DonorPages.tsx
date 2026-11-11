@@ -951,13 +951,9 @@ export function CertificatesPage() {
       {/* Hero explanation banner */}
       <div className="cert-vault-hero">
         <div>
-          <h2 className="cert-vault-hero__title">
+          <h2 className="cert-vault-hero__title" style={{ margin: 0 }}>
             Kho lưu trữ Giấy chứng nhận hiến máu tình nguyện
           </h2>
-          <p className="cert-vault-hero__desc">
-            Sau mỗi lần hiến máu, bạn được trao một tờ <strong>Giấy chứng nhận hiến máu tình nguyện bằng giấy</strong>.
-            Hãy chụp ảnh hoặc tải ảnh giấy chứng nhận của bạn lên đây để lưu trữ số hóa an toàn trên hệ thống và dễ dàng tra cứu, sử dụng khi cần.
-          </p>
         </div>
         <button
           type="button"
@@ -976,7 +972,7 @@ export function CertificatesPage() {
       {/* Gallery Grid */}
       {certificates.length === 0 ? (
         <p className="workflow-empty">
-          Bạn chưa có ảnh giấy chứng nhận nào được lưu. Hãy bấm nút <strong>Chụp / Tải ảnh chứng nhận mới</strong> để lưu trữ tờ giấy chứng nhận của bạn.
+          Chưa có ảnh giấy chứng nhận nào được lưu.
         </p>
       ) : (
         <div className="cert-gallery-grid">
@@ -1112,13 +1108,10 @@ export function CertificatesPage() {
           >
             <form onSubmit={handleSaveCertificate}>
               <div className="test-modal-body">
-                <h2 className="test-modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <h2 className="test-modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
                   <Camera size={22} color="#e11d48" />
                   <span>Chụp hoặc tải ảnh giấy chứng nhận</span>
                 </h2>
-                <p className="test-modal-subtitle">
-                  Chụp rõ nét tờ Giấy chứng nhận hiến máu tình nguyện bằng giấy của bạn để lưu trữ vào kho hồ sơ cá nhân.
-                </p>
 
                 {uploadError && (
                   <div

@@ -114,7 +114,6 @@ export function CampaignForm({ campaign }: { campaign?: Campaign }) {
         aria-busy={mutation.pending}
       >
         <Feedback error={mutation.error} />
-        <p>Các mục có dấu * là bắt buộc.</p>
         <fieldset disabled={mutation.pending}>
           <div className="campaign-form-grid">
             {fields.map((field) => (

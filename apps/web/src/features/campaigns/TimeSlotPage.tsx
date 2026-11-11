@@ -61,13 +61,15 @@ export function TimeSlotList({
   const [deactivate, setDeactivate] = useState<TimeSlot | null>(null);
   const [notice, setNotice] = useState('');
   const mutation = useCampaignMutation();
+  const isEditable =
+    campaign.status !== 'COMPLETED' && campaign.status !== 'CANCELLED';
   return (
     <>
       <Feedback
         success={notice || mutation.success}
         error={!deactivate ? mutation.error : null}
       />
-      {manage && hasPermission('timeslot.create') && !editor && (
+      {manage && isEditable && hasPermission('timeslot.create') && !editor && (
         <Button onClick={() => setEditor('new')}>Thêm khung giờ</Button>
       )}
       {editor && (
@@ -100,7 +102,7 @@ export function TimeSlotList({
                     {slot.isActive ? 'Đang hoạt động' : 'Đã ngừng hoạt động'}
                   </span>
                 </div>
-                {manage && (
+                {manage && isEditable && (
                   <div className="campaign-actions">
                     {hasPermission('timeslot.update') && (
                       <Button
@@ -128,7 +130,6 @@ export function TimeSlotList({
         ) : (
           <div className="campaign-empty">
             <h3>Chưa có khung giờ.</h3>
-            <p>Khung giờ sẽ hiển thị tại đây khi được bổ sung.</p>
           </div>
         ))}
       {deactivate && (

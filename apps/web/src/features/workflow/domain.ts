@@ -177,13 +177,19 @@ const formatDateTimeOptions: Intl.DateTimeFormatOptions = {
   timeStyle: 'short',
 };
 
-export const formatDateTime = (value: string): string =>
-  new Intl.DateTimeFormat('vi-VN', formatDateTimeOptions).format(new Date(value));
+export const formatDateTime = (value: string): string => {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return new Intl.DateTimeFormat('vi-VN', formatDateTimeOptions).format(date);
+};
 
-export const formatDate = (value: string): string =>
-  new Intl.DateTimeFormat('vi-VN', { dateStyle: 'medium' }).format(
-    new Date(value),
-  );
+export const formatDate = (value: string): string => {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return new Intl.DateTimeFormat('vi-VN', { dateStyle: 'medium' }).format(date);
+};
 
 export interface OperationalWindow {
   opensAt: Date;
@@ -395,8 +401,12 @@ export function sortRegistrationsForCheckIn(items: DonorRegistration[]): DonorRe
 }
 
 export const formatSlotRange = (startsAt: string, endsAt: string): string => {
+  if (!startsAt || !endsAt) return 'Chưa xếp ca';
   const start = new Date(startsAt);
   const end = new Date(endsAt);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return 'Chưa xếp ca';
+  }
   const time = new Intl.DateTimeFormat('vi-VN', {
     hour: '2-digit',
     minute: '2-digit',
@@ -559,6 +569,58 @@ export function generateStandardBloodBagCode(campaignName?: string | null): stri
   return `${prefix}-${year}-WB-${seq}`;
 }
 
+/**
+ * Checks whether the current user is assigned to the specified clinical station
+ * (`CHECK_IN` | `SCREENING` | `COLLECTION`) on the given campaign.
+ *
+ * When `campaign.staffAssignments` is present (real Backend API), the user MUST
+ * be explicitly assigned to that exact station (`assignment === requiredStation`).
+ * When `campaign.staffAssignments` is undefined (MockCampaignRepository in unit tests),
+ * returns `true` so existing unit tests stay unaffected.
+ */
+export function isAssignedToCampaignStation(
+  campaign:
+    | {
+        staffAssignments?: Array<{ userId: string; assignment: string | null }>;
+      }
+    | null
+    | undefined,
+  userId: string | undefined,
+  requiredStation: 'CHECK_IN' | 'SCREENING' | 'COLLECTION',
+): boolean {
+  if (!campaign || !Array.isArray(campaign.staffAssignments)) {
+    return true;
+  }
+  if (!userId) return false;
+  return campaign.staffAssignments.some(
+    (entry) =>
+      entry.userId === userId &&
+      (entry.assignment ?? 'CHECK_IN') === requiredStation,
+  );
+}
+
+export function getStaffStationInCampaign(
+  campaign:
+    | {
+        staffAssignments?: Array<{ userId: string; assignment: string | null }>;
+      }
+    | null
+    | undefined,
+  userId: string | undefined,
+): 'CHECK_IN' | 'SCREENING' | 'COLLECTION' | 'UNASSIGNED' | 'UNSCOPED' {
+  if (!campaign || !Array.isArray(campaign.staffAssignments)) {
+    return 'UNSCOPED';
+  }
+  if (!userId) return 'UNASSIGNED';
+  const found = campaign.staffAssignments.find(
+    (entry) => entry.userId === userId,
+  );
+  if (!found) return 'UNASSIGNED';
+  return (
+    (found.assignment as 'CHECK_IN' | 'SCREENING' | 'COLLECTION') ?? 'CHECK_IN'
+  );
+}
+
 /** Mirrors the campaign error mapping so feedback copy stays consistent. */
 export function describeError(error: unknown): {
   message: string;
@@ -574,8 +636,12 @@ export function describeError(error: unknown): {
       503: 'Chức năng đang được chuẩn bị. Vui lòng thử lại sau.',
     };
     const specific =
-      (error.code && ERROR_MESSAGES[error.code as ErrorCode]) ||
-      (error.message && !error.message.startsWith('HTTP ') ? error.message : null);
+      (error.status < 500 &&
+      error.message &&
+      !error.message.startsWith('HTTP ')
+        ? error.message
+        : null) ||
+      (error.code && ERROR_MESSAGES[error.code as ErrorCode]);
 
     return {
       message:

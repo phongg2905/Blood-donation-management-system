@@ -97,7 +97,6 @@ export function ForgotPasswordPage() {
               label="Email"
               required
               error={errors.email}
-              hint="Liên kết đặt lại mật khẩu chỉ dùng được một lần."
             >
               <Input
                 name="email"

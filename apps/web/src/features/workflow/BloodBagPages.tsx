@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { MapPin, Clock, X } from 'lucide-react';
+import { MapPin, Clock, X, Lock } from 'lucide-react';
 import { BLOOD_BAG_STATUSES, type BloodBagStatus } from '@blood/shared-types';
 import { Button, FormField, Input } from '@/components/ui';
+import { AuthContext } from '@/features/auth/context/auth-context';
 import { ConfirmDialog, Feedback, QueryState } from '@/features/campaigns/components';
 import { useCampaignRepository } from '@/features/campaigns/repository';
 import { useCampaignQuery } from '@/features/campaigns/hooks';
@@ -16,6 +17,8 @@ import {
   formatDateTime,
   generateStandardBloodBagCode,
   getOperationalWindow,
+  getStaffStationInCampaign,
+  isAssignedToCampaignStation,
   parseBackendBloodType,
   sortCampaignsForOperationalStation,
   toBackendBloodType,
@@ -101,6 +104,7 @@ function QuickCollectModal({
     void mutation.run(
       () =>
         workflow.createBloodBag({
+          screeningId: item.screening.id,
           registrationId: item.registration.id,
           code: code.trim(),
           donorName: item.registration.donorName,
@@ -748,6 +752,7 @@ function EditBloodBagModal({
 
 export function BloodBagsPage() {
   const { campaignId } = useParams<{ campaignId?: string }>();
+  const user = useContext(AuthContext)?.currentUser ?? null;
   const workflow = useWorkflowRepository();
   const campaignRepo = useCampaignRepository();
 
@@ -928,15 +933,17 @@ export function BloodBagsPage() {
 
   // 1. If accessed without a campaignId (via /clinic/blood-bags):
   if (!campaignId) {
-    const rawCampaignsWithWindow = (campaignsListQuery.data?.items ?? []).map((campaign) => ({
-      campaign,
-      window: getOperationalWindow(campaign.startsAt, campaign.endsAt, {
-        campaignStatus: campaign.status,
-      }),
-      bagCount: (bags.data ?? []).filter(
-        (b) => b.campaignId === campaign.id || b.campaignName === campaign.name,
-      ).length,
-    }));
+    const rawCampaignsWithWindow = (campaignsListQuery.data?.items ?? [])
+      .filter((campaign) => isAssignedToCampaignStation(campaign, user?.id, 'COLLECTION'))
+      .map((campaign) => ({
+        campaign,
+        window: getOperationalWindow(campaign.startsAt, campaign.endsAt, {
+          campaignStatus: campaign.status,
+        }),
+        bagCount: (bags.data ?? []).filter(
+          (b) => b.campaignId === campaign.id || b.campaignName === campaign.name,
+        ).length,
+      }));
 
     const campaignsWithWindow = sortCampaignsForOperationalStation(rawCampaignsWithWindow);
 
@@ -953,11 +960,6 @@ export function BloodBagsPage() {
     return (
       <WorkflowShell
         title="Túi máu đã tiếp nhận"
-        lead={
-          viewMode === 'campaigns'
-            ? 'Vui lòng chọn đợt hiến máu để quản lý và gắn mã túi máu theo đợt.'
-            : 'Danh sách túi máu ghi nhận từ các đợt hiến trên toàn hệ thống.'
-        }
         actions={
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             <Button
@@ -1300,14 +1302,7 @@ export function BloodBagsPage() {
                             </div>
                           </div>
 
-                          <div className="station-campaign-card__footer">
-                            <span className="station-campaign-card__lead">
-                              {window.status === 'ACTIVE'
-                                ? 'Đợt hiến đang mở thu nhận máu.'
-                                : window.status === 'UPCOMING'
-                                  ? 'Đợt hiến chuẩn bị diễn ra.'
-                                  : 'Đợt hiến đã kết thúc.'}
-                            </span>
+                          <div className="station-campaign-card__footer" style={{ justifyContent: 'flex-end' }}>
                             <Link
                               className="btn btn--primary"
                               to={`/campaigns/${campaign.id}/blood-bags`}
@@ -1338,6 +1333,41 @@ export function BloodBagsPage() {
   }
 
   // 2. Direct campaign station route: /campaigns/:campaignId/blood-bags
+  if (
+    campaignQuery.data &&
+    !isAssignedToCampaignStation(campaignQuery.data, user?.id, 'COLLECTION')
+  ) {
+    const otherStation = getStaffStationInCampaign(campaignQuery.data, user?.id);
+    return (
+      <WorkflowShell
+        title="Túi máu đã tiếp nhận"
+        back="/clinic/blood-bags"
+        backLabel="← Chọn đợt hiến khác"
+      >
+        <StationCompactHeader
+          campaign={campaignQuery.data}
+          activeStation="bloodbags"
+          operationalWindow={operationalWindow}
+        />
+        <div className="station-blocked" role="alert">
+          <div className="station-blocked__icon" aria-hidden="true">
+            <Lock size={22} />
+          </div>
+          <div className="station-blocked__body">
+            <h3>Không thuộc phân công Thu nhận túi máu</h3>
+            <p>
+              {otherStation
+                ? `Trong đợt hiến máu này, tài khoản của bạn đã được phân công nhiệm vụ ${
+                    otherStation === 'CHECK_IN' ? 'Tiếp nhận (Check-in)' : 'Sàng lọc lâm sàng'
+                  }. Mỗi nhân sự chỉ thực hiện 1 vị trí chuyên trách trong 1 đợt hiến máu.`
+                : 'Tài khoản của bạn chưa được Điều phối viên phân công vào vị trí Lấy máu của đợt hiến máu này.'}
+            </p>
+          </div>
+        </div>
+      </WorkflowShell>
+    );
+  }
+
   return (
     <WorkflowShell
       title="Túi máu đã tiếp nhận"
@@ -1427,13 +1457,7 @@ export function BloodBagsPage() {
 
           {!readyQueue.loading && readyQueue.data && readyQueue.data.length === 0 && (
             <div className="workflow-card" style={{ textAlign: 'center', padding: '32px 20px' }}>
-              <h3 style={{ margin: '0 0 6px' }}>Chưa có người hiến nào chờ lấy máu</h3>
-              <p className="workflow-muted" style={{ maxWidth: '44ch', margin: '0 auto 16px' }}>
-                Người hiến sau khi được bác sĩ kết luận <strong>Đủ điều kiện</strong> tại bàn Sàng lọc sẽ tự động xuất hiện tại đây để lấy máu và gán mã túi.
-              </p>
-              <Link className="btn btn--secondary" to={`/campaigns/${campaignId}/screening`}>
-                Xem hàng chờ sàng lọc
-              </Link>
+              <h3 style={{ margin: 0 }}>Chưa có người hiến nào chờ lấy máu</h3>
             </div>
           )}
 
@@ -1707,10 +1731,16 @@ export function NewBloodBagPage() {
     Boolean(campaignId),
   );
 
+  const eligibleQueue = useWorkflowQuery(
+    `new-bag-eligible:${campaignId ?? 'all'}`,
+    () => workflow.eligibleForBag(campaignId),
+  );
+
   const [code, setCode] = useState(() =>
     generateStandardBloodBagCode(campaignQuery.data?.name),
   );
   const [selectedRegistrationId, setSelectedRegistrationId] = useState('');
+  const [selectedScreeningId, setSelectedScreeningId] = useState('');
   const [customDonorName, setCustomDonorName] = useState('');
   const [volume, setVolume] = useState('350');
   const [bloodGroup, setBloodGroup] = useState<string>('');
@@ -1731,7 +1761,27 @@ export function NewBloodBagPage() {
 
   function handleSelectDonor(regId: string) {
     setSelectedRegistrationId(regId);
-    if (!regId) return;
+    if (!regId) {
+      setSelectedScreeningId('');
+      return;
+    }
+    const eligibleMatch = (eligibleQueue.data ?? []).find(
+      (item) => item.registration.id === regId,
+    );
+    if (eligibleMatch) {
+      setSelectedScreeningId(eligibleMatch.screening.id);
+      setCustomDonorName(eligibleMatch.registration.donorName);
+      if (eligibleMatch.screening.indicatedVolumeMl) {
+        setVolume(String(eligibleMatch.screening.indicatedVolumeMl));
+      }
+      if (eligibleMatch.screening.bloodGroup) {
+        setBloodGroup(eligibleMatch.screening.bloodGroup);
+      }
+      if (eligibleMatch.screening.rh) {
+        setRh(eligibleMatch.screening.rh);
+      }
+      return;
+    }
     const found = (campaignRegistrations.data ?? []).find((r) => r.id === regId);
     if (found) {
       setCustomDonorName(found.donorName);
@@ -1761,6 +1811,7 @@ export function NewBloodBagPage() {
       volumeMl: volNum,
       bloodGroup: bloodGroup || null,
       bloodType: toBackendBloodType(bloodGroup, rh),
+      screeningId: selectedScreeningId || undefined,
       registrationId: selectedRegistrationId || undefined,
       donorName,
       campaignId,
