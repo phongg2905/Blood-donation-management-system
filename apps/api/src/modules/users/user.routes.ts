@@ -13,8 +13,12 @@ const list: RequestHandler = async (req, res) => {
 };
 
 const assignRole: RequestHandler = async (req, res) => {
-  await userService.assignRole(paramId(req), req.body, auditContextFrom(req));
-  sendSuccess(res, {});
+  const result = await userService.assignRole(
+    paramId(req),
+    req.body,
+    auditContextFrom(req),
+  );
+  sendSuccess(res, result ?? {});
 };
 
 const update: RequestHandler = async (req, res) => {

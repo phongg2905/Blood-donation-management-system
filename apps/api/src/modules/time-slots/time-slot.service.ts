@@ -9,6 +9,7 @@ import type { AuditContext } from '../audit-logs/audit.service';
 import { auditLogService } from '../audit-logs/audit.service';
 import {
   assertCampaignAcceptsRegistration,
+  assertCampaignEditable,
   assertRegistrationWindowOpen,
 } from '../donation-campaigns/campaign.validation';
 import {
@@ -37,7 +38,23 @@ export const timeSlotService = {
     return repository.transaction(async (tx) => {
       const campaign = await repository.campaign(tx, data.campaignId);
       if (!campaign) throw AppError.notFound(ERROR_CODES.CAMPAIGN_NOT_FOUND);
-      return repository.create(tx, validateTimeSlot(data, campaign));
+      assertCampaignEditable(campaign.status);
+
+      const validated = validateTimeSlot(data, campaign);
+      const duplicate = await repository.duplicateWindowTx(
+        tx,
+        data.campaignId,
+        validated.startsAt,
+        validated.endsAt,
+      );
+      if (duplicate) {
+        throw AppError.conflict(
+          ERROR_CODES.VALIDATION_ERROR,
+          'Khung giờ này đã tồn tại trong đợt hiến máu',
+        );
+      }
+
+      return repository.create(tx, validated);
     });
   },
 
@@ -46,7 +63,8 @@ export const timeSlotService = {
    *
    * Enforced here (not only in the frontend): campaign accepts registrations,
    * registration window, slot isActive, slot belongs to the campaign, capacity,
-   * donor schedule overlap and the registration state transition.
+   * donor schedule overlap, 84-day physiological interval, active deferral
+   * check, and the registration state transition.
    */
   async schedule(input: unknown, context: ScheduleContext = {}) {
     const data = validateScheduleRegistration(input);
@@ -88,6 +106,47 @@ export const timeSlotService = {
 
       // Defends against campaign dates edited after the slot was created.
       validateTimeSlot(slot, slot.campaign);
+
+      // Medical deferral check: block if donor is deferred beyond slot start
+      const activeDeferral = await repository.activeDeferralTx(
+        tx,
+        registration.donorId,
+        slot.startsAt,
+      );
+      if (activeDeferral) {
+        throw AppError.conflict(
+          ERROR_CODES.SCREENING_NOT_ELIGIBLE,
+          'Bạn đang trong thời gian tạm hoãn hiến máu theo chỉ định y tế',
+        );
+      }
+
+      // 84-day physiological recovery check after whole-blood donation (TT 26/2013/TT-BYT)
+      const recentDonation = await repository.recentCompletedDonationTx(
+        tx,
+        registration.donorId,
+        slot.startsAt,
+      );
+      if (recentDonation) {
+        throw AppError.conflict(
+          ERROR_CODES.REGISTRATION_OVERLAP,
+          'Khoảng cách tối thiểu giữa 2 lần hiến máu toàn phần là 84 ngày (12 tuần)',
+        );
+      }
+
+      // Prevent holding multiple active registrations within 84 days
+      const activeOtherRegistration =
+        await repository.activeRegistrationsWithinIntervalTx(
+          tx,
+          registration.donorId,
+          registration.id,
+          slot.startsAt,
+        );
+      if (activeOtherRegistration) {
+        throw AppError.conflict(
+          ERROR_CODES.REGISTRATION_OVERLAP,
+          `Bạn đã có lịch đăng ký đang hoạt động tại "${activeOtherRegistration.campaign.name}" trong vòng 84 ngày`,
+        );
+      }
 
       const occupied = await repository.occupied(tx, slot.id, registration.id);
       assertTimeSlotHasCapacity(slot.capacity, occupied);
@@ -156,9 +215,33 @@ export const timeSlotService = {
       if (!existing) throw AppError.notFound(ERROR_CODES.TIME_SLOT_NOT_FOUND);
       const campaign = await repository.campaign(tx, existing.campaignId);
       if (!campaign) throw AppError.notFound(ERROR_CODES.CAMPAIGN_NOT_FOUND);
+      assertCampaignEditable(campaign.status);
 
       const merged = { ...existing, ...patch };
       const data = validateTimeSlot(merged, campaign);
+
+      const duplicate = await repository.duplicateWindowTx(
+        tx,
+        existing.campaignId,
+        data.startsAt,
+        data.endsAt,
+        id,
+      );
+      if (duplicate) {
+        throw AppError.conflict(
+          ERROR_CODES.VALIDATION_ERROR,
+          'Khung giờ này đã tồn tại trong đợt hiến máu',
+        );
+      }
+
+      const currentOccupied = await repository.occupied(tx, id, '');
+      if (data.capacity < currentOccupied) {
+        throw AppError.conflict(
+          ERROR_CODES.TIME_SLOT_FULL,
+          `Không thể giảm sức chứa xuống thấp hơn số người đã đăng ký (${currentOccupied})`,
+        );
+      }
+
       const updated = await repository.update(tx, id, data);
       await auditLogService.record(
         {
@@ -178,6 +261,8 @@ export const timeSlotService = {
     return repository.transaction(async (tx) => {
       const existing = await repository.slot(tx, id);
       if (!existing) throw AppError.notFound(ERROR_CODES.TIME_SLOT_NOT_FOUND);
+      assertCampaignEditable(existing.campaign.status);
+
       const updated = await repository.update(tx, id, { isActive: false });
       await auditLogService.record(
         {

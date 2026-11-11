@@ -8,7 +8,10 @@ export const screeningRepository = {
   findCheckInTx: (tx: Prisma.TransactionClient, checkInId: string) =>
     tx.checkIn.findUnique({
       where: { id: checkInId },
-      include: { screening: true },
+      include: {
+        screening: true,
+        registration: { include: { donor: { select: { userId: true } } } },
+      },
     }),
 
   create: (
@@ -39,5 +42,5 @@ export const screeningRepository = {
     tx: Prisma.TransactionClient,
     id: string,
     data: Prisma.ScreeningUncheckedUpdateInput,
-  ) => tx.screening.update({ where: { id }, data }),
+  ) => tx.screening.update({ where: { id }, data, include: { tests: true } }),
 };

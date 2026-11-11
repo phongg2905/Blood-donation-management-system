@@ -31,11 +31,70 @@ export const screeningService = {
     return repo.transaction(async (tx) => {
       const checkIn = await repo.findCheckInTx(tx, checkInId);
       if (!checkIn) throw AppError.notFound(ERROR_CODES.CHECK_IN_REQUIRED);
-      if (checkIn.screening) {
-        throw AppError.conflict(
-          ERROR_CODES.SCREENING_INVALID_TRANSITION,
-          'Đã có sàng lọc cho lượt check-in này',
+      if (checkIn.registration.donor.userId === staffUserId) {
+        throw AppError.forbidden(
+          ERROR_CODES.FORBIDDEN,
+          'Nhân viên y tế không được phép tự khám sàng lọc cho chính mình',
         );
+      }
+      const staffAssignment = await tx.campaignStaff.findUnique({
+        where: {
+          campaignId_userId: {
+            campaignId: checkIn.registration.campaignId,
+            userId: staffUserId,
+          },
+        },
+      });
+      if (!staffAssignment) {
+        throw AppError.forbidden(
+          ERROR_CODES.FORBIDDEN,
+          'Bạn chưa được điều phối viên phân công làm việc tại đợt hiến máu này',
+        );
+      }
+      if (staffAssignment.assignment !== 'SCREENING') {
+        throw AppError.forbidden(
+          ERROR_CODES.FORBIDDEN,
+          'Bạn được phân công vị trí khác trong đợt hiến này, không thể thực hiện Khám sàng lọc',
+        );
+      }
+      if (checkIn.screening) {
+        if (
+          checkIn.screening.status === 'ELIGIBLE' ||
+          checkIn.screening.status === 'INELIGIBLE' ||
+          checkIn.screening.status === 'DEFERRED'
+        ) {
+          throw AppError.conflict(
+            ERROR_CODES.SCREENING_INVALID_TRANSITION,
+            'Đã có kết luận sàng lọc cho lượt check-in này',
+          );
+        }
+        const updatedScreening = await repo.update(tx, checkIn.screening.id, {
+          status: 'WAITING_REVIEW',
+          screenedById: staffUserId,
+          ...measurements,
+        });
+        await tx.screeningTest.deleteMany({
+          where: { screeningId: checkIn.screening.id },
+        });
+        if (tests.length > 0) {
+          await repo.createTests(
+            tx,
+            tests.map((t) => ({ ...t, screeningId: checkIn.screening!.id })),
+          );
+        }
+        await auditLogService.record(
+          {
+            ...ctx,
+            action: AUDIT_ACTIONS.SCREENING_UPDATED,
+            entityType: AUDIT_ENTITY_TYPES.SCREENING,
+            entityId: updatedScreening.id,
+          },
+          tx,
+        );
+        return tx.screening.findUnique({
+          where: { id: updatedScreening.id },
+          include: { tests: true },
+        });
       }
 
       const screening = await repo.create(tx, {
@@ -59,20 +118,28 @@ export const screeningService = {
         },
         tx,
       );
-      return screening;
+      return tx.screening.findUnique({
+        where: { id: screening.id },
+        include: { tests: true },
+      });
     });
   },
 
-  /** Checked-in donors still waiting on a screening to be opened. */
+  /** All checked-in donors in the screening workflow (both waiting and reviewed). */
   async queue() {
     return database.checkIn.findMany({
-      where: { screening: null },
       include: {
+        screening: {
+          include: {
+            tests: true,
+          },
+        },
         registration: {
           include: {
             donor: { include: { user: { select: { fullName: true } } } },
             campaign: { select: { id: true, name: true, location: true, startsAt: true, endsAt: true } },
             timeSlot: true,
+            healthDeclaration: true,
           },
         },
       },
@@ -88,9 +155,46 @@ export const screeningService = {
 
   async review(id: string, input: unknown, ctx: AuditContext) {
     const review = validateScreeningReview(input);
+    if (
+      (review.status === 'INELIGIBLE' || review.status === 'DEFERRED') &&
+      !review.decisionReason?.trim()
+    ) {
+      throw AppError.badRequest(ERROR_CODES.SCREENING_REVIEW_REASON_REQUIRED);
+    }
     const { updated, notification } = await repo.transaction(async (tx) => {
       const existing = await repo.findWithDonorTx(tx, id);
       if (!existing) throw AppError.notFound(ERROR_CODES.SCREENING_NOT_FOUND);
+      if (
+        ctx.actorId &&
+        existing.checkIn.registration.donor.userId === ctx.actorId
+      ) {
+        throw AppError.forbidden(
+          ERROR_CODES.FORBIDDEN,
+          'Nhân viên y tế không được phép tự kết luận sàng lọc cho chính mình',
+        );
+      }
+      if (ctx.actorId) {
+        const staffAssignment = await tx.campaignStaff.findUnique({
+          where: {
+            campaignId_userId: {
+              campaignId: existing.checkIn.registration.campaignId,
+              userId: ctx.actorId,
+            },
+          },
+        });
+        if (!staffAssignment) {
+          throw AppError.forbidden(
+            ERROR_CODES.FORBIDDEN,
+            'Bạn chưa được điều phối viên phân công làm việc tại đợt hiến máu này',
+          );
+        }
+        if (staffAssignment.assignment !== 'SCREENING') {
+          throw AppError.forbidden(
+            ERROR_CODES.FORBIDDEN,
+            'Bạn được phân công vị trí khác trong đợt hiến này, không thể kết luận Khám sàng lọc',
+          );
+        }
+      }
       assertScreeningTransition(existing.status, review.status);
 
       const updated = await repo.update(tx, id, {

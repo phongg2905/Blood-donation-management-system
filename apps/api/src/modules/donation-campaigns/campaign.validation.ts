@@ -123,9 +123,9 @@ export function assertCampaignAcceptsRegistration(
   }
 }
 
-/** A COMPLETED campaign freezes its business fields. */
+/** A COMPLETED or CANCELLED campaign freezes its business fields. */
 export function assertCampaignEditable(status: CampaignStatus): void {
-  if (CAMPAIGN_STATUSES_FROZEN.includes(status)) {
+  if (CAMPAIGN_STATUSES_FROZEN.includes(status) || status === 'CANCELLED') {
     throw AppError.conflict(ERROR_CODES.CAMPAIGN_NOT_EDITABLE);
   }
 }

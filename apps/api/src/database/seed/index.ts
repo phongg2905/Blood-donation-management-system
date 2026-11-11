@@ -147,7 +147,7 @@ const DEMO_ACCOUNTS = [
   {
     role: 'DONOR',
     email: 'donor.demo@example.local',
-    fullName: 'Donor Demo',
+    fullName: 'Nguyễn Minh Quân',
     citizenId: '079092001002',
     phone: '0901234567',
     address: '124 Nguyễn Huệ, Quận 1, TP.HCM',
@@ -155,14 +155,34 @@ const DEMO_ACCOUNTS = [
   {
     role: 'DONATION_STAFF',
     email: 'donation-staff.demo@example.local',
-    fullName: 'Donation Staff Demo',
+    fullName: 'CN. Nguyễn Hoàng Minh',
     citizenId: '079095001003',
+    phone: '0901001003',
+    address: '456 Hai Bà Trưng, Quận 1, TP.HCM',
+  },
+  {
+    role: 'DONATION_STAFF',
+    email: 'donation-staff-2.demo@example.local',
+    fullName: 'BS. Trần Minh Đức',
+    citizenId: '079091001005',
+    phone: '0901001005',
+    address: '88 Lý Tự Trọng, Quận 1, TP.HCM',
+  },
+  {
+    role: 'DONATION_STAFF',
+    email: 'donation-staff-3.demo@example.local',
+    fullName: 'KTV. Lê Thị Thu Hà',
+    citizenId: '079194001006',
+    phone: '0901001006',
+    address: '152 Điện Biên Phủ, Quận 3, TP.HCM',
   },
   {
     role: 'COORDINATOR',
     email: 'coordinator.demo@example.local',
-    fullName: 'Coordinator Demo',
+    fullName: 'ThS. Trần Minh Khôi',
     citizenId: '079190001004',
+    phone: '0901001004',
+    address: '201B Nguyễn Chí Thanh, Quận 5, TP.HCM',
   },
 ] as const;
 

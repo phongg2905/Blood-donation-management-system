@@ -438,6 +438,7 @@ export const CAMPAIGN_STATUSES_ACCEPTING_REGISTRATION: readonly CampaignStatus[]
 /** Statuses whose business fields are frozen. */
 export const CAMPAIGN_STATUSES_FROZEN: readonly CampaignStatus[] = [
   'COMPLETED',
+  'CANCELLED',
 ];
 
 /* -------------------------------------------------------------------------- */

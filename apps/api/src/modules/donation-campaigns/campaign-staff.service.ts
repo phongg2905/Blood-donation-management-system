@@ -6,6 +6,7 @@ import {
 import { AppError } from '../../common/errors/app.error';
 import type { AuditContext } from '../audit-logs/audit.service';
 import { auditLogService } from '../audit-logs/audit.service';
+import { assertCampaignEditable } from './campaign.validation';
 import { campaignStaffRepository as repo } from './campaign-staff.repository';
 import { validateAssignStaff } from './campaign-staff.validation';
 
@@ -17,6 +18,7 @@ export const campaignStaffService = {
     return repo.transaction(async (tx) => {
       const campaign = await repo.campaignExistsTx(tx, campaignId);
       if (!campaign) throw AppError.notFound(ERROR_CODES.CAMPAIGN_NOT_FOUND);
+      assertCampaignEditable(campaign.status);
 
       const roles = await repo.userRoleCodesTx(tx, data.userId);
       if (!roles.includes('DONATION_STAFF')) {
@@ -26,6 +28,20 @@ export const campaignStaffService = {
       const existing = await repo.findAssignmentTx(tx, campaignId, data.userId);
       if (existing) {
         throw AppError.conflict(ERROR_CODES.CAMPAIGN_STAFF_ALREADY_ASSIGNED);
+      }
+
+      const overlapping = await repo.findOverlappingAssignmentTx(
+        tx,
+        data.userId,
+        campaignId,
+        campaign.startsAt,
+        campaign.endsAt,
+      );
+      if (overlapping) {
+        throw AppError.conflict(
+          ERROR_CODES.CAMPAIGN_STAFF_ALREADY_ASSIGNED,
+          `Nhân sự đã được phân công tại đợt hiến "${overlapping.campaign.name}" diễn ra trùng thời gian`,
+        );
       }
 
       const created = await repo.create(tx, {
@@ -53,6 +69,10 @@ export const campaignStaffService = {
 
   async remove(campaignId: string, userId: string, ctx: AuditContext) {
     return repo.transaction(async (tx) => {
+      const campaign = await repo.campaignExistsTx(tx, campaignId);
+      if (!campaign) throw AppError.notFound(ERROR_CODES.CAMPAIGN_NOT_FOUND);
+      assertCampaignEditable(campaign.status);
+
       const existing = await repo.findAssignmentTx(tx, campaignId, userId);
       if (!existing)
         throw AppError.notFound(ERROR_CODES.CAMPAIGN_STAFF_NOT_FOUND);

@@ -23,7 +23,21 @@ export const registrationRepository = {
       include: {
         healthDeclaration: true,
         checkIn: true,
-        donor: { select: { userId: true } },
+        timeSlot: true,
+        campaign: {
+          select: {
+            id: true,
+            name: true,
+            location: true,
+            startsAt: true,
+            endsAt: true,
+          },
+        },
+        donor: {
+          include: {
+            user: { select: { fullName: true, email: true } },
+          },
+        },
       },
     }),
 
@@ -67,7 +81,30 @@ export const registrationRepository = {
     tx: Prisma.TransactionClient,
     id: string,
     data: Prisma.RegistrationUncheckedUpdateInput,
-  ) => tx.registration.update({ where: { id }, data }),
+  ) =>
+    tx.registration.update({
+      where: { id },
+      data,
+      include: {
+        healthDeclaration: true,
+        checkIn: true,
+        timeSlot: true,
+        campaign: {
+          select: {
+            id: true,
+            name: true,
+            location: true,
+            startsAt: true,
+            endsAt: true,
+          },
+        },
+        donor: {
+          include: {
+            user: { select: { fullName: true, email: true } },
+          },
+        },
+      },
+    }),
 
   deleteCreated: async (tx: Prisma.TransactionClient, id: string) => {
     await tx.healthDeclaration.deleteMany({ where: { registrationId: id } });

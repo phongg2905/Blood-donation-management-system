@@ -96,6 +96,75 @@ export const timeSlotRepository = {
       },
       select: { timeSlot: { select: { startsAt: true, endsAt: true } } },
     }),
+  duplicateWindowTx: (
+    tx: Prisma.TransactionClient,
+    campaignId: string,
+    startsAt: Date,
+    endsAt: Date,
+    excludeSlotId?: string,
+  ) =>
+    tx.campaignTimeSlot.findFirst({
+      where: {
+        campaignId,
+        startsAt,
+        endsAt,
+        ...(excludeSlotId ? { id: { not: excludeSlotId } } : {}),
+      },
+    }),
+  activeDeferralTx: (
+    tx: Prisma.TransactionClient,
+    donorId: string,
+    atDate: Date,
+  ) =>
+    tx.screening.findFirst({
+      where: {
+        status: 'DEFERRED',
+        deferredUntil: { gt: atDate },
+        checkIn: { registration: { donorId } },
+      },
+      orderBy: { deferredUntil: 'desc' },
+    }),
+  recentCompletedDonationTx: (
+    tx: Prisma.TransactionClient,
+    donorId: string,
+    targetDate: Date,
+  ) => {
+    const windowMs = 84 * 24 * 60 * 60 * 1000;
+    const minDate = new Date(targetDate.getTime() - windowMs);
+    const maxDate = new Date(targetDate.getTime() + windowMs);
+    return tx.donation.findFirst({
+      where: {
+        status: 'COMPLETED',
+        donatedAt: { gt: minDate, lt: maxDate },
+        screening: { checkIn: { registration: { donorId } } },
+      },
+      orderBy: { donatedAt: 'desc' },
+    });
+  },
+  activeRegistrationsWithinIntervalTx: (
+    tx: Prisma.TransactionClient,
+    donorId: string,
+    excludeRegistrationId: string,
+    targetDate: Date,
+  ) => {
+    const windowMs = 84 * 24 * 60 * 60 * 1000;
+    const minDate = new Date(targetDate.getTime() - windowMs);
+    const maxDate = new Date(targetDate.getTime() + windowMs);
+    return tx.registration.findFirst({
+      where: {
+        donorId,
+        id: { not: excludeRegistrationId },
+        status: { in: ['PENDING', 'SCHEDULED', 'CONFIRMED'] },
+        campaign: {
+          status: { not: 'CANCELLED' },
+          startsAt: { gt: minDate, lt: maxDate },
+        },
+      },
+      include: {
+        campaign: { select: { id: true, name: true, startsAt: true } },
+      },
+    });
+  },
   schedule: (
     tx: Prisma.TransactionClient,
     id: string,

@@ -68,11 +68,17 @@ export const campaignRepository = {
 
   async list(filter: CampaignListFilter) {
     const where = whereFromFilter(filter);
+    const include = {
+      staff: {
+        select: { userId: true, assignment: true },
+      },
+    } as const;
 
     if (filter.status) {
       const [items, total] = await Promise.all([
         database.donationCampaign.findMany({
           where,
+          include,
           skip: filter.skip,
           take: filter.take,
           orderBy: { startsAt: 'asc' },
@@ -97,6 +103,7 @@ export const campaignRepository = {
       const openTake = Math.min(filter.take, openCount - filter.skip);
       const openItems = await database.donationCampaign.findMany({
         where: { ...where, status: 'OPEN' },
+        include,
         skip: filter.skip,
         take: openTake,
         orderBy: { startsAt: 'asc' },
@@ -107,6 +114,7 @@ export const campaignRepository = {
       if (remainingTake > 0) {
         const otherItems = await database.donationCampaign.findMany({
           where: { ...where, status: { not: 'OPEN' } },
+          include,
           skip: 0,
           take: remainingTake,
           orderBy: { startsAt: 'asc' },
@@ -117,6 +125,7 @@ export const campaignRepository = {
       const otherSkip = filter.skip - openCount;
       items = await database.donationCampaign.findMany({
         where: { ...where, status: { not: 'OPEN' } },
+        include,
         skip: otherSkip,
         take: filter.take,
         orderBy: { startsAt: 'asc' },
@@ -127,7 +136,14 @@ export const campaignRepository = {
   },
 
   findById: (id: string) =>
-    database.donationCampaign.findUnique({ where: { id } }),
+    database.donationCampaign.findUnique({
+      where: { id },
+      include: {
+        staff: {
+          select: { userId: true, assignment: true },
+        },
+      },
+    }),
 
   findByIdTx: (tx: Prisma.TransactionClient, id: string) =>
     tx.donationCampaign.findUnique({ where: { id } }),
