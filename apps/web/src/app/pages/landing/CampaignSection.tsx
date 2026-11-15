@@ -46,7 +46,7 @@ export function CampaignSection() {
         location: item.location,
         startsAt: item.startsAt,
         targetDonors: item.targetDonors || 100,
-        registeredDonors: 0,
+        registeredDonors: item.registeredDonors ?? item._count?.registrations ?? 0,
         needDescription: 'Tiếp nhận hiến máu tình nguyện',
         statusBadge: 'Active' as const,
       }));

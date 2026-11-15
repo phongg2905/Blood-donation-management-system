@@ -43,7 +43,7 @@ function whereFromFilter(
   } else if (filter.status) {
     statusCondition = { status: filter.status };
   } else if (filter.excludeDraft) {
-    statusCondition = { status: { not: 'DRAFT' } };
+    statusCondition = { status: { notIn: ['DRAFT', 'CANCELLED'] } };
   }
 
   return {
@@ -72,6 +72,13 @@ export const campaignRepository = {
       staff: {
         select: { userId: true, assignment: true },
       },
+      _count: {
+        select: {
+          registrations: {
+            where: { status: { not: 'CANCELLED' } },
+          },
+        },
+      },
     } as const;
 
     if (filter.status) {
@@ -88,12 +95,19 @@ export const campaignRepository = {
       return { items, total };
     }
 
+    const openWhere: Prisma.DonationCampaignWhereInput = {
+      AND: [where, { status: 'OPEN' }],
+    };
+    const otherWhere: Prisma.DonationCampaignWhereInput = {
+      AND: [where, { status: { not: 'OPEN' } }],
+    };
+
     const [openCount, otherCount] = await Promise.all([
       database.donationCampaign.count({
-        where: { ...where, status: 'OPEN' },
+        where: openWhere,
       }),
       database.donationCampaign.count({
-        where: { ...where, status: { not: 'OPEN' } },
+        where: otherWhere,
       }),
     ]);
     const total = openCount + otherCount;
@@ -102,7 +116,7 @@ export const campaignRepository = {
     if (filter.skip < openCount) {
       const openTake = Math.min(filter.take, openCount - filter.skip);
       const openItems = await database.donationCampaign.findMany({
-        where: { ...where, status: 'OPEN' },
+        where: openWhere,
         include,
         skip: filter.skip,
         take: openTake,
@@ -113,7 +127,7 @@ export const campaignRepository = {
       const remainingTake = filter.take - items.length;
       if (remainingTake > 0) {
         const otherItems = await database.donationCampaign.findMany({
-          where: { ...where, status: { not: 'OPEN' } },
+          where: otherWhere,
           include,
           skip: 0,
           take: remainingTake,
@@ -124,7 +138,7 @@ export const campaignRepository = {
     } else {
       const otherSkip = filter.skip - openCount;
       items = await database.donationCampaign.findMany({
-        where: { ...where, status: { not: 'OPEN' } },
+        where: otherWhere,
         include,
         skip: otherSkip,
         take: filter.take,
@@ -141,6 +155,13 @@ export const campaignRepository = {
       include: {
         staff: {
           select: { userId: true, assignment: true },
+        },
+        _count: {
+          select: {
+            registrations: {
+              where: { status: { not: 'CANCELLED' } },
+            },
+          },
         },
       },
     }),
@@ -162,8 +183,18 @@ export const campaignRepository = {
   async syncExpiredCampaigns(now: Date = new Date()): Promise<void> {
     await database.donationCampaign.updateMany({
       where: {
+        status: { in: ['OPEN', 'CLOSED'] },
+        endsAt: { lte: now },
+      },
+      data: {
+        status: 'COMPLETED',
+      },
+    });
+    await database.donationCampaign.updateMany({
+      where: {
         status: 'OPEN',
         registrationClosesAt: { lte: now },
+        endsAt: { gt: now },
       },
       data: {
         status: 'CLOSED',

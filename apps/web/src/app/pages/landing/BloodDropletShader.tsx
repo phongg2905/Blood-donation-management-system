@@ -81,26 +81,26 @@ void main() {
     float droplet = smoothstep(targetRadius + 0.32, targetRadius - 0.15, r);
     float cellRim = smoothstep(targetRadius + 0.05, targetRadius - 0.02, r) - smoothstep(targetRadius - 0.02, targetRadius - 0.12, r);
 
-    // Deep organic red chromatic palette
-    vec3 deepRed    = vec3(0.38, 0.02, 0.06); // #61050f
-    vec3 arterial   = vec3(0.85, 0.08, 0.16); // #d91429
-    vec3 crimsonGlow= vec3(0.98, 0.22, 0.30); // #fa384d
-    vec3 darkPlasma = vec3(0.08, 0.01, 0.03); // #140207
-    vec3 ambientBg   = vec3(0.02, 0.008, 0.012); // Deep dark canvas
+    // Light pearl & translucent ruby-rose chromatic palette
+    vec3 ambientBg   = vec3(0.995, 0.982, 0.986); // Pearl alabaster #fffafb
+    vec3 softAura    = vec3(0.992, 0.918, 0.938); // Warm rose mist #fdeaf0
+    vec3 roseDroplet = vec3(0.976, 0.450, 0.535); // Translucent coral-rose
+    vec3 arterial    = vec3(0.882, 0.114, 0.282); // Clinical ruby #e11d48
+    vec3 rimGlow     = vec3(0.960, 0.240, 0.370); // Crisp rose rim
 
-    // Color gradient distribution
-    vec3 col = mix(ambientBg, darkPlasma, smoothstep(1.3, 0.3, r));
-    col = mix(col, deepRed, droplet * 0.85);
-    col = mix(col, arterial, smoothstep(0.4, 0.0, r) * 0.75 + fluid * 0.2);
-    col += crimsonGlow * max(cellRim * 0.65, 0.0);
-    col += crimsonGlow * pow(max(0.0, 1.0 - distMouse), 3.0) * 0.45;
+    // Color gradient distribution on bright canvas
+    vec3 col = mix(ambientBg, softAura, smoothstep(1.35, 0.25, r));
+    col = mix(col, roseDroplet, droplet * 0.38);
+    col = mix(col, arterial, smoothstep(0.42, 0.0, r) * 0.28 + fluid * 0.08);
+    col = mix(col, rimGlow, clamp(cellRim * 0.45, 0.0, 1.0));
+    col = mix(col, roseDroplet, pow(max(0.0, 1.0 - distMouse), 3.0) * 0.22);
 
-    // Specular highlight / bioluminescence
+    // Specular glass highlight
     float spec = pow(max(0.0, 1.0 - length(p - vec2(-0.15, 0.2) + fluid * 0.1)), 4.0);
-    col += vec3(1.0, 0.75, 0.8) * spec * 0.35;
+    col = mix(col, vec3(1.0, 0.98, 0.99), spec * 0.55);
 
-    // Subtle edge vignette
-    col *= smoothstep(1.8, 0.5, length(p));
+    // Soft bright pearl vignette at outer edges
+    col = mix(vec3(0.996, 0.988, 0.992), col, smoothstep(1.9, 0.45, length(p)));
 
     gl_FragColor = vec4(col, 1.0);
 }
