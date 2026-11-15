@@ -58,7 +58,9 @@ export const campaignService = {
     const pagination = resolvePagination(filters);
     const effectiveStatus = canViewDraft
       ? filters.status
-      : (filters.status === 'DRAFT' ? undefined : filters.status);
+      : filters.status === 'DRAFT' || filters.status === 'CANCELLED'
+        ? undefined
+        : filters.status;
     const { items, total } = await repo.list({
       status: effectiveStatus,
       excludeDraft: !canViewDraft && !effectiveStatus,
@@ -73,10 +75,16 @@ export const campaignService = {
     };
   },
 
-  async getById(id: string) {
+  async getById(id: string, canViewDraft: boolean = true) {
     await repo.syncExpiredCampaigns();
     const campaign = await repo.findById(id);
     if (!campaign) throw AppError.notFound(ERROR_CODES.CAMPAIGN_NOT_FOUND);
+    if (
+      !canViewDraft &&
+      (campaign.status === 'DRAFT' || campaign.status === 'CANCELLED')
+    ) {
+      throw AppError.notFound(ERROR_CODES.CAMPAIGN_NOT_FOUND);
+    }
     return campaign;
   },
 

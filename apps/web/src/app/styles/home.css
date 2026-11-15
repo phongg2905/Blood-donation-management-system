@@ -5,28 +5,28 @@
    ========================================================================== */
 
 :root {
-  --sketch-bg: #050204;
-  --sketch-surface: #070b14;
-  --sketch-surface-card: rgba(13, 19, 33, 0.72);
-  --sketch-border: rgba(255, 255, 255, 0.08);
-  --sketch-border-hover: rgba(225, 29, 72, 0.45);
+  --sketch-bg: #fffafb;
+  --sketch-surface: #f8fafc;
+  --sketch-surface-card: rgba(255, 255, 255, 0.86);
+  --sketch-border: rgba(226, 232, 240, 0.9);
+  --sketch-border-hover: rgba(225, 29, 72, 0.42);
 
   --sketch-crimson: #e11d48;
   --sketch-crimson-hover: #f43f5e;
   --sketch-crimson-dark: #be123c;
-  --sketch-crimson-glow: rgba(225, 29, 72, 0.45);
+  --sketch-crimson-glow: rgba(225, 29, 72, 0.25);
 
   --sketch-emerald: #10b981;
   --sketch-amber: #f59e0b;
 
-  --sketch-text-main: #ffffff;
-  --sketch-text-muted: #cbd5e1;
-  --sketch-text-light: #94a3b8;
+  --sketch-text-main: #0f172a;
+  --sketch-text-muted: #475569;
+  --sketch-text-light: #64748b;
 }
 
 /* Base Landing Canvas */
 .sketch-landing {
-  background-color: #050204;
+  background-color: #fffafb;
   color: var(--sketch-text-main);
   font-family: var(--font-sans);
   overflow-x: hidden;
@@ -70,8 +70,8 @@
   padding: 3rem 0;
   text-align: center;
   overflow: hidden;
-  background-color: #050204;
-  color: #f8fafc;
+  background-color: #fffafb;
+  color: #0f172a;
   box-sizing: border-box;
 }
 
@@ -110,12 +110,12 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: radial-gradient(circle at 50% 30%, rgba(225, 29, 72, 0.12) 0%, transparent 60%),
+  background: radial-gradient(circle at 50% 35%, rgba(255, 255, 255, 0.42) 0%, transparent 65%),
     linear-gradient(180deg,
-      rgba(5, 2, 4, 0.35) 0%,
-      rgba(5, 2, 4, 0.05) 40%,
-      rgba(5, 2, 4, 0.45) 75%,
-      #050204 100%
+      rgba(255, 250, 251, 0.35) 0%,
+      rgba(255, 250, 251, 0.12) 45%,
+      rgba(255, 245, 247, 0.65) 80%,
+      #f8fafc 100%
     );
 }
 
@@ -132,15 +132,15 @@
   align-items: center;
   gap: 0.55rem;
   padding: 0.45rem 1.15rem;
-  background: rgba(15, 23, 42, 0.75);
+  background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(225, 29, 72, 0.35);
+  border: 1px solid rgba(225, 29, 72, 0.25);
   border-radius: 9999px;
   font-size: 0.8125rem;
   font-weight: 700;
-  color: #fecdd3;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), 0 0 14px rgba(225, 29, 72, 0.25);
+  color: #be123c;
+  box-shadow: 0 4px 16px rgba(225, 29, 72, 0.08);
   margin-bottom: 1.5rem;
 }
 
@@ -148,8 +148,8 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background-color: #f43f5e;
-  box-shadow: 0 0 8px #f43f5e;
+  background-color: #e11d48;
+  box-shadow: 0 0 8px rgba(225, 29, 72, 0.5);
   animation: pulse-dot 1.8s infinite;
 }
 
@@ -169,24 +169,24 @@
   font-weight: 850;
   line-height: 1.15;
   letter-spacing: -0.03em;
-  color: #ffffff;
-  text-shadow: 0 4px 24px rgba(0, 0, 0, 0.75);
+  color: #0f172a;
+  text-shadow: 0 2px 18px rgba(255, 255, 255, 0.9);
   margin: 0 0 1.25rem 0;
 }
 
 .sketch-hero__title-gradient {
-  background: linear-gradient(135deg, #ff4d6d 0%, #ff758f 50%, #f43f5e 100%);
+  background: linear-gradient(135deg, #be123c 0%, #e11d48 55%, #f43f5e 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   display: inline-block;
-  filter: drop-shadow(0 2px 10px rgba(244, 63, 94, 0.5));
+  filter: drop-shadow(0 2px 12px rgba(225, 29, 72, 0.18));
 }
 
 .sketch-hero__subtitle {
   font-size: 1.125rem;
   line-height: 1.65;
-  color: rgba(241, 245, 249, 0.88);
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.6);
+  color: #334155;
+  text-shadow: 0 1px 8px rgba(255, 255, 255, 0.85);
   max-width: 680px;
   margin: 0 0 2.25rem 0;
 }
@@ -238,26 +238,27 @@ a.sketch-btn-secondary,
   height: 52px;
   padding: 0 2.25rem;
   box-sizing: border-box;
-  background: rgba(15, 23, 42, 0.65);
+  background: rgba(255, 255, 255, 0.84);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  color: #f1f5f9 !important;
+  color: #0f172a !important;
   font-weight: 700;
   font-size: 0.98rem;
   border-radius: 9999px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(203, 213, 225, 0.9);
   text-decoration: none !important;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.9);
   transition: all 0.25s ease;
   line-height: 1;
 }
 
 a.sketch-btn-secondary:hover,
 .sketch-btn-secondary:hover {
-  background: rgba(30, 41, 59, 0.85);
-  border-color: rgba(255, 255, 255, 0.3);
-  color: #ffffff !important;
+  background: #ffffff;
+  border-color: rgba(225, 29, 72, 0.35);
+  color: #be123c !important;
   transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(225, 29, 72, 0.12);
   text-decoration: none !important;
 }
 
@@ -284,12 +285,12 @@ a.sketch-btn-secondary:hover,
   gap: 1.5rem;
   margin-top: 3.5rem;
   padding: 1.15rem 1.75rem;
-  background: rgba(15, 23, 42, 0.65);
+  background: rgba(255, 255, 255, 0.82);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(226, 232, 240, 0.9);
   border-radius: 18px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 8px 32px rgba(15, 23, 42, 0.06);
 }
 
 .sketch-hero__badge-item {
@@ -300,7 +301,7 @@ a.sketch-btn-secondary:hover,
 }
 
 .sketch-hero__badge-icon {
-  color: #fb7185;
+  color: #e11d48;
   flex-shrink: 0;
 }
 
@@ -311,20 +312,20 @@ a.sketch-btn-secondary:hover,
 
 .sketch-hero__badge-text strong {
   font-size: 0.875rem;
-  color: #ffffff;
+  color: #0f172a;
   font-weight: 700;
 }
 
 .sketch-hero__badge-text span {
   font-size: 0.775rem;
-  color: #94a3b8;
+  color: #64748b;
 }
 
 .sketch-hero__badge-divider {
   display: none;
   width: 1px;
   height: 32px;
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(203, 213, 225, 0.8);
 }
 
 @media (min-width: 768px) {
@@ -334,11 +335,11 @@ a.sketch-btn-secondary:hover,
 }
 
 /* ==========================================================================
-   2. Current Hospital Demands (Seamless Obsidian/Crimson Section)
+   2. Current Hospital Demands (Light Clinical & Soft Liquid Glass Section)
    ========================================================================== */
 .sketch-demands-section {
-  background: linear-gradient(180deg, #050204 0%, #080d1a 35%, #0b1122 100%);
-  color: #ffffff;
+  background: linear-gradient(180deg, #f8fafc 0%, #fff5f7 50%, #f8fafc 100%);
+  color: #0f172a;
   padding: 5.5rem 0;
   position: relative;
 }
@@ -354,21 +355,21 @@ a.sketch-btn-secondary:hover,
   align-items: center;
   gap: 0.45rem;
   padding: 0.35rem 0.95rem;
-  background: rgba(225, 29, 72, 0.14);
-  border: 1px solid rgba(225, 29, 72, 0.35);
+  background: rgba(225, 29, 72, 0.08);
+  border: 1px solid rgba(225, 29, 72, 0.22);
   border-radius: 9999px;
   font-size: 0.75rem;
   font-weight: 750;
-  color: #fda4af;
+  color: #be123c;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-bottom: 0.9rem;
 }
 
 .sketch-section-pill--ruby {
-  background: rgba(225, 29, 72, 0.14);
-  border-color: rgba(225, 29, 72, 0.35);
-  color: #fda4af;
+  background: rgba(225, 29, 72, 0.08);
+  border-color: rgba(225, 29, 72, 0.22);
+  color: #be123c;
 }
 
 .sketch-section-title {
@@ -376,16 +377,16 @@ a.sketch-btn-secondary:hover,
   font-weight: 850;
   line-height: 1.2;
   letter-spacing: -0.025em;
-  color: #ffffff;
+  color: #0f172a;
   margin: 0 0 0.85rem 0;
 }
 
 .sketch-title-highlight {
-  color: #fda4af;
+  color: #e11d48;
 }
 
 .sketch-title-highlight-ruby {
-  background: linear-gradient(135deg, #ff4d6d 0%, #f43f5e 100%);
+  background: linear-gradient(135deg, #be123c 0%, #e11d48 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -393,49 +394,54 @@ a.sketch-btn-secondary:hover,
 .sketch-section-sub {
   font-size: 1rem;
   line-height: 1.6;
-  color: #94a3b8;
+  color: #475569;
   margin: 0;
 }
 
 /* Demands Grid */
 .sketch-demands-grid {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 1.75rem;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 @media (min-width: 768px) {
   .sketch-demands-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (min-width: 1024px) {
   .sketch-demands-grid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
 .sketch-demand-card {
-  background: rgba(13, 19, 33, 0.75);
+  background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(226, 232, 240, 0.95);
   border-radius: 1.35rem;
   padding: 1.75rem 1.6rem;
   display: flex;
   flex-direction: column;
+  width: 100%;
+  min-width: 0;
   height: 100%;
+  overflow: hidden;
   box-sizing: border-box;
-  box-shadow: 0 12px 36px -10px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 12px 32px -10px rgba(15, 23, 42, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.95);
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .sketch-demand-card:hover {
   transform: translateY(-5px);
-  background: rgba(18, 26, 44, 0.85);
-  border-color: rgba(225, 29, 72, 0.5);
-  box-shadow: 0 20px 48px -8px rgba(225, 29, 72, 0.25);
+  background: #ffffff;
+  border-color: rgba(225, 29, 72, 0.38);
+  box-shadow: 0 20px 44px -10px rgba(225, 29, 72, 0.16);
 }
 
 .sketch-demand-card__head {
@@ -443,28 +449,38 @@ a.sketch-btn-secondary:hover,
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 1.25rem;
-  gap: 0.5rem;
+  gap: 0.65rem;
+  min-width: 0;
+  min-height: 2.75rem;
 }
 
 .sketch-demand-card__hospital-name {
   display: flex;
   align-items: baseline;
   gap: 0.45rem;
+  min-width: 0;
+  flex: 1;
 }
 
 .sketch-demand-card__num {
-  font-size: 1.15rem;
+  font-size: 1.1rem;
   font-weight: 800;
-  color: #fb7185;
+  color: #e11d48;
   font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
 }
 
 .sketch-demand-card__hospital-name h3 {
-  font-size: 1.05rem;
+  font-size: 1.02rem;
   font-weight: 800;
-  color: #ffffff;
+  color: #0f172a;
   margin: 0;
-  line-height: 1.3;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
 }
 
 .sketch-status-badge {
@@ -473,25 +489,25 @@ a.sketch-btn-secondary:hover,
   padding: 0.22rem 0.6rem;
   border-radius: 9999px;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .sketch-status-badge--critical {
-  background: rgba(225, 29, 72, 0.25);
-  color: #fecdd3;
-  border: 1px solid #e11d48;
-  box-shadow: 0 0 12px rgba(225, 29, 72, 0.35);
+  background: rgba(225, 29, 72, 0.1);
+  color: #be123c;
+  border: 1px solid rgba(225, 29, 72, 0.3);
 }
 
 .sketch-status-badge--high-priority {
-  background: rgba(245, 158, 11, 0.22);
-  color: #fde68a;
-  border: 1px solid #f59e0b;
+  background: rgba(245, 158, 11, 0.12);
+  color: #b45309;
+  border: 1px solid rgba(245, 158, 11, 0.32);
 }
 
 .sketch-status-badge--active {
-  background: rgba(16, 185, 129, 0.22);
-  color: #86efac;
-  border: 1px solid #10b981;
+  background: rgba(16, 185, 129, 0.12);
+  color: #047857;
+  border: 1px solid rgba(16, 185, 129, 0.32);
 }
 
 .sketch-demand-card__need-row {
@@ -503,19 +519,19 @@ a.sketch-btn-secondary:hover,
 }
 
 .sketch-demand-card__need-label {
-  color: #cbd5e1;
+  color: #475569;
   font-weight: 600;
 }
 
 .sketch-demand-card__need-percent {
-  color: #ffffff;
+  color: #0f172a;
   font-weight: 800;
 }
 
 .sketch-demand-progress-track {
   width: 100%;
   height: 7px;
-  background: rgba(255, 255, 255, 0.12);
+  background: #e2e8f0;
   border-radius: 9999px;
   overflow: hidden;
   margin-bottom: 1.25rem;
@@ -544,6 +560,7 @@ a.sketch-btn-secondary:hover,
   flex-direction: column;
   gap: 0.45rem;
   margin-bottom: 1.5rem;
+  min-width: 0;
 }
 
 .sketch-meta-line {
@@ -551,15 +568,21 @@ a.sketch-btn-secondary:hover,
   align-items: center;
   gap: 0.5rem;
   font-size: 0.8rem;
-  color: #94a3b8;
+  color: #64748b;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.sketch-meta-line svg {
+  flex-shrink: 0;
 }
 
 .sketch-meta-line span {
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
 }
 
 a.sketch-demand-card__link,
@@ -568,9 +591,9 @@ a.sketch-demand-card__link,
   width: 100%;
   padding: 0.75rem 1rem;
   border-radius: 0.75rem;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: #ffffff !important;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #0f172a !important;
   font-weight: 750;
   font-size: 0.875rem;
   display: inline-flex;
@@ -586,22 +609,22 @@ a.sketch-demand-card__link:hover,
   background: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
   border-color: #e11d48;
   color: #ffffff !important;
-  box-shadow: 0 4px 16px rgba(225, 29, 72, 0.4);
+  box-shadow: 0 4px 16px rgba(225, 29, 72, 0.32);
   text-decoration: none !important;
 }
 
 .sketch-demands-empty {
   text-align: center;
   padding: 3.5rem 2rem;
-  background: rgba(13, 19, 33, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid #e2e8f0;
   border-radius: 1.25rem;
-  color: #94a3b8;
+  color: #64748b;
 }
 
 .sketch-demands-empty__icon {
   margin: 0 auto 12px auto;
-  color: #fb7185;
+  color: #e11d48;
   display: block;
 }
 
@@ -617,34 +640,35 @@ a.sketch-btn-outline-glow,
   gap: 0.55rem;
   padding: 0.85rem 2.25rem;
   border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1.5px solid rgba(255, 255, 255, 0.18);
-  color: #ffffff !important;
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  color: #0f172a !important;
   font-weight: 750;
   font-size: 0.9375rem;
   text-decoration: none !important;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
   transition: all 0.25s ease;
 }
 
 a.sketch-btn-outline-glow:hover,
 .sketch-btn-outline-glow:hover {
-  background: rgba(225, 29, 72, 0.15);
-  border-color: rgba(225, 29, 72, 0.5);
-  color: #ffffff !important;
+  background: #fff1f2;
+  border-color: rgba(225, 29, 72, 0.45);
+  color: #be123c !important;
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(225, 29, 72, 0.25);
+  box-shadow: 0 6px 20px rgba(225, 29, 72, 0.14);
   text-decoration: none !important;
 }
 
 /* ==========================================================================
-   3. Your Journey: Easy 3-Step Process (Unified Dark Glass Timeline)
+   3. Your Journey: Easy 3-Step Process (Light Liquid Glass Timeline)
    ========================================================================== */
 .sketch-journey-section {
-  background: linear-gradient(180deg, #0b1122 0%, #080d1a 50%, #050204 100%);
-  color: #ffffff;
+  background: linear-gradient(180deg, #f8fafc 0%, #ffffff 55%, #fffafb 100%);
+  color: #0f172a;
   padding: 5.5rem 0;
   position: relative;
-  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  border-top: 1px solid #f1f5f9;
 }
 
 .sketch-timeline-container {
@@ -667,42 +691,45 @@ a.sketch-btn-outline-glow:hover,
     right: 14%;
     height: 2px;
     background: linear-gradient(90deg,
-      rgba(225, 29, 72, 0.3) 0%,
-      rgba(225, 29, 72, 0.75) 50%,
-      rgba(225, 29, 72, 0.3) 100%
+      rgba(225, 29, 72, 0.18) 0%,
+      rgba(225, 29, 72, 0.45) 50%,
+      rgba(225, 29, 72, 0.18) 100%
     );
-    box-shadow: 0 0 10px rgba(225, 29, 72, 0.5);
+    box-shadow: 0 0 8px rgba(225, 29, 72, 0.2);
     z-index: 1;
   }
 }
 
 .sketch-timeline-grid {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 1.75rem;
   position: relative;
   z-index: 2;
+  width: 100%;
 }
 
 @media (min-width: 768px) {
   .sketch-timeline-grid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 2rem;
   }
 }
 
 .sketch-step-card {
-  background: rgba(13, 19, 33, 0.75);
+  background: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid #e2e8f0;
   border-radius: 1.5rem;
   padding: 2.25rem 1.75rem;
-  box-shadow: 0 12px 36px -8px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 12px 32px -10px rgba(15, 23, 42, 0.07), inset 0 1px 0 #ffffff;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
+  width: 100%;
+  min-width: 0;
   height: 100%;
   box-sizing: border-box;
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
@@ -711,8 +738,8 @@ a.sketch-btn-outline-glow:hover,
 
 .sketch-step-card:hover {
   transform: translateY(-6px);
-  border-color: rgba(225, 29, 72, 0.45);
-  box-shadow: 0 20px 48px -10px rgba(225, 29, 72, 0.22);
+  border-color: rgba(225, 29, 72, 0.38);
+  box-shadow: 0 20px 44px -10px rgba(225, 29, 72, 0.15);
 }
 
 .sketch-step-node {
@@ -720,26 +747,26 @@ a.sketch-btn-outline-glow:hover,
   width: 68px;
   height: 68px;
   border-radius: 1.25rem;
-  background: rgba(20, 28, 48, 0.85);
-  border: 2px solid rgba(255, 255, 255, 0.14);
+  background: #fff1f2;
+  border: 2px solid rgba(225, 29, 72, 0.18);
   display: flex;
   align-items: center;
   justify-content: center;
   margin-bottom: 1.35rem;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 8px 20px rgba(225, 29, 72, 0.08);
   z-index: 3;
 }
 
 .sketch-step-icon--blue {
-  color: #60a5fa;
+  color: #2563eb;
 }
 
 .sketch-step-icon--ruby {
-  color: #f43f5e;
+  color: #e11d48;
 }
 
 .sketch-step-icon--emerald {
-  color: #34d399;
+  color: #059669;
 }
 
 .sketch-step-node__num {
@@ -756,16 +783,16 @@ a.sketch-btn-outline-glow:hover,
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 2px solid #070b14;
-  box-shadow: 0 2px 8px rgba(225, 29, 72, 0.5);
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 8px rgba(225, 29, 72, 0.35);
 }
 
 .sketch-step-tag {
   font-size: 0.72rem;
   font-weight: 750;
-  color: #fda4af;
-  background: rgba(225, 29, 72, 0.14);
-  border: 1px solid rgba(225, 29, 72, 0.3);
+  color: #be123c;
+  background: rgba(225, 29, 72, 0.08);
+  border: 1px solid rgba(225, 29, 72, 0.22);
   padding: 0.25rem 0.75rem;
   border-radius: 9999px;
   display: inline-block;
@@ -777,20 +804,20 @@ a.sketch-btn-outline-glow:hover,
 .sketch-step-title {
   font-size: 1.2rem;
   font-weight: 800;
-  color: #ffffff;
+  color: #0f172a;
   margin: 0 0 0.35rem 0;
 }
 
 .sketch-step-sub {
   font-size: 0.85rem;
   font-weight: 650;
-  color: #fb7185;
+  color: #e11d48;
   margin-bottom: 0.85rem;
 }
 
 .sketch-step-desc {
   font-size: 0.875rem;
-  color: #94a3b8;
+  color: #475569;
   line-height: 1.6;
   margin: 0;
 }
@@ -798,17 +825,17 @@ a.sketch-btn-outline-glow:hover,
 /* CTA Banner below 3-step — Balanced Left/Right */
 .sketch-cta-banner {
   margin-top: 4rem;
-  background: linear-gradient(135deg, rgba(225, 29, 72, 0.2) 0%, rgba(13, 19, 33, 0.88) 100%);
-  border: 1px solid rgba(225, 29, 72, 0.38);
+  background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 55%, #fff5f7 100%);
+  border: 1px solid rgba(225, 29, 72, 0.24);
   border-radius: 1.5rem;
   padding: 2.25rem 2.5rem;
-  color: #ffffff;
+  color: #0f172a;
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 1.75rem;
-  box-shadow: 0 20px 48px -10px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 18px 40px -12px rgba(225, 29, 72, 0.14), inset 0 1px 0 #ffffff;
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
 }
@@ -823,23 +850,23 @@ a.sketch-btn-outline-glow:hover,
   gap: 6px;
   font-size: 0.78rem;
   font-weight: 750;
-  background: rgba(225, 29, 72, 0.25);
+  background: rgba(225, 29, 72, 0.12);
   padding: 0.3rem 0.85rem;
   border-radius: 9999px;
-  color: #fda4af;
+  color: #be123c;
   margin-bottom: 0.75rem;
 }
 
 .sketch-cta-title {
   font-size: 1.35rem;
   font-weight: 850;
-  color: #ffffff;
+  color: #0f172a;
   margin: 0 0 0.45rem 0;
 }
 
 .sketch-cta-desc {
   font-size: 0.925rem;
-  color: #cbd5e1;
+  color: #334155;
   margin: 0;
   line-height: 1.55;
 }
@@ -881,13 +908,13 @@ a.sketch-cta-btn svg,
 }
 
 /* ==========================================================================
-   4. Minimal Modern Footer (Matching Obsidian Theme)
+   4. Minimal Modern Footer (Light Clinical Theme)
    ========================================================================== */
 .sketch-footer {
-  background-color: #050204;
-  color: #94a3b8;
+  background-color: #f8fafc;
+  color: #475569;
   padding: 4rem 0 2rem 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid #e2e8f0;
 }
 
 .sketch-footer__inner {
@@ -895,7 +922,7 @@ a.sketch-cta-btn svg,
   grid-template-columns: 1fr;
   gap: 2.25rem;
   padding-bottom: 2.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid #e2e8f0;
 }
 
 @media (min-width: 768px) {
@@ -920,11 +947,11 @@ a.sketch-cta-btn svg,
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 12px rgba(225, 29, 72, 0.4);
+  box-shadow: 0 2px 10px rgba(225, 29, 72, 0.25);
 }
 
 .sketch-footer__name {
-  color: #ffffff;
+  color: #0f172a;
   font-size: 1.05rem;
   font-weight: 800;
 }
@@ -942,10 +969,10 @@ a.sketch-cta-btn svg,
   align-items: center;
   gap: 0.55rem;
   padding: 0.75rem 1.25rem;
-  background: rgba(225, 29, 72, 0.12);
-  border: 1px solid rgba(225, 29, 72, 0.3);
+  background: #fff1f2;
+  border: 1px solid rgba(225, 29, 72, 0.24);
   border-radius: 0.85rem;
-  color: #fda4af;
+  color: #be123c;
   font-size: 0.875rem;
 }
 
@@ -963,7 +990,7 @@ a.sketch-cta-btn svg,
 
 a.sketch-footer__link,
 .sketch-footer__link {
-  color: #94a3b8 !important;
+  color: #475569 !important;
   font-size: 0.875rem;
   text-decoration: none !important;
   transition: color 0.18s ease;
@@ -971,7 +998,7 @@ a.sketch-footer__link,
 
 a.sketch-footer__link:hover,
 .sketch-footer__link:hover {
-  color: #fda4af !important;
+  color: #e11d48 !important;
   text-decoration: underline !important;
 }
 
@@ -999,91 +1026,91 @@ a.sketch-footer__link:hover,
 }
 
 /* ==========================================================================
-   AppShell Overrides for Seamless Full-Bleed Landing Page
+   AppShell Overrides for Seamless Full-Bleed Landing Page (Light Glass)
    ========================================================================== */
 .app-shell--home {
-  background: #050204;
+  background: #fffafb;
   overflow-x: clip;
 }
 
-/* Custom Dark Glassmorphism Header Specifically for Landing Page */
+/* Custom Light Glassmorphism Header Specifically for Landing Page */
 .app-shell--home .app-header {
-  background: rgba(5, 2, 4, 0.82) !important;
+  background: rgba(255, 255, 255, 0.85) !important;
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.9) !important;
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.05);
 }
 
 .app-shell--home .app-header .brand__name {
-  color: #ffffff;
+  color: #0f172a;
 }
 
 .app-shell--home .app-header .brand__tagline {
-  color: rgba(255, 255, 255, 0.6);
+  color: #64748b;
 }
 
 .app-shell--home .app-header .brand__mark {
-  background: rgba(225, 29, 72, 0.2);
-  border: 1px solid rgba(225, 29, 72, 0.4);
-  box-shadow: 0 0 10px rgba(225, 29, 72, 0.3);
+  background: rgba(225, 29, 72, 0.12);
+  border: 1px solid rgba(225, 29, 72, 0.25);
+  box-shadow: 0 2px 8px rgba(225, 29, 72, 0.15);
 }
 
 .app-shell--home .app-header .brand__mark svg {
-  fill: #ff4d6d;
-  color: #ff4d6d;
+  fill: #e11d48;
+  color: #e11d48;
 }
 
 .app-shell--home .app-header .app-nav__link {
-  color: #cbd5e1;
+  color: #475569;
 }
 
 .app-shell--home .app-header .app-nav__link:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: #ffffff;
+  background: rgba(225, 29, 72, 0.06);
+  color: #0f172a;
 }
 
 .app-shell--home .app-header .app-nav__link[aria-current='page'] {
-  background: rgba(225, 29, 72, 0.2);
-  color: #fda4af;
-  border: 1px solid rgba(225, 29, 72, 0.35);
+  background: rgba(225, 29, 72, 0.1);
+  color: #be123c;
+  border: 1px solid rgba(225, 29, 72, 0.22);
 }
 
 .app-shell--home .app-header .header-quick-btn {
   background: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
   color: #ffffff !important;
   border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 2px 10px rgba(225, 29, 72, 0.4);
+  box-shadow: 0 2px 10px rgba(225, 29, 72, 0.3);
 }
 
 .app-shell--home .app-header .header-quick-btn:hover {
   background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);
-  box-shadow: 0 4px 14px rgba(244, 63, 94, 0.5);
+  box-shadow: 0 4px 14px rgba(244, 63, 94, 0.4);
   color: #ffffff !important;
 }
 
 .app-shell--home .app-header .notif-bell-btn {
-  color: #cbd5e1;
+  color: #475569;
 }
 
 .app-shell--home .app-header .notif-bell-btn:hover,
 .app-shell--home .app-header .notif-bell-btn--active {
-  background: rgba(255, 255, 255, 0.1);
-  color: #ffffff;
+  background: rgba(15, 23, 42, 0.06);
+  color: #0f172a;
 }
 
 .app-shell--home .app-header .session__avatar {
-  background: rgba(225, 29, 72, 0.25);
-  color: #fecdd3;
-  border: 1px solid rgba(225, 29, 72, 0.4);
+  background: rgba(225, 29, 72, 0.12);
+  color: #be123c;
+  border: 1px solid rgba(225, 29, 72, 0.25);
 }
 
 .app-shell--home .app-header .session__name {
-  color: #f1f5f9;
+  color: #0f172a;
 }
 
 .app-shell--home .app-header .session__role {
-  color: #94a3b8;
+  color: #64748b;
 }
 
 .app-shell--home .app-main {

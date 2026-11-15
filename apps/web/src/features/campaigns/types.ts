@@ -22,6 +22,8 @@ export interface Campaign extends CampaignInput {
   id: string;
   status: CampaignStatus;
   staffAssignments?: Array<{ userId: string; assignment: Assignment | null }>;
+  registeredDonors?: number;
+  _count?: { registrations?: number };
 }
 export interface SlotInput {
   startsAt: string;

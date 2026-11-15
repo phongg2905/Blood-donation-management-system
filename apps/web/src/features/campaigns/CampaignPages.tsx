@@ -91,7 +91,8 @@ export function CampaignListPage() {
     search: params.get('search') ?? '',
     ...(isUpcoming
       ? { status: 'UPCOMING' }
-      : CAMPAIGN_STATUSES.includes(status as CampaignStatus)
+      : CAMPAIGN_STATUSES.includes(status as CampaignStatus) &&
+          (isManager || (status !== 'DRAFT' && status !== 'CANCELLED'))
         ? { status: status as CampaignStatus }
         : {}),
     ...(params.get('from') ? { from: params.get('from')! } : {}),
@@ -129,6 +130,9 @@ export function CampaignListPage() {
 
     const enriched = rawItems
       .filter((c) => {
+        if (!isManager && (c.status === 'DRAFT' || c.status === 'CANCELLED')) {
+          return false;
+        }
         if (!searchTerm) return true;
         return `${c.name} ${c.location} ${c.description ?? ''}`
           .toLocaleLowerCase('vi')
@@ -481,7 +485,6 @@ export function CampaignListPage() {
                 <option value="UPCOMING">Sắp mở đăng ký</option>
                 <option value="CLOSED">Đã đóng đăng ký</option>
                 <option value="COMPLETED">Đã hoàn tất</option>
-                <option value="CANCELLED">Đã hủy</option>
               </select>
             </FormField>
           </div>

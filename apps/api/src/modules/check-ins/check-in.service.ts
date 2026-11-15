@@ -50,11 +50,12 @@ export const checkInService = {
       }
       if (
         registration.campaign.status === 'DRAFT' ||
-        registration.campaign.status === 'CANCELLED'
+        registration.campaign.status === 'CANCELLED' ||
+        registration.campaign.status === 'COMPLETED'
       ) {
         throw AppError.conflict(
           ERROR_CODES.CHECK_IN_NOT_ALLOWED,
-          'Không thể tiếp nhận cho đợt hiến máu ở trạng thái nháp hoặc đã hủy',
+          'Không thể tiếp nhận cho đợt hiến máu ở trạng thái nháp, đã hoàn tất hoặc đã hủy',
         );
       }
       if (!registration.healthDeclaration) {

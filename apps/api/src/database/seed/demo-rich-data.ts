@@ -488,12 +488,15 @@ function generate150Donors() {
   }[] = [];
 
   const bloodTypePool: (BloodType | null)[] = [
-    ...Array(63).fill('O_POSITIVE'),
-    ...Array(45).fill('B_POSITIVE'),
-    ...Array(28).fill('A_POSITIVE'),
-    ...Array(7).fill('AB_POSITIVE'),
+    ...Array(92).fill('O_POSITIVE'),
+    ...Array(65).fill('B_POSITIVE'),
+    ...Array(42).fill('A_POSITIVE'),
+    ...Array(11).fill('AB_POSITIVE'),
     'O_NEGATIVE',
     'B_NEGATIVE',
+    'A_NEGATIVE',
+    null,
+    null,
     null,
     null,
     null,
@@ -501,7 +504,7 @@ function generate150Donors() {
     null,
   ];
 
-  for (let i = 1; i <= 150; i++) {
+  for (let i = 1; i <= 220; i++) {
     const isMale = i % 2 !== 0;
     const gender: Gender = isMale ? 'MALE' : 'FEMALE';
     const surname = SURNAMES[(i * 7) % SURNAMES.length] ?? 'Nguyễn';
@@ -711,22 +714,7 @@ const CAMPAIGN_SPECS: CampaignSpec[] = [
     hospitalPrefix: 'RC',
   },
 
-  // Current & Upcoming Campaigns (Aligned with Nov 2026)
-  {
-    name: 'Hiến Máu Cứu Người - Chung Tay Vì Sự Sống',
-    location: 'Trung tâm Hiến Máu Nhân Đạo TP.HCM - 106 Thiên Phước, Phường 9, Tân Bình, TP.HCM',
-    organizerName: 'Hội Chữ Thập Đỏ TP. Hồ Chí Minh',
-    contactPhone: '02838685507',
-    description: 'Điểm tiếp nhận máu cố định mở cửa phục vụ người dân đăng ký hiến máu tình nguyện hàng tuần.',
-    status: 'OPEN',
-    startsAt: new Date('2026-11-09T07:30:00+07:00'),
-    endsAt: new Date('2026-11-09T17:00:00+07:00'),
-    registrationOpensAt: new Date('2026-10-20T07:30:00+07:00'),
-    registrationClosesAt: new Date('2026-11-09T16:30:00+07:00'),
-    targetDonors: 200,
-    targetBloodVolumeMl: 70000,
-    hospitalPrefix: 'RC',
-  },
+  // Current & Upcoming Campaigns (Aligned with Nov 15, 2026 -> Mar 2027, 35 total)
   {
     name: 'Ngày Hội Sinh Viên Hiến Máu Tình Nguyện',
     location: 'Nhà Văn Hóa Sinh Viên - ĐHQG TP.HCM, Đông Hòa, Dĩ An, Bình Dương',
@@ -761,7 +749,7 @@ const CAMPAIGN_SPECS: CampaignSpec[] = [
     organizerName: 'Khoa Truyền máu Bệnh viện Quân Y 175',
     contactPhone: '02838954988',
     description: 'Chương trình hiến máu mở rộng của cán bộ chiến sĩ và nhân dân quận Gò Vấp tại BV Quân Y 175.',
-    status: 'CLOSED',
+    status: 'COMPLETED',
     startsAt: new Date('2026-11-10T08:00:00+07:00'),
     endsAt: new Date('2026-11-10T16:30:00+07:00'),
     registrationOpensAt: new Date('2026-10-20T08:00:00+07:00'),
@@ -776,7 +764,7 @@ const CAMPAIGN_SPECS: CampaignSpec[] = [
     organizerName: 'Bệnh viện Thống Nhất TP.HCM',
     contactPhone: '02838642142',
     description: 'Đợt vận động hiến máu trước thềm mùa đông của Bệnh viện Thống Nhất, phục vụ điều trị người cao tuổi.',
-    status: 'OPEN',
+    status: 'COMPLETED',
     startsAt: new Date('2026-11-14T07:30:00+07:00'),
     endsAt: new Date('2026-11-14T16:30:00+07:00'),
     registrationOpensAt: new Date('2026-10-25T07:30:00+07:00'),
@@ -785,6 +773,22 @@ const CAMPAIGN_SPECS: CampaignSpec[] = [
     targetBloodVolumeMl: 63000,
     hospitalPrefix: 'TN',
   },
+  // Live happening today (Nov 15, 2026)
+  {
+    name: 'Hiến Máu Cứu Người - Chung Tay Vì Sự Sống',
+    location: 'Trung tâm Hiến Máu Nhân Đạo TP.HCM - 106 Thiên Phước, Phường 9, Tân Bình, TP.HCM',
+    organizerName: 'Hội Chữ Thập Đỏ TP. Hồ Chí Minh',
+    contactPhone: '02838685507',
+    description: 'Điểm tiếp nhận máu cố định mở cửa phục vụ người dân đăng ký hiến máu tình nguyện hàng tuần.',
+    status: 'OPEN',
+    startsAt: new Date('2026-11-15T07:00:00+07:00'),
+    endsAt: new Date('2026-11-15T21:00:00+07:00'),
+    registrationOpensAt: new Date('2026-10-25T07:30:00+07:00'),
+    registrationClosesAt: new Date('2026-11-15T20:30:00+07:00'),
+    targetDonors: 200,
+    targetBloodVolumeMl: 70000,
+    hospitalPrefix: 'RC',
+  },
   {
     name: 'Giọt Hồng Ấm Áp Thủ Đô',
     location: 'ĐH Ngoại Thương - 91 Chùa Láng, Láng Thượng, Đống Đa, Hà Nội',
@@ -792,12 +796,73 @@ const CAMPAIGN_SPECS: CampaignSpec[] = [
     contactPhone: '02438356800',
     description: 'Ngày hội hiến máu sinh viên FTU, kêu gọi các bạn trẻ chung tay trao gửi hơi ấm giọt máu đầu đông.',
     status: 'OPEN',
-    startsAt: new Date('2026-11-15T08:00:00+07:00'),
-    endsAt: new Date('2026-11-15T16:30:00+07:00'),
+    startsAt: new Date('2026-11-15T07:30:00+07:00'),
+    endsAt: new Date('2026-11-15T20:30:00+07:00'),
     registrationOpensAt: new Date('2026-10-28T08:00:00+07:00'),
-    registrationClosesAt: new Date('2026-11-14T18:00:00+07:00'),
+    registrationClosesAt: new Date('2026-11-15T20:00:00+07:00'),
     targetDonors: 300,
     targetBloodVolumeMl: 105000,
+    hospitalPrefix: 'NIHBT',
+  },
+  // +15 Campaigns from Now into Future (Nov 2026 -> Mar 2027)
+  {
+    name: 'Tri Ân Nhà Giáo - Giọt Hồng Nhân Ái 20/11',
+    location: 'Trường ĐH Sư Phạm TP.HCM - 280 An Dương Vương, Phường 4, Quận 5, TP.HCM',
+    organizerName: 'Đoàn Trường ĐH Sư Phạm TP.HCM & BV Truyền Máu Huyết Học',
+    contactPhone: '02838352020',
+    description: 'Chương trình hiến máu kỷ niệm Ngày Nhà giáo Việt Nam 20/11 của giảng viên và sinh viên sư phạm.',
+    status: 'OPEN',
+    startsAt: new Date('2026-11-19T07:30:00+07:00'),
+    endsAt: new Date('2026-11-19T16:30:00+07:00'),
+    registrationOpensAt: new Date('2026-11-01T07:30:00+07:00'),
+    registrationClosesAt: new Date('2026-11-18T20:00:00+07:00'),
+    targetDonors: 240,
+    targetBloodVolumeMl: 84000,
+    hospitalPrefix: 'BTH',
+  },
+  {
+    name: 'Kết Nối Nhịp Tim - Bệnh Viện Chợ Rẫy',
+    location: 'Bệnh viện Chợ Rẫy - 201B Nguyễn Chí Thanh, Phường 12, Quận 5, TP.HCM',
+    organizerName: 'Trung tâm Truyền máu Bệnh viện Chợ Rẫy',
+    contactPhone: '02838554137',
+    description: 'Đợt tiếp nhận máu định kỳ cuối tháng 11 nhằm đảm bảo nguồn máu cấp cứu ngoại khoa khu vực phía Nam.',
+    status: 'OPEN',
+    startsAt: new Date('2026-11-22T07:30:00+07:00'),
+    endsAt: new Date('2026-11-22T16:30:00+07:00'),
+    registrationOpensAt: new Date('2026-11-02T07:30:00+07:00'),
+    registrationClosesAt: new Date('2026-11-21T20:00:00+07:00'),
+    targetDonors: 260,
+    targetBloodVolumeMl: 91000,
+    hospitalPrefix: 'CR',
+  },
+  {
+    name: 'Giọt Hồng Sông Hàn - Chung Tay Cứu Người',
+    location: 'Bệnh viện Đa khoa Đà Nẵng - 124 Hải Phòng, Thạch Thang, Hải Châu, Đà Nẵng',
+    organizerName: 'Khoa Huyết học Truyền máu BV Đà Nẵng',
+    contactPhone: '02363821118',
+    description: 'Vận động hiến máu tình nguyện phục vụ cấp cứu và điều trị tại các bệnh viện tuyến đầu TP. Đà Nẵng.',
+    status: 'OPEN',
+    startsAt: new Date('2026-11-26T07:30:00+07:00'),
+    endsAt: new Date('2026-11-26T16:00:00+07:00'),
+    registrationOpensAt: new Date('2026-11-05T07:30:00+07:00'),
+    registrationClosesAt: new Date('2026-11-25T19:00:00+07:00'),
+    targetDonors: 180,
+    targetBloodVolumeMl: 63000,
+    hospitalPrefix: 'DNG',
+  },
+  {
+    name: 'Trái Tim Hồng Thủ Đô - Viện Huyết Học TW',
+    location: 'Viện Huyết học - Truyền máu TW - Phố Phạm Văn Bạch, Cầu Giấy, Hà Nội',
+    organizerName: 'Viện Huyết học - Truyền máu Trung ương',
+    contactPhone: '02437821895',
+    description: 'Chương trình tiếp nhận máu cuối tuần dành cho cán bộ công chức và sinh viên khu vực Cầu Giấy.',
+    status: 'OPEN',
+    startsAt: new Date('2026-11-29T07:30:00+07:00'),
+    endsAt: new Date('2026-11-29T16:30:00+07:00'),
+    registrationOpensAt: new Date('2026-11-08T07:30:00+07:00'),
+    registrationClosesAt: new Date('2026-11-28T20:00:00+07:00'),
+    targetDonors: 280,
+    targetBloodVolumeMl: 98000,
     hospitalPrefix: 'NIHBT',
   },
   {
@@ -806,14 +871,59 @@ const CAMPAIGN_SPECS: CampaignSpec[] = [
     organizerName: 'Hội Chữ Thập Đỏ tỉnh Thừa Thiên Huế',
     contactPhone: '02343761234',
     description: 'Chiến dịch đưa xe hiến máu lưu động về huyện Phong Điền phục vụ bà con vùng ven cố đô Huế.',
-    status: 'DRAFT',
-    startsAt: new Date('2026-12-02T07:30:00+07:00'),
-    endsAt: new Date('2026-12-02T15:30:00+07:00'),
+    status: 'OPEN',
+    startsAt: new Date('2026-12-03T07:30:00+07:00'),
+    endsAt: new Date('2026-12-03T15:30:00+07:00'),
     registrationOpensAt: new Date('2026-11-11T07:30:00+07:00'),
-    registrationClosesAt: new Date('2026-12-01T18:00:00+07:00'),
+    registrationClosesAt: new Date('2026-12-02T18:00:00+07:00'),
     targetDonors: 160,
     targetBloodVolumeMl: 56000,
     hospitalPrefix: 'HUE',
+  },
+  {
+    name: 'Ngày Hội Tình Nguyện Quốc Tế 5/12 - Bạch Mai',
+    location: 'Bệnh viện Bạch Mai - 78 Giải Phóng, Phương Mai, Đống Đa, Hà Nội',
+    organizerName: 'Trung tâm Huyết học và Truyền máu - Bệnh viện Bạch Mai',
+    contactPhone: '02438693731',
+    description: 'Hưởng ứng Ngày Tình nguyện viên Quốc tế 5/12, tiếp nhận máu điều trị bệnh nhân nội trú nặng.',
+    status: 'OPEN',
+    startsAt: new Date('2026-12-06T07:30:00+07:00'),
+    endsAt: new Date('2026-12-06T16:30:00+07:00'),
+    registrationOpensAt: new Date('2026-11-12T07:30:00+07:00'),
+    registrationClosesAt: new Date('2026-12-05T19:00:00+07:00'),
+    targetDonors: 300,
+    targetBloodVolumeMl: 105000,
+    hospitalPrefix: 'BM',
+  },
+  {
+    name: 'Giọt Hồng Công Nghệ - Khu Công Nghệ Cao TP.HCM',
+    location: 'Trung tâm Đào tạo Khu Công nghệ cao - Xa lộ Hà Nội, Hiệp Phú, TP. Thủ Đức, TP.HCM',
+    organizerName: 'Công đoàn Khu Công nghệ cao phối hợp BV Chợ Rẫy',
+    contactPhone: '02837360291',
+    description: 'Ngày hội hiến máu của đội ngũ kỹ sư, chuyên gia và người lao động tại Khu Công nghệ cao TP.HCM.',
+    status: 'OPEN',
+    startsAt: new Date('2026-12-12T07:30:00+07:00'),
+    endsAt: new Date('2026-12-12T16:00:00+07:00'),
+    registrationOpensAt: new Date('2026-11-14T07:30:00+07:00'),
+    registrationClosesAt: new Date('2026-12-11T18:00:00+07:00'),
+    targetDonors: 220,
+    targetBloodVolumeMl: 77000,
+    hospitalPrefix: 'CR',
+  },
+  {
+    name: 'Sắc Đỏ Quân Dân - Bệnh Viện Quân Y 175',
+    location: 'Bệnh viện Quân Y 175 - 786 Nguyễn Kiệm, Phường 3, Gò Vấp, TP.HCM',
+    organizerName: 'Khoa Truyền máu Bệnh viện Quân Y 175',
+    contactPhone: '02838954988',
+    description: 'Đợt hiến máu kỷ niệm Ngày thành lập Quân đội Nhân dân Việt Nam 22/12 tại Bệnh viện Quân Y 175.',
+    status: 'OPEN',
+    startsAt: new Date('2026-12-18T07:30:00+07:00'),
+    endsAt: new Date('2026-12-18T16:30:00+07:00'),
+    registrationOpensAt: new Date('2026-11-15T07:30:00+07:00'),
+    registrationClosesAt: new Date('2026-12-17T19:00:00+07:00'),
+    targetDonors: 250,
+    targetBloodVolumeMl: 87500,
+    hospitalPrefix: 'QY175',
   },
   {
     name: 'Xuân Tình Nguyện - Nghĩa Tình Phương Nam',
@@ -821,14 +931,134 @@ const CAMPAIGN_SPECS: CampaignSpec[] = [
     organizerName: 'Đoàn Thanh niên Bệnh viện Ung Bướu & BV Truyền Máu Huyết Học',
     contactPhone: '02838433021',
     description: 'Chương trình hiến máu gây quỹ hỗ trợ bệnh nhi ung thư nghèo dịp Tết Dương Lịch 2027.',
-    status: 'DRAFT',
-    startsAt: new Date('2026-12-20T07:30:00+07:00'),
-    endsAt: new Date('2026-12-20T16:30:00+07:00'),
-    registrationOpensAt: new Date('2026-11-29T07:30:00+07:00'),
-    registrationClosesAt: new Date('2026-12-19T18:00:00+07:00'),
+    status: 'OPEN',
+    startsAt: new Date('2026-12-22T07:30:00+07:00'),
+    endsAt: new Date('2026-12-22T16:30:00+07:00'),
+    registrationOpensAt: new Date('2026-11-15T07:30:00+07:00'),
+    registrationClosesAt: new Date('2026-12-21T18:00:00+07:00'),
     targetDonors: 250,
     targetBloodVolumeMl: 87500,
     hospitalPrefix: 'BTH',
+  },
+  {
+    name: 'Giáng Sinh Hồng - Trao Yêu Thương 2026',
+    location: 'BV ĐH Y Dược TP.HCM - 215 Hồng Bàng, Phường 11, Quận 5, TP.HCM',
+    organizerName: 'Bệnh viện Đại học Y Dược TP.HCM',
+    contactPhone: '02838554269',
+    description: 'Ngày hội hiến máu mùa Giáng Sinh bổ sung ngân hàng máu dự trữ dịp cuối năm tại ĐHYD TP.HCM.',
+    status: 'OPEN',
+    startsAt: new Date('2026-12-26T07:30:00+07:00'),
+    endsAt: new Date('2026-12-26T16:30:00+07:00'),
+    registrationOpensAt: new Date('2026-11-15T08:00:00+07:00'),
+    registrationClosesAt: new Date('2026-12-25T19:00:00+07:00'),
+    targetDonors: 200,
+    targetBloodVolumeMl: 70000,
+    hospitalPrefix: 'UMP',
+  },
+  {
+    name: 'Chào Năm Mới 2027 - Giọt Máu Khởi Đầu Mới',
+    location: 'Trung tâm Hiến Máu Nhân Đạo TP.HCM - 106 Thiên Phước, Phường 9, Tân Bình, TP.HCM',
+    organizerName: 'Hội Chữ Thập Đỏ TP. Hồ Chí Minh',
+    contactPhone: '02838685507',
+    description: 'Chương trình tiếp nhận máu đầu năm mới Dương lịch 2027 phục vụ các bệnh viện trên địa bàn thành phố.',
+    status: 'OPEN',
+    startsAt: new Date('2027-01-05T07:30:00+07:00'),
+    endsAt: new Date('2027-01-05T16:30:00+07:00'),
+    registrationOpensAt: new Date('2026-11-15T08:00:00+07:00'),
+    registrationClosesAt: new Date('2027-01-04T19:00:00+07:00'),
+    targetDonors: 220,
+    targetBloodVolumeMl: 77000,
+    hospitalPrefix: 'RC',
+  },
+  {
+    name: 'Ngày Hội Học Sinh Sinh Viên 9/1 - ĐH Kinh Tế',
+    location: 'ĐH Kinh Tế TP.HCM (Cơ sở B) - 279 Nguyễn Tri Phương, Phường 5, Quận 10, TP.HCM',
+    organizerName: 'Hội Sinh viên ĐH Kinh Tế TP.HCM phối hợp BV Truyền Máu Huyết Học',
+    contactPhone: '02838551777',
+    description: 'Ngày hội hiến máu truyền thống kỷ niệm Ngày Học sinh - Sinh viên Việt Nam 9/1 của sinh viên UEH.',
+    status: 'OPEN',
+    startsAt: new Date('2027-01-10T07:30:00+07:00'),
+    endsAt: new Date('2027-01-10T16:00:00+07:00'),
+    registrationOpensAt: new Date('2026-11-15T08:00:00+07:00'),
+    registrationClosesAt: new Date('2027-01-09T19:00:00+07:00'),
+    targetDonors: 320,
+    targetBloodVolumeMl: 112000,
+    hospitalPrefix: 'BTH',
+  },
+  {
+    name: 'Chủ Nhật Đỏ 2027 - Điểm Cầu Hà Nội',
+    location: 'ĐH Bách Khoa Hà Nội - Số 1 Đại Cồ Việt, Bách Khoa, Hai Bà Trưng, Hà Nội',
+    organizerName: 'Viện Huyết học - Truyền máu TW & Báo Tiền Phong',
+    contactPhone: '02437821895',
+    description: 'Sự kiện Chủ Nhật Đỏ toàn quốc lần thứ XIX khắc phục tình trạng khan hiếm máu dịp Tết Nguyên Đán Đinh Mùi.',
+    status: 'OPEN',
+    startsAt: new Date('2027-01-17T07:30:00+07:00'),
+    endsAt: new Date('2027-01-17T16:30:00+07:00'),
+    registrationOpensAt: new Date('2026-11-15T08:00:00+07:00'),
+    registrationClosesAt: new Date('2027-01-16T19:00:00+07:00'),
+    targetDonors: 400,
+    targetBloodVolumeMl: 140000,
+    hospitalPrefix: 'NIHBT',
+  },
+  {
+    name: 'Giọt Hồng Tây Đô - Xuân Đinh Mùi 2027',
+    location: 'Bệnh viện Huyết học - Truyền máu Cần Thơ - 317 Nguyễn Văn Cừ, An Bình, Ninh Kiều, Cần Thơ',
+    organizerName: 'Bệnh viện Huyết học - Truyền máu TP. Cần Thơ',
+    contactPhone: '02923782983',
+    description: 'Chiến dịch dự trữ máu trước kỳ nghỉ Tết Nguyên Đán cho khu vực Đồng bằng sông Cửu Long.',
+    status: 'OPEN',
+    startsAt: new Date('2027-01-24T07:30:00+07:00'),
+    endsAt: new Date('2027-01-24T16:00:00+07:00'),
+    registrationOpensAt: new Date('2026-11-15T08:00:00+07:00'),
+    registrationClosesAt: new Date('2027-01-23T18:00:00+07:00'),
+    targetDonors: 220,
+    targetBloodVolumeMl: 77000,
+    hospitalPrefix: 'CT',
+  },
+  {
+    name: 'Lễ Hội Xuân Hồng 2027 - TP. Hồ Chí Minh',
+    location: 'Bệnh viện Chợ Rẫy - 201B Nguyễn Chí Thanh, Phường 12, Quận 5, TP.HCM',
+    organizerName: 'Trung tâm Truyền máu Bệnh viện Chợ Rẫy',
+    contactPhone: '02838554137',
+    description: 'Lễ hội hiến máu đầu xuân sau kỳ nghỉ Tết Nguyên Đán 2027 tại Bệnh viện Chợ Rẫy.',
+    status: 'OPEN',
+    startsAt: new Date('2027-02-18T07:30:00+07:00'),
+    endsAt: new Date('2027-02-18T16:30:00+07:00'),
+    registrationOpensAt: new Date('2026-12-15T07:30:00+07:00'),
+    registrationClosesAt: new Date('2027-02-17T18:00:00+07:00'),
+    targetDonors: 300,
+    targetBloodVolumeMl: 105000,
+    hospitalPrefix: 'CR',
+  },
+  {
+    name: 'Blouse Trắng - Trái Tim Hồng 27/2/2027',
+    location: 'Bệnh viện Thống Nhất - 1 Lý Thường Kiệt, Phường 7, Tân Bình, TP.HCM',
+    organizerName: 'Bệnh viện Thống Nhất TP.HCM',
+    contactPhone: '02838642142',
+    description: 'Chương trình hiến máu của đội ngũ cán bộ y tế kỷ niệm Ngày Thầy thuốc Việt Nam 27/2/2027.',
+    status: 'DRAFT',
+    startsAt: new Date('2027-02-27T07:30:00+07:00'),
+    endsAt: new Date('2027-02-27T16:30:00+07:00'),
+    registrationOpensAt: new Date('2027-01-15T07:30:00+07:00'),
+    registrationClosesAt: new Date('2027-02-26T18:00:00+07:00'),
+    targetDonors: 200,
+    targetBloodVolumeMl: 70000,
+    hospitalPrefix: 'TN',
+  },
+  {
+    name: 'Tháng Thanh Niên 2027 - Nhiệt Huyết Tuổi Trẻ',
+    location: 'Nhà Văn Hóa Thanh Niên TP.HCM - 4 Phạm Ngọc Thạch, Bến Nghé, Quận 1, TP.HCM',
+    organizerName: 'Thành Đoàn TP.HCM & Trung tâm Hiến Máu Nhân Đạo',
+    contactPhone: '02838294345',
+    description: 'Ngày hội hiến máu khởi động Tháng Thanh niên 3/2027 dành cho đoàn viên thanh niên thành phố.',
+    status: 'DRAFT',
+    startsAt: new Date('2027-03-14T07:30:00+07:00'),
+    endsAt: new Date('2027-03-14T16:30:00+07:00'),
+    registrationOpensAt: new Date('2027-02-10T07:30:00+07:00'),
+    registrationClosesAt: new Date('2027-03-13T18:00:00+07:00'),
+    targetDonors: 350,
+    targetBloodVolumeMl: 122500,
+    hospitalPrefix: 'RC',
   },
 
   // 2 CANCELLED Campaigns
@@ -900,9 +1130,25 @@ async function seedRichData() {
   );
   console.info(`Đã tạo thành công 5 Điều phối viên.`);
 
-  // 5. Create 45 Donation Staff in batches of 15
+  // 5. Create 45 Donation Staff in batches of 15 + include 3 core demo staff accounts
   console.info('Đang tạo 45 tài khoản Nhân viên y tế (DONATION_STAFF)...');
   const staffUsers: { id: string; email: string; fullName: string; defaultAssignment: CampaignAssignment }[] = [];
+
+  const coreStaffMappings: Array<{ email: string; defaultAssignment: CampaignAssignment }> = [
+    { email: 'donation-staff.demo@example.local', defaultAssignment: 'CHECK_IN' },
+    { email: 'donation-staff-2.demo@example.local', defaultAssignment: 'SCREENING' },
+    { email: 'donation-staff-3.demo@example.local', defaultAssignment: 'COLLECTION' },
+  ];
+  for (const mapping of coreStaffMappings) {
+    const found = await database.user.findUnique({
+      where: { email: mapping.email },
+      select: { id: true, email: true, fullName: true },
+    });
+    if (found) {
+      staffUsers.push({ ...found, defaultAssignment: mapping.defaultAssignment });
+    }
+  }
+
   for (let i = 0; i < STAFF_SPECS.length; i += 15) {
     const batch = STAFF_SPECS.slice(i, i + 15);
     const created = await Promise.all(
@@ -925,15 +1171,34 @@ async function seedRichData() {
     );
     staffUsers.push(...created);
   }
-  console.info(`Đã tạo thành công 45 Nhân viên y tế.`);
+  console.info(`Đã chuẩn bị ${staffUsers.length} Nhân viên y tế (bao gồm 3 tài khoản demo).`);
 
-  // 6. Create 150 Donors with Profiles in batches of 15
-  console.info('Đang tạo 150 tài khoản Người hiến máu (DONOR) kèm hồ sơ lâm sàng...');
+  // 6. Create 220 Donors with Profiles in batches of 20 + include core demo donor
+  console.info('Đang tạo 220 tài khoản Người hiến máu (DONOR) kèm hồ sơ lâm sàng...');
   const donorSpecs = generate150Donors();
   const donorProfiles: { id: string; userId: string; email: string; bloodType: BloodType | null; fullName: string }[] = [];
 
-  for (let i = 0; i < donorSpecs.length; i += 15) {
-    const batch = donorSpecs.slice(i, i + 15);
+  const coreDemoDonor = await database.user.findUnique({
+    where: { email: 'donor.demo@example.local' },
+    select: {
+      id: true,
+      email: true,
+      fullName: true,
+      donorProfile: { select: { id: true, bloodType: true } },
+    },
+  });
+  if (coreDemoDonor?.donorProfile) {
+    donorProfiles.push({
+      id: coreDemoDonor.donorProfile.id,
+      userId: coreDemoDonor.id,
+      email: coreDemoDonor.email,
+      bloodType: coreDemoDonor.donorProfile.bloodType,
+      fullName: coreDemoDonor.fullName,
+    });
+  }
+
+  for (let i = 0; i < donorSpecs.length; i += 20) {
+    const batch = donorSpecs.slice(i, i + 20);
     const created = await Promise.all(
       batch.map(async (d) => {
         const user = await database.user.create({
@@ -977,15 +1242,46 @@ async function seedRichData() {
     );
     donorProfiles.push(...created);
   }
-  console.info(`Đã tạo thành công 150 Người hiến máu.`);
+  console.info(`Đã tạo thành công ${donorProfiles.length} Người hiến máu.`);
 
-  // 7. Create 20 Campaigns, TimeSlots, and Staff Assignments
-  console.info('\nĐang tạo 20 Đợt hiến máu thực tế và cấu hình ca hiến, phân công nhân sự...');
+  // 7. Create 35 Campaigns, TimeSlots, and Non-overlapping Staff Assignments
+  console.info(`\nĐang tạo ${CAMPAIGN_SPECS.length} Đợt hiến máu thực tế và cấu hình ca hiến, phân công nhân sự...`);
   let bagGlobalCounter = 100;
   let donorCursor = 0;
   const donorDonationDates = new Map<string, Date[]>();
   const donorActiveRegistration = new Set<string>();
+  const staffBookedWindows = new Map<string, Array<{ startsAt: Date; endsAt: Date }>>();
   const MIN_INTERVAL_MS = 84 * 24 * 3600 * 1000;
+
+  function pickAvailableStaff(
+    pool: typeof staffUsers,
+    count: number,
+    startsAt: Date,
+    endsAt: Date,
+    preferCoreDemo: boolean,
+    offset: number,
+  ) {
+    const picked: typeof staffUsers = [];
+    const rest = pool.slice(1);
+    const rotatedRest = rest.map((_, idx) => rest[(offset + idx) % rest.length]!);
+    const candidates = preferCoreDemo && pool[0]
+      ? [pool[0], ...rotatedRest]
+      : [...rotatedRest, ...(pool[0] ? [pool[0]] : [])];
+
+    for (const candidate of candidates) {
+      if (picked.length >= count) break;
+      if (picked.some((p) => p.id === candidate.id)) continue;
+      const windows = staffBookedWindows.get(candidate.id) ?? [];
+      const hasOverlap = windows.some(
+        (w) => w.startsAt.getTime() < endsAt.getTime() && w.endsAt.getTime() > startsAt.getTime(),
+      );
+      if (hasOverlap) continue;
+      picked.push(candidate);
+      windows.push({ startsAt, endsAt });
+      staffBookedWindows.set(candidate.id, windows);
+    }
+    return picked;
+  }
 
   function pickEligibleDonors(
     count: number,
@@ -1006,7 +1302,7 @@ async function seedRichData() {
       picked.push(candidate);
       pickedIds.add(candidate.id);
     }
-    donorCursor = (donorCursor + count) % donorProfiles.length;
+    donorCursor = (donorCursor + Math.max(1, picked.length)) % donorProfiles.length;
     return picked;
   }
 
@@ -1111,17 +1407,20 @@ async function seedRichData() {
       ),
     );
 
-    // Assign 5 DONATION_STAFF across the 3 operational positions (CHECK_IN, SCREENING, COLLECTION)
+    // Assign 5 DONATION_STAFF across the 3 operational positions (CHECK_IN, SCREENING, COLLECTION) without time overlap
     const checkInPool = staffUsers.filter((s) => s.defaultAssignment === 'CHECK_IN');
     const screeningPool = staffUsers.filter((s) => s.defaultAssignment === 'SCREENING');
     const collectionPool = staffUsers.filter((s) => s.defaultAssignment === 'COLLECTION');
 
+    const preferCoreDemo = spec.status !== 'CANCELLED';
+    const assignedCheckIn = pickAvailableStaff(checkInPool, 1, startsAt, endsAt, preferCoreDemo, cIdx);
+    const assignedScreening = pickAvailableStaff(screeningPool, 2, startsAt, endsAt, preferCoreDemo, cIdx * 2);
+    const assignedCollection = pickAvailableStaff(collectionPool, 2, startsAt, endsAt, preferCoreDemo, cIdx * 2);
+
     const assignedStaffList = [
-      checkInPool[cIdx % checkInPool.length]!,
-      screeningPool[(cIdx * 2) % screeningPool.length]!,
-      collectionPool[(cIdx * 2) % collectionPool.length]!,
-      collectionPool[(cIdx * 2 + 1) % collectionPool.length]!,
-      screeningPool[(cIdx * 2 + 1) % screeningPool.length]!,
+      ...assignedCheckIn,
+      ...assignedScreening,
+      ...assignedCollection,
     ];
 
     await database.campaignStaff.createMany({
@@ -1237,6 +1536,7 @@ async function seedRichData() {
             const diastolic = 70 + (dK * 2) % 14;
             const pulse = 68 + (dK * 3) % 14;
             const hb = 128 + (dK * 3) % 25;
+            const indicatedVol = weight >= 60 ? 450 : weight >= 50 ? 350 : 250;
 
             const screening = await database.screening.create({
               data: {
@@ -1249,6 +1549,7 @@ async function seedRichData() {
                 pulse,
                 temperatureC: 36.8,
                 hemoglobin: hb,
+                indicatedVolumeMl: indicatedVol,
                 decisionReason: 'Đủ điều kiện hiến máu toàn phần',
                 createdAt: screeningAt,
               },
@@ -1339,8 +1640,10 @@ async function seedRichData() {
       );
       bagGlobalCounter += 20;
     } else if (spec.status === 'OPEN') {
-      const isHappeningNow = startsAt.getTime() <= Date.now();
-      const campaignDonors = pickEligibleDonors(isHappeningNow ? 8 : 6, startsAt, true);
+      const isHappeningNow =
+        startsAt.getTime() <= Date.now() && endsAt.getTime() >= Date.now();
+      const targetBookings = isHappeningNow ? 8 : 7 + (cIdx % 5);
+      const campaignDonors = pickEligibleDonors(targetBookings, startsAt, true);
       for (const d of campaignDonors) {
         const list = donorDonationDates.get(d.id) ?? [];
         list.push(startsAt);
@@ -1396,6 +1699,7 @@ async function seedRichData() {
               pulse: 74,
               temperatureC: 36.7,
               hemoglobin: 142.0,
+              indicatedVolumeMl: 350,
               decisionReason: 'Đủ điều kiện hiến máu',
             },
           });
@@ -1464,6 +1768,7 @@ async function seedRichData() {
               pulse: 72,
               temperatureC: 36.6,
               hemoglobin: 135.0,
+              indicatedVolumeMl: 350,
               decisionReason: 'Sức khỏe tốt, đủ điều kiện hiến 350ml máu toàn phần. Đã hướng dẫn chuyển bàn lấy máu.',
             },
           });
@@ -1528,7 +1833,7 @@ async function seedRichData() {
         }
       } else {
         // Upcoming OPEN campaign: ONLY pre-booked registrations (no CheckIn/Screening/Donation/BloodBag!)
-        for (let uIdx = 0; uIdx < 6; uIdx++) {
+        for (let uIdx = 0; uIdx < campaignDonors.length; uIdx++) {
           const donor = campaignDonors[uIdx]!;
           const slot = timeSlots[uIdx % timeSlots.length]!;
           const reg = await database.registration.create({
@@ -1537,13 +1842,13 @@ async function seedRichData() {
               campaignId: campaign.id,
               timeSlotId: slot.id,
               status: 'SCHEDULED',
-              createdAt: new Date(Date.now() - (6 - uIdx) * 12 * 3600 * 1000),
+              createdAt: new Date(Date.now() - (campaignDonors.length - uIdx) * 8 * 3600 * 1000),
             },
           });
           await database.healthDeclaration.create({
             data: {
               registrationId: reg.id,
-              submittedAt: new Date(Date.now() - (6 - uIdx) * 12 * 3600 * 1000),
+              submittedAt: new Date(Date.now() - (campaignDonors.length - uIdx) * 8 * 3600 * 1000),
               questionnaireVersion: 'v2026.1',
               answers: defaultAnswers,
             },
@@ -1602,7 +1907,7 @@ async function seedRichData() {
       }
     }
 
-    console.info(`  [${cIdx + 1}/20] Đã tạo đợt: "${spec.name}" (${spec.status}) - ${spec.location.split('-')[0]?.trim() ?? ''}`);
+    console.info(`  [${cIdx + 1}/${CAMPAIGN_SPECS.length}] Đã tạo đợt: "${spec.name}" (${spec.status}) - ${spec.location.split('-')[0]?.trim() ?? ''}`);
   }
 
   // 9. Final Count Verification
@@ -1638,7 +1943,7 @@ async function seedRichData() {
   console.log(`  + Điều phối viên (Coordinator):      5`);
   console.log(`  + Nhân viên y tế (Donation Staff):   45`);
   console.log(`  + Người hiến máu (Donor):            ${donorCount}`);
-  console.log(`- Tổng số Đợt hiến máu (Campaign):     ${campaignCount} (10 Hoàn thành, 4 Đang mở, 4 Sắp tới, 2 Hủy)`);
+  console.log(`- Tổng số Đợt hiến máu (Campaign):     ${campaignCount} (14 Hoàn thành, 17 Đang mở/Sắp mở, 2 Bản nháp, 2 Hủy)`);
   console.log(`- Tổng số Khung giờ hiến (TimeSlot):   ${slotCount}`);
   console.log(`- Tổng số Lượt đăng ký (Registration): ${regCount}`);
   console.log(`- Tổng số Lượt khám (Screening):       ${screeningCount}`);

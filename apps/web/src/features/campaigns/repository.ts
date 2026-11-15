@@ -30,6 +30,9 @@ export const mapCampaign = (
 ): Campaign => ({
   ...dto,
   ...(dto.staff && !dto.staffAssignments ? { staffAssignments: dto.staff } : {}),
+  ...(dto._count?.registrations !== undefined && dto.registeredDonors === undefined
+    ? { registeredDonors: dto._count.registrations }
+    : {}),
 });
 export const mapSlot = (dto: TimeSlot): TimeSlot => ({ ...dto });
 export class ApiCampaignRepository implements CampaignRepository {

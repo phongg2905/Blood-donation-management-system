@@ -17,7 +17,10 @@ export const list: RequestHandler = async (req, res) => {
 };
 
 export const getById: RequestHandler = async (req, res) => {
-  sendSuccess(res, await campaignService.getById(paramId(req)));
+  const canViewDraft = Boolean(
+    req.auth?.permissions?.includes('campaign.create'),
+  );
+  sendSuccess(res, await campaignService.getById(paramId(req), canViewDraft));
 };
 
 export const create: RequestHandler = async (req, res) => {
