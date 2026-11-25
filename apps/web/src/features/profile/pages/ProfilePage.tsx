@@ -193,7 +193,6 @@ function ProfileContent({ user }: { user: CurrentUser }) {
     .join('')
     .toUpperCase();
 
-  const isDonor = user.roles.includes('DONOR');
   const primaryRoleLabel = user.roles.map((role) => ROLE_NAMES[role]).join(', ');
 
   return (

@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { database } from '../../config/database';
-import { AppError } from '../../common/errors/app.error';
-import { ERROR_CODES, AUDIT_ACTIONS, AUDIT_ENTITY_TYPES } from '@blood/shared-types';
+import { parseDomain } from '../../common/helpers/domain-validation';
 import type { AuditContext } from '../audit-logs/audit.service';
 import { auditLogService } from '../audit-logs/audit.service';
 
@@ -16,7 +15,8 @@ const DEFAULT_SETTINGS = [
   {
     key: 'otp_expiration_minutes',
     value: '5',
-    description: 'Thời gian hiệu lực của mã xác thực OTP gửi qua email/SMS (phút)',
+    description:
+      'Thời gian hiệu lực của mã xác thực OTP gửi qua email/SMS (phút)',
     valueType: 'NUMBER',
     category: 'Bảo mật & Xác thực',
   },
@@ -30,14 +30,16 @@ const DEFAULT_SETTINGS = [
   {
     key: 'donor_min_interval_days',
     value: '84',
-    description: 'Khoảng cách tối thiểu giữa 2 lần hiến máu toàn phần (12 tuần / 84 ngày)',
+    description:
+      'Khoảng cách tối thiểu giữa 2 lần hiến máu toàn phần (12 tuần / 84 ngày)',
     valueType: 'NUMBER',
     category: 'Quy định Y tế',
   },
   {
     key: 'emergency_alert_enabled',
     value: 'true',
-    description: 'Kích hoạt hệ thống phát thông báo khẩn cấp khi kho thiếu hụt máu',
+    description:
+      'Kích hoạt hệ thống phát thông báo khẩn cấp khi kho thiếu hụt máu',
     valueType: 'BOOLEAN',
     category: 'Vận hành khẩn cấp',
   },
@@ -86,7 +88,7 @@ export const settingsService = {
   },
 
   async update(key: string, input: unknown, ctx: AuditContext) {
-    const data = updateSettingSchema.parse(input);
+    const data = parseDomain(updateSettingSchema, input);
     const existing = await database.systemSetting.findUnique({
       where: { key },
     });
@@ -108,7 +110,9 @@ export const settingsService = {
         where: { key },
         data: {
           value: data.value,
-          ...(data.description !== undefined ? { description: data.description } : {}),
+          ...(data.description !== undefined
+            ? { description: data.description }
+            : {}),
         },
       });
     }

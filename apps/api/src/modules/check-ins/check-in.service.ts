@@ -107,6 +107,9 @@ export const checkInService = {
           );
         }
       }
+      if (registration.checkIn) {
+        throw AppError.conflict(ERROR_CODES.REGISTRATION_ALREADY_CHECKED_IN);
+      }
       assertCanMarkNoShow(registration.status);
 
       const updated = await repo.markNoShow(tx, registrationId);

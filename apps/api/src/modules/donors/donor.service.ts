@@ -8,9 +8,11 @@ export const donorService = {
       throw AppError.internal('DonorProfile missing for a DONOR account');
     const records = await repo.history(donor.id);
     return records.map((r) => {
-      const bag = r.checkIn?.screening?.donation?.bloodBags?.[0];
+      const donation = r.checkIn?.screening?.donation;
+      const bag = donation?.bloodBags?.[0];
       const cert = r.checkIn?.screening?.donation?.certificate;
       const donationDate =
+        donation?.donatedAt?.toISOString() ??
         r.timeSlot?.startsAt?.toISOString() ??
         r.campaign?.startsAt?.toISOString() ??
         r.createdAt.toISOString();
@@ -19,7 +21,7 @@ export const donorService = {
         date: donationDate,
         campaignName: r.campaign?.name ?? '',
         location: r.campaign?.location ?? '',
-        volumeMl: bag?.volumeMl ?? null,
+        volumeMl: donation?.volumeMl ?? null,
         bloodGroup: bag?.bloodType ?? donor.bloodType ?? null,
         status: r.status,
         certificateId: cert?.id ?? null,

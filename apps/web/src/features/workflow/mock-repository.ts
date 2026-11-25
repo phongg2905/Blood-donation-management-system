@@ -57,12 +57,14 @@ export class MockWorkflowRepository implements WorkflowRepository {
   private sequence = 0;
 
   constructor(options: MockWorkflowOptions = {}) {
-    this.latency = 0;
+    this.latency = options.latency ?? 0;
     this.seed();
   }
 
   private wait(): Promise<void> {
-    return Promise.resolve();
+    return this.latency > 0
+      ? new Promise((resolve) => setTimeout(resolve, this.latency))
+      : Promise.resolve();
   }
 
   private nextCode(prefix: string): string {
@@ -267,9 +269,10 @@ export class MockWorkflowRepository implements WorkflowRepository {
       infectiousTest: status === 'PENDING' ? null : 'NEGATIVE',
       reason: null,
       createdAt: isoDay(0, 8),
-      reviewedAt: status === 'WAITING_REVIEW' || status === 'PENDING'
-        ? null
-        : isoDay(0, 9),
+      reviewedAt:
+        status === 'WAITING_REVIEW' || status === 'PENDING'
+          ? null
+          : isoDay(0, 9),
     };
   }
 
@@ -332,23 +335,27 @@ export class MockWorkflowRepository implements WorkflowRepository {
     return structuredClone(this.registration(id));
   }
 
-  async reschedule(
-    id: string,
-    timeSlotId: string,
-  ): Promise<DonorRegistration> {
+  async reschedule(id: string, timeSlotId: string): Promise<DonorRegistration> {
     await this.wait();
     const registration = this.registration(id);
-    if (registration.status !== 'SCHEDULED' && registration.status !== 'CONFIRMED' && registration.status !== 'PENDING') {
+    if (
+      registration.status !== 'SCHEDULED' &&
+      registration.status !== 'CONFIRMED' &&
+      registration.status !== 'PENDING'
+    ) {
       throw new ApiRequestError('REGISTRATION_INVALID_TRANSITION', '', 409);
     }
     registration.slotId = timeSlotId;
     return structuredClone(registration);
   }
 
-  async cancel(id: string, _reason?: string): Promise<DonorRegistration> {
+  async cancel(id: string): Promise<DonorRegistration> {
     await this.wait();
     const registration = this.registration(id);
-    if (registration.status === 'COMPLETED' || registration.status === 'CANCELLED') {
+    if (
+      registration.status === 'COMPLETED' ||
+      registration.status === 'CANCELLED'
+    ) {
       throw new ApiRequestError('REGISTRATION_INVALID_TRANSITION', '', 409);
     }
     registration.status = 'CANCELLED';
@@ -388,7 +395,10 @@ export class MockWorkflowRepository implements WorkflowRepository {
   async checkIn(registrationId: string): Promise<DonorRegistration> {
     await this.wait();
     const registration = this.registration(registrationId);
-    if (registration.status !== 'SCHEDULED' && registration.status !== 'CONFIRMED')
+    if (
+      registration.status !== 'SCHEDULED' &&
+      registration.status !== 'CONFIRMED'
+    )
       throw new ApiRequestError('CHECK_IN_NOT_ALLOWED', '', 409);
     if (registration.checkedInAt)
       throw new ApiRequestError('REGISTRATION_ALREADY_CHECKED_IN', '', 409);
@@ -411,7 +421,10 @@ export class MockWorkflowRepository implements WorkflowRepository {
   async markNoShow(registrationId: string): Promise<DonorRegistration> {
     await this.wait();
     const registration = this.registration(registrationId);
-    if (registration.status !== 'SCHEDULED' && registration.status !== 'CONFIRMED')
+    if (
+      registration.status !== 'SCHEDULED' &&
+      registration.status !== 'CONFIRMED'
+    )
       throw new ApiRequestError('REGISTRATION_INVALID_TRANSITION', '', 409);
     registration.status = 'NO_SHOW';
     return structuredClone(registration);
@@ -500,7 +513,7 @@ export class MockWorkflowRepository implements WorkflowRepository {
     if (outcome !== 'ELIGIBLE' && !reason?.trim())
       throw new ApiRequestError('SCREENING_REVIEW_REASON_REQUIRED', '', 400);
     screening.status = outcome;
-    screening.reason = outcome === 'ELIGIBLE' ? null : reason?.trim() ?? null;
+    screening.reason = outcome === 'ELIGIBLE' ? null : (reason?.trim() ?? null);
     screening.decisionReason = screening.reason;
     screening.deferredUntil = deferredUntil ?? null;
     screening.reviewedAt = new Date().toISOString();
@@ -622,7 +635,8 @@ export class MockWorkflowRepository implements WorkflowRepository {
     if (input.bloodGroup !== undefined) current.bloodGroup = input.bloodGroup;
     if (input.bloodType !== undefined) current.bloodType = input.bloodType;
     if (input.status !== undefined) current.status = input.status;
-    if (input.storageLocation !== undefined) current.storageLocation = input.storageLocation;
+    if (input.storageLocation !== undefined)
+      current.storageLocation = input.storageLocation;
     if (input.donorName !== undefined) current.donorName = input.donorName;
     if (input.notes !== undefined) current.notes = input.notes;
 
@@ -644,9 +658,7 @@ export class MockWorkflowRepository implements WorkflowRepository {
     bag: BloodBag,
   ): DonationCertificate {
     const list = this.certificatesByDonor.get(registration.donorId) ?? [];
-    const existing = list.find(
-      (item) => item.donationId === registration.id,
-    );
+    const existing = list.find((item) => item.donationId === registration.id);
     if (existing) return existing;
     const certificate: DonationCertificate = {
       id: crypto.randomUUID(),
@@ -757,8 +769,9 @@ export class MockWorkflowRepository implements WorkflowRepository {
       code: this.nextCode('CERT'),
       donationId: entry.id,
       donorId,
-      donorName: this.registrations.find((item) => item.id === entry.id)
-        ?.donorName ?? 'Người hiến máu',
+      donorName:
+        this.registrations.find((item) => item.id === entry.id)?.donorName ??
+        'Người hiến máu',
       campaignName: entry.campaignName,
       location: entry.location,
       donationDate: entry.date,
@@ -827,7 +840,10 @@ export class MockWorkflowRepository implements WorkflowRepository {
     throw new ApiRequestError('ROUTE_NOT_FOUND', '', 404);
   }
 
-  async attachCertificateFile(id: string, fileUrl: string): Promise<DonationCertificate> {
+  async attachCertificateFile(
+    id: string,
+    fileUrl: string,
+  ): Promise<DonationCertificate> {
     await this.wait();
     for (const list of this.certificatesByDonor.values()) {
       const found = list.find((item) => item.id === id);
@@ -836,7 +852,11 @@ export class MockWorkflowRepository implements WorkflowRepository {
         return structuredClone(found);
       }
     }
-    throw new ApiRequestError('ROUTE_NOT_FOUND', 'Không tìm thấy chứng nhận', 404);
+    throw new ApiRequestError(
+      'ROUTE_NOT_FOUND',
+      'Không tìm thấy chứng nhận',
+      404,
+    );
   }
 
   async history(donorId: string): Promise<DonorHistoryEntry[]> {

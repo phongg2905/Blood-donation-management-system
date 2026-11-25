@@ -1,27 +1,8 @@
-import { Prisma } from '@prisma/client';
-import { database } from '../../config/database';
+import type { Prisma } from '@prisma/client';
+import { database, serializableTransaction } from '../../config/database';
 
 export const timeSlotRepository = {
-  async transaction<T>(
-    work: (tx: Prisma.TransactionClient) => Promise<T>,
-  ): Promise<T> {
-    for (let attempt = 0; ; attempt++) {
-      try {
-        return await database.$transaction(work, {
-          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-          maxWait: 10_000,
-          timeout: 10_000,
-        });
-      } catch (error) {
-        if (
-          !(error instanceof Prisma.PrismaClientKnownRequestError) ||
-          error.code !== 'P2034' ||
-          attempt >= 2
-        )
-          throw error;
-      }
-    }
-  },
+  transaction: serializableTransaction,
   campaign: (tx: Prisma.TransactionClient, id: string) =>
     tx.donationCampaign.findUnique({ where: { id } }),
   slot: (tx: Prisma.TransactionClient, id: string) =>
@@ -72,7 +53,9 @@ export const timeSlotRepository = {
     tx.registration.count({
       where: {
         timeSlotId: slotId,
-        id: { not: excludeRegistrationId },
+        ...(excludeRegistrationId
+          ? { id: { not: excludeRegistrationId } }
+          : {}),
         status: { notIn: ['CANCELLED', 'WAITLISTED'] },
       },
     }),
@@ -90,7 +73,9 @@ export const timeSlotRepository = {
     tx.registration.findMany({
       where: {
         donorId,
-        id: { not: excludeRegistrationId },
+        ...(excludeRegistrationId
+          ? { id: { not: excludeRegistrationId } }
+          : {}),
         status: { notIn: ['CANCELLED', 'WAITLISTED'] },
         timeSlot: { startsAt: { lt: endsAt }, endsAt: { gt: startsAt } },
       },
@@ -153,7 +138,9 @@ export const timeSlotRepository = {
     return tx.registration.findFirst({
       where: {
         donorId,
-        id: { not: excludeRegistrationId },
+        ...(excludeRegistrationId
+          ? { id: { not: excludeRegistrationId } }
+          : {}),
         status: { in: ['PENDING', 'SCHEDULED', 'CONFIRMED'] },
         campaign: {
           status: { not: 'CANCELLED' },

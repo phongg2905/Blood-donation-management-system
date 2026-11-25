@@ -63,6 +63,8 @@ export const campaignService = {
         : filters.status;
     const { items, total } = await repo.list({
       status: effectiveStatus,
+      search: filters.search,
+      sort: filters.sort,
       excludeDraft: !canViewDraft && !effectiveStatus,
       from: filters.from,
       to: filters.to,

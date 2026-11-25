@@ -1,9 +1,8 @@
 import type { Prisma } from '@prisma/client';
-import { database } from '../../config/database';
+import { database, serializableTransaction } from '../../config/database';
 
 export const screeningRepository = {
-  transaction: <T>(work: (tx: Prisma.TransactionClient) => Promise<T>) =>
-    database.$transaction(work),
+  transaction: serializableTransaction,
 
   findCheckInTx: (tx: Prisma.TransactionClient, checkInId: string) =>
     tx.checkIn.findUnique({

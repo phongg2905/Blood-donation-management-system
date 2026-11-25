@@ -8,7 +8,6 @@ import {
 import { ApiAuthService } from './api-auth.service';
 // Read-only contract checks against the delivered backend validation.
 import {
-  validateRegister,
   validateResetPassword,
   validateUpdateMe,
 } from '../../../../../api/src/modules/auth/auth.validation';

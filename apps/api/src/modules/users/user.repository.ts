@@ -58,6 +58,7 @@ export const userRepository = {
       database.user.findMany({
         where,
         include: userInclude,
+        omit: { passwordHash: true },
         skip: filter.skip,
         take: filter.take,
         orderBy: { createdAt: 'desc' },
@@ -119,6 +120,7 @@ export const userRepository = {
     return tx.user.findUniqueOrThrow({
       where: { id: userId },
       include: userInclude,
+      omit: { passwordHash: true },
     });
   },
 
@@ -143,20 +145,28 @@ export const userRepository = {
   ) => {
     const { donorProfile, ...userData } = data;
     const cleanUserData: Prisma.UserUpdateInput = {
-      ...(userData.fullName !== undefined ? { fullName: userData.fullName } : {}),
+      ...(userData.fullName !== undefined
+        ? { fullName: userData.fullName }
+        : {}),
       ...(userData.email !== undefined ? { email: userData.email } : {}),
-      ...(userData.isActive !== undefined ? { isActive: userData.isActive } : {}),
+      ...(userData.isActive !== undefined
+        ? { isActive: userData.isActive }
+        : {}),
     };
     if (donorProfile) {
       const profileFields = {
-        ...(donorProfile.phone !== undefined ? { phone: donorProfile.phone } : {}),
+        ...(donorProfile.phone !== undefined
+          ? { phone: donorProfile.phone }
+          : {}),
         ...(donorProfile.citizenId !== undefined
           ? { citizenId: donorProfile.citizenId }
           : {}),
         ...(donorProfile.dateOfBirth !== undefined
           ? { dateOfBirth: donorProfile.dateOfBirth }
           : {}),
-        ...(donorProfile.gender !== undefined ? { gender: donorProfile.gender } : {}),
+        ...(donorProfile.gender !== undefined
+          ? { gender: donorProfile.gender }
+          : {}),
         ...(donorProfile.bloodType !== undefined
           ? { bloodType: donorProfile.bloodType }
           : {}),
@@ -175,6 +185,7 @@ export const userRepository = {
       where: { id },
       data: cleanUserData,
       include: userInclude,
+      omit: { passwordHash: true },
     });
   },
 
