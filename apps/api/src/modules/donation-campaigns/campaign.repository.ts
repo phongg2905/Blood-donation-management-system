@@ -3,6 +3,8 @@ import type { CampaignStatus } from '@blood/shared-types';
 import { database } from '../../config/database';
 
 export interface CampaignListFilter {
+  search?: string | undefined;
+  sort?: 'asc' | 'desc' | undefined;
   status?: CampaignStatus | 'UPCOMING' | undefined;
   excludeDraft?: boolean | undefined;
   from?: Date | undefined;
@@ -12,7 +14,10 @@ export interface CampaignListFilter {
 }
 
 function whereFromFilter(
-  filter: Pick<CampaignListFilter, 'status' | 'excludeDraft' | 'from' | 'to'>,
+  filter: Pick<
+    CampaignListFilter,
+    'status' | 'excludeDraft' | 'from' | 'to' | 'search'
+  >,
   now: Date = new Date(),
 ): Prisma.DonationCampaignWhereInput {
   let statusCondition: Prisma.DonationCampaignWhereInput = {};
@@ -48,6 +53,25 @@ function whereFromFilter(
 
   return {
     ...statusCondition,
+    ...(filter.search
+      ? {
+          OR: [
+            { name: { contains: filter.search, mode: 'insensitive' as const } },
+            {
+              location: {
+                contains: filter.search,
+                mode: 'insensitive' as const,
+              },
+            },
+            {
+              organizerName: {
+                contains: filter.search,
+                mode: 'insensitive' as const,
+              },
+            },
+          ],
+        }
+      : {}),
     ...(filter.from
       ? {
           endsAt: { gte: filter.from },
@@ -88,7 +112,7 @@ export const campaignRepository = {
           include,
           skip: filter.skip,
           take: filter.take,
-          orderBy: { startsAt: 'asc' },
+          orderBy: { startsAt: filter.sort ?? 'asc' },
         }),
         database.donationCampaign.count({ where }),
       ]);
@@ -112,7 +136,9 @@ export const campaignRepository = {
     ]);
     const total = openCount + otherCount;
 
-    let items: any[] = [];
+    let items: Prisma.DonationCampaignGetPayload<{
+      include: typeof include;
+    }>[] = [];
     if (filter.skip < openCount) {
       const openTake = Math.min(filter.take, openCount - filter.skip);
       const openItems = await database.donationCampaign.findMany({
@@ -120,7 +146,7 @@ export const campaignRepository = {
         include,
         skip: filter.skip,
         take: openTake,
-        orderBy: { startsAt: 'asc' },
+        orderBy: { startsAt: filter.sort ?? 'asc' },
       });
       items.push(...openItems);
 
@@ -131,7 +157,7 @@ export const campaignRepository = {
           include,
           skip: 0,
           take: remainingTake,
-          orderBy: { startsAt: 'asc' },
+          orderBy: { startsAt: filter.sort ?? 'asc' },
         });
         items.push(...otherItems);
       }
@@ -142,7 +168,7 @@ export const campaignRepository = {
         include,
         skip: otherSkip,
         take: filter.take,
-        orderBy: { startsAt: 'asc' },
+        orderBy: { startsAt: filter.sort ?? 'asc' },
       });
     }
 

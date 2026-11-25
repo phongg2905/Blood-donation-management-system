@@ -1,3 +1,4 @@
+import { RegistrationStatus } from '@prisma/client';
 import type { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import {
@@ -129,51 +130,32 @@ export const registrationService = {
         );
       }
 
-      return { row, reuse, previous: existing };
-    });
-
-    let finalRow = registration.row;
-    if (data.timeSlotId) {
-      try {
-        finalRow = await timeSlotService.schedule(
-          { registrationId: registration.row.id, timeSlotId: data.timeSlotId },
-          ctx,
-        );
-      } catch (error) {
-        await repo.transaction(async (tx) => {
-          if (registration.reuse && registration.previous) {
-            await repo.reuse(tx, registration.previous.id, {
-              status: registration.previous.status,
-              cancelReason: registration.previous.cancelReason,
-              timeSlotId: registration.previous.timeSlotId,
-            });
-          } else {
-            await repo.deleteCreated(tx, registration.row.id);
-          }
-        });
-        throw error;
-      }
-    }
-
-    const notification = await repo.transaction((tx) =>
-      notificationService.create(tx, {
+      const finalRow = data.timeSlotId
+        ? await timeSlotService.scheduleTx(
+            tx,
+            { registrationId: row.id, timeSlotId: data.timeSlotId },
+            ctx,
+          )
+        : row;
+      const notification = await notificationService.create(tx, {
         userId,
         type: 'REGISTRATION',
         title: 'Xác nhận đăng ký hiến máu',
         message: `Đăng ký của bạn cho đợt hiến máu đã được ghi nhận (mã ${finalRow.id}).`,
         channel: 'EMAIL',
-      }),
-    );
-    void notificationService.dispatch(notification);
+      });
+      return { finalRow, notification };
+    });
 
-    return finalRow;
+    void notificationService.dispatch(registration.notification);
+    return registration.finalRow;
   },
 
   /** Staff-only directory search by CCCD/phone/name/email — DONOR uses `my()` instead. */
   async search(query: unknown) {
     const schema = z.object({
       search: z.string().trim().min(1).max(100).optional(),
-      status: z.string().trim().optional(),
+      status: z.enum(RegistrationStatus).optional(),
       campaignId: z.string().uuid().optional(),
       page: z.coerce.number().int().positive().optional(),
       limit: z.coerce.number().int().positive().optional(),
@@ -230,8 +212,15 @@ export const registrationService = {
     return registration;
   },
 
-  reschedule: (registrationId: string, timeSlotId: string, ctx: AuditContext) =>
-    timeSlotService.schedule({ registrationId, timeSlotId }, ctx),
+  async reschedule(
+    registrationId: string,
+    timeSlotId: string,
+    ctx: AuditContext,
+    auth: { userId: string; roles: readonly string[] },
+  ) {
+    await registrationService.getById(registrationId, auth);
+    return timeSlotService.schedule({ registrationId, timeSlotId }, ctx);
+  },
 
   async cancel(
     id: string,
@@ -239,6 +228,10 @@ export const registrationService = {
     ctx: AuditContext,
     auth?: { userId: string; roles: readonly string[] },
   ) {
+    const parsed = parseDomain(
+      z.object({ reason: z.string().trim().max(1000).optional() }),
+      { reason },
+    );
     return repo.transaction(async (tx) => {
       const existing = await repo.findByIdTx(tx, id);
       if (!existing)
@@ -258,7 +251,8 @@ export const registrationService = {
         );
       }
 
-      const appointmentEnd = existing.timeSlot?.endsAt ?? existing.campaign?.endsAt;
+      const appointmentEnd =
+        existing.timeSlot?.endsAt ?? existing.campaign?.endsAt;
       if (appointmentEnd && appointmentEnd < new Date()) {
         throw AppError.conflict(
           ERROR_CODES.REGISTRATION_INVALID_TRANSITION,
@@ -270,7 +264,7 @@ export const registrationService = {
 
       const updated = await repo.update(tx, id, {
         status: 'CANCELLED',
-        cancelReason: reason ?? null,
+        cancelReason: parsed.reason ?? null,
       });
       await auditLogService.record(
         {

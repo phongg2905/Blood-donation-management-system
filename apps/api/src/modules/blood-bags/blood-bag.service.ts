@@ -1,3 +1,4 @@
+import { BloodBagStatus } from '@prisma/client';
 import { z } from 'zod';
 import {
   AUDIT_ACTIONS,
@@ -5,22 +6,27 @@ import {
   ERROR_CODES,
 } from '@blood/shared-types';
 import { AppError } from '../../common/errors/app.error';
-import { parseDomain } from '../../common/helpers/domain-validation';
+import {
+  parseDomain,
+  positiveInteger,
+} from '../../common/helpers/domain-validation';
 import {
   paginationMeta,
   resolvePagination,
 } from '../../common/helpers/response';
 import type { AuditContext } from '../audit-logs/audit.service';
 import { auditLogService } from '../audit-logs/audit.service';
-import { database } from '../../config/database';
 import { notificationService } from '../notifications/notification.service';
 import { assertScreeningEligibleForDonation } from '../screenings/screening.validation';
-import { assertBagVolumesReconcile } from './blood-bag.validation';
+import {
+  assertBagVolumesReconcile,
+  assertBloodBagTransition,
+} from './blood-bag.validation';
 import { bloodBagRepository as repo } from './blood-bag.repository';
 
 const bagSchema = z.object({
   code: z.string().trim().min(1).max(64),
-  volumeMl: z.number().int().positive(),
+  volumeMl: positiveInteger,
   bloodType: z
     .enum([
       'A_POSITIVE',
@@ -38,14 +44,14 @@ const recordSchema = z.object({ bags: z.array(bagSchema).min(1).max(20) });
 
 const listQuerySchema = z.object({
   campaignId: z.string().uuid().optional(),
-  status: z.string().trim().optional(),
+  status: z.enum(BloodBagStatus).optional(),
   search: z.string().trim().optional(),
   page: z.coerce.number().int().positive().optional(),
   limit: z.coerce.number().int().positive().optional(),
 });
 
 const updateBagSchema = z.object({
-  volumeMl: z.number().int().positive().optional(),
+  volumeMl: positiveInteger.optional(),
   status: z
     .enum([
       'CREATED',
@@ -85,7 +91,11 @@ export const bloodBagService = {
     staffUserId: string,
     ctx: AuditContext,
   ) {
-    const { bags } = parseDomain(recordSchema, input);
+    const parsed = parseDomain(recordSchema, input);
+    const bags = parsed.bags.map((bag) => ({
+      ...bag,
+      code: bag.code.toUpperCase(),
+    }));
     const normalizedCodes = bags.map((b) => b.code.trim().toUpperCase());
     if (new Set(normalizedCodes).size !== normalizedCodes.length) {
       throw AppError.conflict(
@@ -93,7 +103,10 @@ export const bloodBagService = {
         'Không được gán trùng mã barcode túi máu trong cùng một lượt thu nhận',
       );
     }
-    const totalVolumeMl = bags.reduce((sum, b) => sum + b.volumeMl, 0);
+    const totalVolumeMl = parseDomain(
+      positiveInteger,
+      bags.reduce((sum, b) => sum + b.volumeMl, 0),
+    );
     assertBagVolumesReconcile(
       totalVolumeMl,
       bags.map((b) => b.volumeMl),
@@ -137,7 +150,11 @@ export const bloodBagService = {
       }
 
       const duplicateBag = await tx.bloodBag.findFirst({
-        where: { code: { in: bags.map((b) => b.code) } },
+        where: {
+          OR: bags.map((b) => ({
+            code: { equals: b.code, mode: 'insensitive' },
+          })),
+        },
         select: { code: true },
       });
       if (duplicateBag) {
@@ -160,7 +177,12 @@ export const bloodBagService = {
 
       const bloodBags = await repo.createBags(
         tx,
-        bags.map((b) => ({ ...b, donationId: donation.id })),
+        bags.map((b) => ({
+          ...b,
+          donationId: donation.id,
+          status: 'COLLECTED',
+          collectedAt: now,
+        })),
       );
 
       await auditLogService.record(
@@ -211,88 +233,135 @@ export const bloodBagService = {
   },
 
   async eligibleQueue(campaignId?: string) {
-    return repo.listEligibleScreenings(campaignId);
+    const query = parseDomain(
+      z.object({ campaignId: z.string().uuid().optional() }),
+      { campaignId },
+    );
+    return repo.listEligibleScreenings(query.campaignId);
   },
 
   async getById(id: string) {
     const bag = await repo.findById(id);
-    if (!bag) throw AppError.notFound(ERROR_CODES.SCREENING_NOT_FOUND, 'Không tìm thấy túi máu');
+    if (!bag)
+      throw AppError.notFound(
+        ERROR_CODES.SCREENING_NOT_FOUND,
+        'Không tìm thấy túi máu',
+      );
     return bag;
   },
 
   async update(id: string, input: unknown, ctx: AuditContext) {
     const data = parseDomain(updateBagSchema, input);
-    const existing = await repo.findById(id);
-    if (!existing) throw AppError.notFound(ERROR_CODES.SCREENING_NOT_FOUND, 'Không tìm thấy túi máu');
-
     const { syncDonorProfile = true, ...bagData } = data;
-    let notificationToDispatch: any = null;
-
-    const updated = await repo.transaction(async (tx) => {
+    const result = await repo.transaction(async (tx) => {
+      const existing = await repo.findById(id, tx);
+      if (!existing)
+        throw AppError.notFound(
+          ERROR_CODES.SCREENING_NOT_FOUND,
+          'Không tìm thấy túi máu',
+        );
+      if (data.status && data.status !== existing.status) {
+        assertBloodBagTransition(existing.status, data.status);
+      }
+      const effectiveStatus = data.status ?? existing.status;
+      if (
+        (effectiveStatus === 'TESTED' || effectiveStatus === 'ACCEPTED') &&
+        !(data.bloodType === undefined ? existing.bloodType : data.bloodType)
+      ) {
+        throw AppError.validation({
+          bloodType: 'Cần xác nhận nhóm máu khi hoàn tất xét nghiệm',
+        });
+      }
       const updatedBag = await tx.bloodBag.update({
         where: { id },
         data: bagData,
       });
-
-      if (data.bloodType && syncDonorProfile) {
-        const donorId = existing.donation?.screening?.checkIn?.registration?.donor?.id;
-        const donorUserId = existing.donation?.screening?.checkIn?.registration?.donor?.userId;
-        const campaignName = existing.donation?.screening?.checkIn?.registration?.campaign?.name ?? 'Đợt hiến máu';
-
-        if (donorId) {
-          await tx.donorProfile.update({
-            where: { id: donorId },
-            data: { bloodType: data.bloodType },
-          });
-        }
-
-        if (donorUserId) {
-          const formatted = data.bloodType.replace('_POSITIVE', ' (Rh+)').replace('_NEGATIVE', ' (Rh−)');
-          notificationToDispatch = await notificationService.create(tx, {
-            userId: donorUserId,
-            type: 'DONATION',
-            title: 'Kết quả xét nghiệm nhóm máu',
-            message: `Kết quả xét nghiệm máu từ đợt hiến "${campaignName}": Nhóm máu khẳng định của bạn là Nhóm ${formatted}. Túi máu ${existing.code} đạt tiêu chuẩn an toàn truyền máu. Cảm ơn bạn!`,
-            channel: 'IN_APP',
-          });
-        }
+      if (data.volumeMl !== undefined && data.volumeMl !== existing.volumeMl) {
+        const total = await tx.bloodBag.aggregate({
+          where: { donationId: existing.donationId },
+          _sum: { volumeMl: true },
+        });
+        await tx.donation.update({
+          where: { id: existing.donationId },
+          data: { volumeMl: total._sum.volumeMl },
+        });
       }
-
-      return updatedBag;
+      let notification = null;
+      if (
+        data.bloodType &&
+        data.bloodType !== existing.bloodType &&
+        syncDonorProfile
+      ) {
+        const registration = existing.donation.screening.checkIn.registration;
+        await tx.donorProfile.update({
+          where: { id: registration.donor.id },
+          data: { bloodType: data.bloodType },
+        });
+        const formatted = data.bloodType
+          .replace('_POSITIVE', ' (Rh+)')
+          .replace('_NEGATIVE', ' (Rh−)');
+        notification = await notificationService.create(tx, {
+          userId: registration.donor.userId,
+          type: 'DONATION',
+          title: 'Kết quả xét nghiệm nhóm máu',
+          message: `Kết quả xác định nhóm máu từ đợt hiến "${registration.campaign.name}": Nhóm ${formatted}.`,
+          channel: 'IN_APP',
+        });
+      }
+      await auditLogService.record(
+        {
+          ...ctx,
+          action: AUDIT_ACTIONS.BLOOD_BAG_STATUS_CHANGED,
+          entityType: AUDIT_ENTITY_TYPES.BLOOD_BAG,
+          entityId: id,
+          metadata: { updatedFields: Object.keys(data) },
+        },
+        tx,
+      );
+      return { updatedBag, notification };
     });
-
-    if (notificationToDispatch) {
-      void notificationService.dispatch(notificationToDispatch);
-    }
-
-    await auditLogService.recordSafely(
-      {
-        ...ctx,
-        action: AUDIT_ACTIONS.DONATION_COMPLETED,
-        entityType: AUDIT_ENTITY_TYPES.BLOOD_BAG,
-        entityId: id,
-        metadata: { updatedFields: Object.keys(data) },
-      },
-      database,
-    );
-    return updated;
+    if (result.notification)
+      void notificationService.dispatch(result.notification);
+    return result.updatedBag;
   },
 
   async delete(id: string, ctx: AuditContext) {
-    const existing = await repo.findById(id);
-    if (!existing) throw AppError.notFound(ERROR_CODES.SCREENING_NOT_FOUND, 'Không tìm thấy túi máu');
-
-    await repo.delete(id);
-    await auditLogService.recordSafely(
-      {
-        ...ctx,
-        action: AUDIT_ACTIONS.DONATION_COMPLETED,
-        entityType: AUDIT_ENTITY_TYPES.BLOOD_BAG,
-        entityId: id,
-        metadata: { deleted: true, code: existing.code },
-      },
-      database,
-    );
-    return { success: true };
+    return repo.transaction(async (tx) => {
+      const existing = await repo.findById(id, tx);
+      if (!existing)
+        throw AppError.notFound(
+          ERROR_CODES.SCREENING_NOT_FOUND,
+          'Không tìm thấy túi máu',
+        );
+      const bagCount = await tx.bloodBag.count({
+        where: { donationId: existing.donationId },
+      });
+      if (bagCount <= 1) {
+        throw AppError.conflict(
+          ERROR_CODES.DONATION_RECONCILIATION_FAILED,
+          'Không thể xóa túi máu cuối cùng của lượt hiến đã hoàn tất',
+        );
+      }
+      await tx.bloodBag.delete({ where: { id } });
+      const total = await tx.bloodBag.aggregate({
+        where: { donationId: existing.donationId },
+        _sum: { volumeMl: true },
+      });
+      await tx.donation.update({
+        where: { id: existing.donationId },
+        data: { volumeMl: total._sum.volumeMl },
+      });
+      await auditLogService.record(
+        {
+          ...ctx,
+          action: AUDIT_ACTIONS.BLOOD_BAG_STATUS_CHANGED,
+          entityType: AUDIT_ENTITY_TYPES.BLOOD_BAG,
+          entityId: id,
+          metadata: { deleted: true, code: existing.code },
+        },
+        tx,
+      );
+      return { success: true };
+    });
   },
 };

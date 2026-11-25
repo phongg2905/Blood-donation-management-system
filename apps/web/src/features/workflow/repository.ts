@@ -5,7 +5,14 @@ import type {
   RegistrationStatus,
   ScreeningStatus,
 } from '@blood/shared-types';
-import { ApiRequestError, apiDelete, apiGet, apiPatch, apiPost } from '@/services/api';
+import {
+  ApiRequestError,
+  apiDelete,
+  apiGet,
+  apiGetAll,
+  apiPatch,
+  apiPost,
+} from '@/services/api';
 import type {
   BackendBloodType,
   BloodBag,
@@ -32,6 +39,7 @@ interface BackendRegistrationDto {
   status: RegistrationStatus;
   createdAt?: string;
   donor?: {
+    id?: string;
     phone?: string | null;
     citizenId?: string | null;
     user?: { fullName?: string; phone?: string | null };
@@ -56,6 +64,7 @@ interface BackendRegistrationDto {
     registrationId: string;
     checkedInAt: string;
     checkedInById?: string | null;
+    screening?: BackendScreeningDto | null;
   } | null;
 }
 
@@ -75,9 +84,8 @@ interface BackendScreeningDto {
   pulse?: number | null;
   hemoglobin?: number | string | null;
   indicatedVolumeMl?: number | null;
-  checkIn?: {
-    registrationId?: string;
-  } | null;
+  checkIn?: BackendCheckInDto | null;
+  donation?: BackendDonationDto | null;
   tests?: Array<{
     code: string;
     result?: string | null;
@@ -91,6 +99,8 @@ interface BackendBloodBagItemDto {
   bloodType?: BackendBloodType | null;
   status?: BloodBagStatus;
   storageLocation?: string | null;
+  collectedAt?: string | null;
+  donation?: BackendDonationDto | null;
   createdAt?: string;
 }
 
@@ -101,17 +111,39 @@ interface BackendCertificateDto {
   issuedAt: string;
   status: CertificateStatus;
   fileUrl?: string | null;
+  donation?: BackendDonationDto | null;
 }
 
 interface BackendBloodBagRecordDto {
   bloodBags: BackendBloodBagItemDto[];
-  certificate: BackendCertificateDto;
+  certificate: BackendCertificateDto | null;
+}
+
+interface BackendCheckInDto {
+  id: string;
+  registrationId: string;
+  checkedInAt: string;
+  checkedInById?: string | null;
+  registration: BackendRegistrationDto;
+  screening?: BackendScreeningDto | null;
+}
+interface BackendDonationDto {
+  volumeMl?: number | null;
+  certificate?: BackendCertificateDto | null;
+  screening?: BackendScreeningDto | null;
+  bloodBags?: BackendBloodBagItemDto[];
 }
 
 /** Maps backend Registration DTO into frontend DonorRegistration model */
 export function mapRegistration(
   dto: BackendRegistrationDto,
-  fallbackCampaign?: { id: string; name: string; location: string; startsAt: string; endsAt: string },
+  fallbackCampaign?: {
+    id: string;
+    name: string;
+    location: string;
+    startsAt: string;
+    endsAt: string;
+  },
   fallbackSlot?: { id: string; startsAt: string; endsAt: string },
   fallbackDonorName?: string,
 ): DonorRegistration {
@@ -125,7 +157,8 @@ export function mapRegistration(
     campaignId: dto.campaignId,
     campaignName: dto.campaign?.name ?? fallbackCampaign?.name ?? '',
     location: dto.campaign?.location ?? fallbackCampaign?.location ?? '',
-    campaignStartsAt: dto.campaign?.startsAt ?? fallbackCampaign?.startsAt ?? '',
+    campaignStartsAt:
+      dto.campaign?.startsAt ?? fallbackCampaign?.startsAt ?? '',
     campaignEndsAt: dto.campaign?.endsAt ?? fallbackCampaign?.endsAt ?? '',
     slotId: dto.timeSlotId ?? fallbackSlot?.id ?? '',
     slotStartsAt: dto.timeSlot?.startsAt ?? fallbackSlot?.startsAt ?? '',
@@ -133,9 +166,13 @@ export function mapRegistration(
     status: dto.status,
     healthDeclaration: dto.healthDeclaration
       ? {
-          answers: (dto.healthDeclaration.answers as Record<string, boolean>) ?? {},
+          answers:
+            (dto.healthDeclaration.answers as Record<string, boolean>) ?? {},
           confirmed: true,
-          declaredAt: dto.healthDeclaration.submittedAt ?? dto.healthDeclaration.createdAt ?? '',
+          declaredAt:
+            dto.healthDeclaration.submittedAt ??
+            dto.healthDeclaration.createdAt ??
+            '',
         }
       : null,
     checkedInAt: dto.checkIn?.checkedInAt ?? null,
@@ -158,12 +195,18 @@ export function mapScreening(
   fallbackCheckInId?: string,
 ): ScreeningRecord {
   const measurements: ScreeningMeasurements = {};
-  if (dto.weightKg !== null && dto.weightKg !== undefined) measurements.WEIGHT = Number(dto.weightKg);
-  if (dto.temperatureC !== null && dto.temperatureC !== undefined) measurements.TEMPERATURE = Number(dto.temperatureC);
-  if (dto.systolicBp !== null && dto.systolicBp !== undefined) measurements.BLOOD_PRESSURE_SYSTOLIC = Number(dto.systolicBp);
-  if (dto.diastolicBp !== null && dto.diastolicBp !== undefined) measurements.BLOOD_PRESSURE_DIASTOLIC = Number(dto.diastolicBp);
-  if (dto.pulse !== null && dto.pulse !== undefined) measurements.PULSE = Number(dto.pulse);
-  if (dto.hemoglobin !== null && dto.hemoglobin !== undefined) measurements.HEMOGLOBIN = Number(dto.hemoglobin);
+  if (dto.weightKg !== null && dto.weightKg !== undefined)
+    measurements.WEIGHT = Number(dto.weightKg);
+  if (dto.temperatureC !== null && dto.temperatureC !== undefined)
+    measurements.TEMPERATURE = Number(dto.temperatureC);
+  if (dto.systolicBp !== null && dto.systolicBp !== undefined)
+    measurements.BLOOD_PRESSURE_SYSTOLIC = Number(dto.systolicBp);
+  if (dto.diastolicBp !== null && dto.diastolicBp !== undefined)
+    measurements.BLOOD_PRESSURE_DIASTOLIC = Number(dto.diastolicBp);
+  if (dto.pulse !== null && dto.pulse !== undefined)
+    measurements.PULSE = Number(dto.pulse);
+  if (dto.hemoglobin !== null && dto.hemoglobin !== undefined)
+    measurements.HEMOGLOBIN = Number(dto.hemoglobin);
 
   let bloodGroup: ScreeningRecord['bloodGroup'] = null;
   let rh: ScreeningRecord['rh'] = null;
@@ -172,7 +215,8 @@ export function mapScreening(
   if (Array.isArray(dto.tests)) {
     for (const test of dto.tests) {
       if (test.code === 'INFECTIOUS_DISEASE') {
-        infectiousTest = (test.result as ScreeningRecord['infectiousTest']) ?? null;
+        infectiousTest =
+          (test.result as ScreeningRecord['infectiousTest']) ?? null;
       }
       if (test.code === 'BLOOD_GROUP' && test.result) {
         if (test.result.includes('+')) {
@@ -180,7 +224,10 @@ export function mapScreening(
         } else if (test.result.includes('-')) {
           rh = 'NEGATIVE';
         }
-        const groupMatch = test.result.replace(/[^ABO]/g, '') as ScreeningRecord['bloodGroup'];
+        const groupMatch = test.result.replace(
+          /[^ABO]/g,
+          '',
+        ) as ScreeningRecord['bloodGroup'];
         if (['A', 'B', 'AB', 'O'].includes(groupMatch ?? '')) {
           bloodGroup = groupMatch;
         }
@@ -220,40 +267,55 @@ export class ApiWorkflowRepository implements WorkflowRepository {
         questionnaireVersion: 'v1.0',
       },
     });
-    return mapRegistration(response.data, input.campaign, input.slot, input.donorName);
+    return mapRegistration(
+      response.data,
+      input.campaign,
+      input.slot,
+      input.donorName,
+    );
   }
 
   async getRegistration(id: string): Promise<DonorRegistration> {
-    const response = await apiGet<BackendRegistrationDto>(`/registrations/${encodeURIComponent(id)}`);
+    const response = await apiGet<BackendRegistrationDto>(
+      `/registrations/${encodeURIComponent(id)}`,
+    );
     return mapRegistration(response.data);
   }
 
   async reschedule(id: string, timeSlotId: string): Promise<DonorRegistration> {
-    const response = await apiPatch<BackendRegistrationDto>(`/registrations/${encodeURIComponent(id)}/schedule`, {
-      timeSlotId,
-    });
+    const response = await apiPatch<BackendRegistrationDto>(
+      `/registrations/${encodeURIComponent(id)}/schedule`,
+      {
+        timeSlotId,
+      },
+    );
     return mapRegistration(response.data);
   }
 
   async cancel(id: string, reason?: string): Promise<DonorRegistration> {
-    const response = await apiPost<BackendRegistrationDto>(`/registrations/${encodeURIComponent(id)}/cancel`, {
-      reason,
-    });
+    const response = await apiPost<BackendRegistrationDto>(
+      `/registrations/${encodeURIComponent(id)}/cancel`,
+      {
+        reason,
+      },
+    );
     return mapRegistration(response.data);
   }
 
   async myRegistrations(): Promise<DonorRegistration[]> {
-    try {
-      const response = await apiGet<BackendRegistrationDto[]>('/registrations/my');
-      return (response.data ?? []).map((item) => mapRegistration(item));
-    } catch {
-      return [];
-    }
+    const response =
+      await apiGetAll<BackendRegistrationDto>('/registrations/my');
+    return response.map((item) => mapRegistration(item));
   }
 
   async findRegistrations(query: CheckInQuery): Promise<DonorRegistration[]> {
     const trimmedCode = query.code?.trim();
-    if (trimmedCode && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmedCode)) {
+    if (
+      trimmedCode &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        trimmedCode,
+      )
+    ) {
       try {
         const item = await this.getRegistration(trimmedCode);
         return [item];
@@ -262,18 +324,17 @@ export class ApiWorkflowRepository implements WorkflowRepository {
       }
     }
 
-    const searchTerm = trimmedCode || query.identity?.trim() || query.phone?.trim();
+    const searchTerm =
+      trimmedCode || query.identity?.trim() || query.phone?.trim();
     const params = new URLSearchParams();
     if (searchTerm) params.set('search', searchTerm);
     if (query.campaignId) params.set('campaignId', query.campaignId);
     params.set('limit', '50');
 
-    try {
-      const response = await apiGet<BackendRegistrationDto[]>(`/registrations?${params.toString()}`);
-      return (response.data ?? []).map((item) => mapRegistration(item));
-    } catch {
-      return [];
-    }
+    const response = await apiGetAll<BackendRegistrationDto>(
+      `/registrations?${params.toString()}`,
+    );
+    return response.map((item) => mapRegistration(item));
   }
 
   async checkIn(registrationId: string): Promise<DonorRegistration> {
@@ -291,62 +352,55 @@ export class ApiWorkflowRepository implements WorkflowRepository {
   }
 
   async screeningQueue(campaignId?: string): Promise<ScreeningQueueItem[]> {
-    try {
-      const response = await apiGet<any[]>('/screenings/queue');
-      const list = response.data ?? [];
-      return list
-        .filter((c) => !campaignId || c.registration?.campaignId === campaignId)
-        .map((c) => {
-          const registration = mapRegistration({
-            ...c.registration,
-            checkIn: c.registration?.checkIn ?? {
-              id: c.id,
-              registrationId: c.registrationId ?? c.registration?.id,
-              checkedInAt: c.checkedInAt,
-              checkedInById: c.checkedInById,
-            },
-          });
-          const screening: ScreeningRecord = c.screening
-            ? mapScreening(
-                c.screening,
-                c.registrationId ?? c.registration?.id,
-                c.id,
-              )
-            : {
-                id: '',
-                registrationId: c.registrationId ?? c.registration?.id,
-                checkInId: c.id,
-                status: 'PENDING',
-                measurements: {},
-                reason: null,
-                createdAt: c.checkedInAt,
-                reviewedAt: null,
-                bloodGroup: null,
-                rh: null,
-                infectiousTest: null,
-              };
-          return { registration, screening };
+    const response = await apiGet<BackendCheckInDto[]>('/screenings/queue');
+    const list = response.data ?? [];
+    return list
+      .filter((c) => !campaignId || c.registration?.campaignId === campaignId)
+      .map((c) => {
+        const registration = mapRegistration({
+          ...c.registration,
+          checkIn: c.registration?.checkIn ?? {
+            id: c.id,
+            registrationId: c.registrationId ?? c.registration?.id,
+            checkedInAt: c.checkedInAt,
+            checkedInById: c.checkedInById,
+          },
         });
-    } catch {
-      return [];
-    }
+        const screening: ScreeningRecord = c.screening
+          ? mapScreening(
+              c.screening,
+              c.registrationId ?? c.registration?.id,
+              c.id,
+            )
+          : {
+              id: '',
+              registrationId: c.registrationId ?? c.registration?.id,
+              checkInId: c.id,
+              status: 'PENDING',
+              measurements: {},
+              reason: null,
+              createdAt: c.checkedInAt,
+              reviewedAt: null,
+              bloodGroup: null,
+              rh: null,
+              infectiousTest: null,
+            };
+        return { registration, screening };
+      });
   }
 
   async screeningFor(registrationId: string): Promise<ScreeningRecord | null> {
-    try {
-      const reg = await this.getRegistration(registrationId);
-      if (reg.checkIn?.id) {
-        const response = await apiGet<BackendScreeningDto>(`/screenings/${encodeURIComponent(reg.checkIn.id)}`);
-        return mapScreening(response.data, registrationId, reg.checkIn.id);
-      }
-    } catch {
-      // screening not found or checkIn missing
-    }
-    return null;
+    const queue = await this.screeningQueue();
+    const item = queue.find(
+      (entry) => entry.registration.id === registrationId,
+    );
+    return item?.screening.id ? item.screening : null;
   }
 
   async getScreening(id: string): Promise<ScreeningRecord> {
-    const response = await apiGet<BackendScreeningDto>(`/screenings/${encodeURIComponent(id)}`);
+    const response = await apiGet<BackendScreeningDto>(
+      `/screenings/${encodeURIComponent(id)}`,
+    );
     return mapScreening(response.data);
   }
 
@@ -362,7 +416,11 @@ export class ApiWorkflowRepository implements WorkflowRepository {
       targetCheckInId = reg.checkIn?.id;
     }
     if (!targetCheckInId) {
-      throw new ApiRequestError('CHECK_IN_REQUIRED', 'Lượt đăng ký chưa được check-in', 409);
+      throw new ApiRequestError(
+        'CHECK_IN_REQUIRED',
+        'Lượt đăng ký chưa được check-in',
+        409,
+      );
     }
 
     const tests: Array<{ code: string; result: string }> = [];
@@ -383,7 +441,9 @@ export class ApiWorkflowRepository implements WorkflowRepository {
       checkInId: targetCheckInId,
       measurements: {
         weightKg: measurements.WEIGHT ? Number(measurements.WEIGHT) : undefined,
-        temperatureC: measurements.TEMPERATURE ? Number(measurements.TEMPERATURE) : undefined,
+        temperatureC: measurements.TEMPERATURE
+          ? Number(measurements.TEMPERATURE)
+          : undefined,
         systolicBp: measurements.BLOOD_PRESSURE_SYSTOLIC
           ? Math.round(measurements.BLOOD_PRESSURE_SYSTOLIC)
           : undefined,
@@ -391,7 +451,9 @@ export class ApiWorkflowRepository implements WorkflowRepository {
           ? Math.round(measurements.BLOOD_PRESSURE_DIASTOLIC)
           : undefined,
         pulse: measurements.PULSE ? Math.round(measurements.PULSE) : undefined,
-        hemoglobin: measurements.HEMOGLOBIN ? Number(measurements.HEMOGLOBIN) : undefined,
+        hemoglobin: measurements.HEMOGLOBIN
+          ? Number(measurements.HEMOGLOBIN)
+          : undefined,
       },
       tests,
     };
@@ -442,54 +504,54 @@ export class ApiWorkflowRepository implements WorkflowRepository {
   }
 
   async eligibleForBag(campaignId?: string): Promise<ScreeningQueueItem[]> {
-    try {
-      const url = `/blood-bags/eligible${campaignId ? `?campaignId=${encodeURIComponent(campaignId)}` : ''}`;
-      const response = await apiGet<any[]>(url);
-      return (response.data ?? []).map((item) => {
-        const reg = mapRegistration(item.checkIn.registration);
-        const scr = mapScreening(item, item.checkIn.registration.id, item.checkIn.id);
-        return { registration: reg, screening: scr };
-      });
-    } catch {
-      return [];
-    }
+    const url = `/blood-bags/eligible${campaignId ? `?campaignId=${encodeURIComponent(campaignId)}` : ''}`;
+    const response =
+      await apiGet<Array<BackendScreeningDto & { checkIn: BackendCheckInDto }>>(
+        url,
+      );
+    return (response.data ?? []).map((item) => {
+      const reg = mapRegistration(item.checkIn.registration);
+      const scr = mapScreening(
+        item,
+        item.checkIn.registration.id,
+        item.checkIn.id,
+      );
+      return { registration: reg, screening: scr };
+    });
   }
 
   async bloodBags(campaignId?: string): Promise<BloodBag[]> {
-    try {
-      const url = `/blood-bags${campaignId ? `?campaignId=${encodeURIComponent(campaignId)}&limit=100` : '?limit=100'}`;
-      const response = await apiGet<any[]>(url);
-      return (response.data ?? []).map((bag) => {
-        const reg = bag.donation?.screening?.checkIn?.registration;
-        const bloodTypeStr = bag.bloodType ?? null;
-        let bloodGroup: string | null = null;
-        if (bloodTypeStr) {
-          if (bloodTypeStr.startsWith('A_')) bloodGroup = 'A';
-          else if (bloodTypeStr.startsWith('B_')) bloodGroup = 'B';
-          else if (bloodTypeStr.startsWith('AB_')) bloodGroup = 'AB';
-          else if (bloodTypeStr.startsWith('O_')) bloodGroup = 'O';
-        }
-        return {
-          id: bag.id,
-          code: bag.code,
-          registrationId: reg?.id ?? '',
-          donorId: reg?.donor?.id ?? '',
-          donorName: reg?.donor?.user?.fullName ?? '',
-          campaignName: reg?.campaign?.name ?? '',
-          volumeMl: bag.volumeMl,
-          bloodGroup,
-          bloodType: bloodTypeStr,
-          status: bag.status ?? 'COLLECTED',
-          storageLocation: bag.storageLocation ?? null,
-          receivedAt: bag.collectedAt ?? bag.createdAt ?? new Date().toISOString(),
-          certificateCode: bag.donation?.certificate?.code,
-          certificateId: bag.donation?.certificate?.id,
-          certificateFileUrl: bag.donation?.certificate?.fileUrl ?? null,
-        };
-      });
-    } catch {
-      return [];
-    }
+    const url = `/blood-bags${campaignId ? `?campaignId=${encodeURIComponent(campaignId)}&limit=100` : '?limit=100'}`;
+    const response = await apiGetAll<BackendBloodBagItemDto>(url);
+    return response.map((bag) => {
+      const reg = bag.donation?.screening?.checkIn?.registration;
+      const bloodTypeStr = bag.bloodType ?? null;
+      let bloodGroup: string | null = null;
+      if (bloodTypeStr) {
+        if (bloodTypeStr.startsWith('A_')) bloodGroup = 'A';
+        else if (bloodTypeStr.startsWith('B_')) bloodGroup = 'B';
+        else if (bloodTypeStr.startsWith('AB_')) bloodGroup = 'AB';
+        else if (bloodTypeStr.startsWith('O_')) bloodGroup = 'O';
+      }
+      return {
+        id: bag.id,
+        code: bag.code,
+        registrationId: reg?.id ?? '',
+        donorId: reg?.donor?.id ?? '',
+        donorName: reg?.donor?.user?.fullName ?? '',
+        campaignName: reg?.campaign?.name ?? '',
+        volumeMl: bag.volumeMl,
+        bloodGroup,
+        bloodType: bloodTypeStr,
+        status: bag.status ?? 'COLLECTED',
+        storageLocation: bag.storageLocation ?? null,
+        receivedAt:
+          bag.collectedAt ?? bag.createdAt ?? new Date().toISOString(),
+        certificateCode: bag.donation?.certificate?.code,
+        certificateId: bag.donation?.certificate?.id,
+        certificateFileUrl: bag.donation?.certificate?.fileUrl ?? null,
+      };
+    });
   }
 
   async createBloodBag(input: BloodBagInput): Promise<BloodBag> {
@@ -534,7 +596,11 @@ export class ApiWorkflowRepository implements WorkflowRepository {
 
     const bag = response.data.bloodBags[0];
     if (!bag) {
-      throw new ApiRequestError('INTERNAL_ERROR', 'Không tìm thấy túi máu được tạo', 500);
+      throw new ApiRequestError(
+        'INTERNAL_ERROR',
+        'Không tìm thấy túi máu được tạo',
+        500,
+      );
     }
     const cert = response.data.certificate;
 
@@ -593,41 +659,44 @@ export class ApiWorkflowRepository implements WorkflowRepository {
   }
 
   async certificates(): Promise<DonationCertificate[]> {
-    try {
-      const response = await apiGet<any[]>('/certificates');
-      return (response.data ?? []).map((cert) => {
-        const reg = cert.donation?.screening?.checkIn?.registration;
-        return {
-          id: cert.id,
-          code: cert.code,
-          donationId: cert.donationId,
-          donorId: reg?.donor?.id ?? '',
-          donorName: reg?.donor?.user?.fullName ?? '',
-          campaignName: reg?.campaign?.name ?? '',
-          location: reg?.campaign?.location ?? '',
-          donationDate: cert.issuedAt,
-          volumeMl: cert.donation?.volumeMl ?? 0,
-          bloodGroup: null,
-          status: cert.status,
-          issuedAt: cert.issuedAt,
-          fileUrl: cert.fileUrl ?? null,
-        };
-      });
-    } catch {
-      return [];
-    }
+    const response = await apiGetAll<BackendCertificateDto>('/certificates');
+    return response.map((cert) => {
+      const reg = cert.donation?.screening?.checkIn?.registration;
+      return {
+        id: cert.id,
+        code: cert.code,
+        donationId: cert.donationId,
+        donorId: reg?.donor?.id ?? '',
+        donorName: reg?.donor?.user?.fullName ?? '',
+        campaignName: reg?.campaign?.name ?? '',
+        location: reg?.campaign?.location ?? '',
+        donationDate: cert.issuedAt,
+        volumeMl: cert.donation?.volumeMl ?? 0,
+        bloodGroup: null,
+        status: cert.status,
+        issuedAt: cert.issuedAt,
+        fileUrl: cert.fileUrl ?? null,
+      };
+    });
   }
 
   async certificate(id: string): Promise<DonationCertificate> {
     const list = await this.certificates();
     const found = list.find((c) => c.id === id || c.code === id);
     if (!found) {
-      throw new ApiRequestError('ROUTE_NOT_FOUND', 'Chứng nhận không tồn tại', 404);
+      throw new ApiRequestError(
+        'ROUTE_NOT_FOUND',
+        'Chứng nhận không tồn tại',
+        404,
+      );
     }
     return found;
   }
 
-  async attachCertificateFile(id: string, fileUrl: string): Promise<DonationCertificate> {
+  async attachCertificateFile(
+    id: string,
+    fileUrl: string,
+  ): Promise<DonationCertificate> {
     const response = await apiPost<BackendCertificateDto>(
       `/certificates/${encodeURIComponent(id)}/file`,
       { fileUrl },
@@ -650,38 +719,9 @@ export class ApiWorkflowRepository implements WorkflowRepository {
     };
   }
 
-  async history(donorId?: string): Promise<DonorHistoryEntry[]> {
-    try {
-      const response = await apiGet<any[]>('/donors/me/history');
-      return (response.data ?? []).map((item) => {
-        const bag = item.checkIn?.screening?.donation?.bloodBags?.[0];
-        const cert = item.checkIn?.screening?.donation?.certificate;
-        const rawDate =
-          item.date ??
-          item.timeSlot?.startsAt ??
-          item.campaign?.startsAt ??
-          item.createdAt ??
-          '';
-        const dateStr =
-          typeof rawDate === 'string'
-            ? rawDate
-            : rawDate instanceof Date
-            ? rawDate.toISOString()
-            : '';
-        return {
-          id: item.id,
-          date: dateStr,
-          campaignName: item.campaignName ?? item.campaign?.name ?? '',
-          location: item.location ?? item.campaign?.location ?? '',
-          volumeMl: item.volumeMl ?? bag?.volumeMl ?? 350,
-          bloodGroup: item.bloodGroup ?? bag?.bloodType ?? null,
-          status: item.status,
-          certificateId: item.certificateId ?? cert?.id ?? null,
-        };
-      });
-    } catch {
-      return [];
-    }
+  async history(): Promise<DonorHistoryEntry[]> {
+    const response = await apiGet<DonorHistoryEntry[]>('/donors/me/history');
+    return response.data;
   }
 }
 

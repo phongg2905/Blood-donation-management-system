@@ -26,10 +26,9 @@ import {
   canAct,
   formatDate,
   getRegistrationWindowInfo,
-  STATUS_LABELS,
 } from './domain';
 import { useCampaignMutation, useCampaignQuery } from './hooks';
-import { useCampaignRepository } from './repository';
+import { allCampaigns, useCampaignRepository } from './repository';
 import type { Campaign, CampaignAction, CampaignQuery } from './types';
 import { TimeSlotList } from './TimeSlotPage';
 import {
@@ -100,7 +99,7 @@ export function CampaignListPage() {
     sort: sortDirection,
   };
   const result = useCampaignQuery(`list:${isManager ? 'mgr' : 'donor'}:${params}`, () =>
-    repository.list(query),
+    isManager ? allCampaigns(repository, query) : repository.list(query),
   );
   function change(name: string, value: string) {
     const next = new URLSearchParams(params);

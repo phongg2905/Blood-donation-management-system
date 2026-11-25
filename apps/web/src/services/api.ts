@@ -48,7 +48,9 @@ let refreshInFlight: Promise<boolean> | null = null;
  * receives the same outcome. Resolves `false` when the cookie is gone/expired,
  * which is a normal anonymous state rather than an error.
  */
-export const refreshSession = (refresh: () => Promise<boolean>): Promise<boolean> => {
+export const refreshSession = (
+  refresh: () => Promise<boolean>,
+): Promise<boolean> => {
   refreshInFlight ??= refresh().finally(() => {
     refreshInFlight = null;
   });
@@ -233,3 +235,22 @@ export const apiPatch = <T>(
 
 export const apiDelete = <T>(path: string, options?: RequestOptions) =>
   request<T>('DELETE', path, undefined, options);
+
+/** Load every page for workflow screens that paginate their results locally. */
+export async function apiGetAll<T>(path: string): Promise<T[]> {
+  const [pathname, queryString] = path.split('?');
+  const params = new URLSearchParams(queryString);
+  params.set('limit', '100');
+  const items: T[] = [];
+  for (let page = 1; ; page++) {
+    params.set('page', String(page));
+    const response = await apiGet<T[]>(`${pathname}?${params}`);
+    items.push(...response.data);
+    if (
+      !response.meta ||
+      response.data.length === 0 ||
+      response.meta.page * response.meta.limit >= response.meta.total
+    )
+      return items;
+  }
+}

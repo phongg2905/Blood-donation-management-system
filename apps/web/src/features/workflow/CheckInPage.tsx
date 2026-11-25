@@ -4,7 +4,7 @@ import { MapPin, Clock, Check, Lock, X } from 'lucide-react';
 import { Button, FormField, Input } from '@/components/ui';
 import { AuthContext } from '@/features/auth/context/auth-context';
 import { Feedback, QueryState } from '@/features/campaigns/components';
-import { useCampaignRepository } from '@/features/campaigns/repository';
+import { allCampaigns, useCampaignRepository } from '@/features/campaigns/repository';
 import { useCampaignQuery } from '@/features/campaigns/hooks';
 import {
   OPERATIONAL_STATUS_SHORT_LABELS,
@@ -193,7 +193,7 @@ export function CheckInPage() {
 
   const campaignsListQuery = useCampaignQuery(
     'checkin-campaigns-list',
-    () => campaignRepo.list({ page: 1, limit: 50, sort: 'desc' }),
+    () => allCampaigns(campaignRepo, { page: 1, limit: 100, sort: 'desc' }),
     !campaignId,
   );
 
@@ -214,15 +214,17 @@ export function CheckInPage() {
   const CAMPAIGN_PAGE_SIZE = 10;
   const DESK_PAGE_SIZE = 12;
   const campaignPagination = usePageTransition(1);
+  const { resetPage: resetCampaignPagination } = campaignPagination;
   const deskPagination = usePageTransition(1);
+  const { resetPage: resetDeskPagination } = deskPagination;
 
   useEffect(() => {
-    campaignPagination.resetPage();
-  }, [statusFilter, campaignPagination.resetPage]);
+    resetCampaignPagination();
+  }, [statusFilter, resetCampaignPagination]);
 
   useEffect(() => {
-    deskPagination.resetPage();
-  }, [deskFilter, search, campaignId, deskPagination.resetPage]);
+    resetDeskPagination();
+  }, [deskFilter, search, campaignId, resetDeskPagination]);
 
   useEffect(() => {
     if (campaignId) {
@@ -675,7 +677,7 @@ export function CheckInPage() {
             <FormField id="checkin-code" label="Mã đăng ký">
               <Input
                 value={form.code}
-                placeholder="VD: REG-00001"
+                placeholder="VD: REG-A1B2C3D4"
                 onChange={(event) =>
                   setForm((prev) => ({ ...prev, code: event.target.value }))
                 }

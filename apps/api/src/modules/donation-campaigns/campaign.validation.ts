@@ -161,9 +161,22 @@ const createCampaignRequiredSchema = z.object({
   name: z.string().trim().min(1).max(200),
   location: z.string().trim().min(1).max(500),
 });
+
+// JSON timestamps arrive as ISO strings; keep domain validation Date-only.
+const httpCampaignDate = z.union([
+  z.date(),
+  z.iso.datetime({ offset: true }).transform((value) => new Date(value)),
+]);
+const httpCampaignSchema = campaignSchema.extend({
+  startsAt: httpCampaignDate,
+  endsAt: httpCampaignDate,
+  registrationOpensAt: httpCampaignDate.nullish(),
+  registrationClosesAt: httpCampaignDate.nullish(),
+});
+
 export function validateCreateCampaign(input: unknown) {
   const required = parseDomain(createCampaignRequiredSchema, input);
-  const rest = validateCampaign(input);
+  const rest = validateCampaign(parseDomain(httpCampaignSchema, input));
   return { ...rest, ...required };
 }
 
@@ -173,7 +186,7 @@ export function validateCreateCampaign(input: unknown) {
  * `validateCampaign` so a partial patch can never leave startsAt/endsAt or
  * the target fields inconsistent.
  */
-export const campaignPatchSchema = campaignSchema.partial();
+export const campaignPatchSchema = httpCampaignSchema.partial();
 export function validateCampaignPatch(input: unknown) {
   return parseDomain(campaignPatchSchema, input);
 }
@@ -186,6 +199,8 @@ export function validateCancelCampaign(input: unknown) {
 }
 
 const campaignListQuerySchema = z.object({
+  search: z.string().trim().max(200).optional(),
+  sort: z.enum(['asc', 'desc']).optional(),
   status: z.enum([...CAMPAIGN_STATUSES, 'UPCOMING'] as const).optional(),
   from: z.coerce.date().optional(),
   to: z.coerce.date().optional(),

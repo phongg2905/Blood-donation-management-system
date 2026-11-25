@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Building2,
@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { Button, SkeletonAppointmentList, SkeletonAppointmentDetail } from '@/components/ui';
 import { useAuth } from '@/features/auth/hooks/useAuth';
-import { uploadCertificatePhoto, isSupabaseConfigured, SUPABASE_BUCKET } from '@/services/supabase';
+import { uploadCertificatePhoto } from '@/services/supabase';
 import { useWorkflowQuery } from './hooks';
 import { useWorkflowRepository } from './repository';
 import { WorkflowShell } from './components';
@@ -272,6 +272,7 @@ export function DonorHistoryPage() {
   }
 
   // Build unified appointment list
+  const appointmentList = useMemo(() => {
   const appointmentList: UnifiedAppointment[] = [];
 
   // Completed donations from history
@@ -360,6 +361,9 @@ export function DonorHistoryPage() {
     const timeB = b.date ? new Date(b.date).getTime() : 0;
     return (isNaN(timeB) ? 0 : timeB) - (isNaN(timeA) ? 0 : timeA);
   });
+
+  return appointmentList;
+  }, [history.data, registrations.data]);
 
   const upcomingList = appointmentList.filter(
     (item) => item.status === 'CONFIRMED' || item.status === 'SCHEDULED' || item.status === 'PENDING',
@@ -1338,7 +1342,7 @@ export function CertificateDetailPage() {
       back="/donor/certificates"
       backLabel="Kho chứng nhận"
     >
-      {cert ? (
+      {loading ? <p role="status">Đang tải giấy chứng nhận...</p> : cert ? (
         <div style={{ maxWidth: '840px', margin: '0 auto' }}>
           <div className="history-panel-card" style={{ textAlign: 'center', marginBottom: '20px' }}>
             <img

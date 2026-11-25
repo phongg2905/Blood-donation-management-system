@@ -1,6 +1,12 @@
 import { createContext, useContext } from 'react';
 import type { RoleCode } from '@blood/shared-types';
-import { ApiRequestError, apiDelete, apiGet, apiPatch, apiPost } from '@/services/api';
+import {
+  ApiRequestError,
+  apiDelete,
+  apiGet,
+  apiPatch,
+  apiPost,
+} from '@/services/api';
 import type {
   Assignment,
   Campaign,
@@ -29,14 +35,20 @@ export const mapCampaign = (
   dto: Campaign & { staff?: Campaign['staffAssignments'] },
 ): Campaign => ({
   ...dto,
-  ...(dto.staff && !dto.staffAssignments ? { staffAssignments: dto.staff } : {}),
-  ...(dto._count?.registrations !== undefined && dto.registeredDonors === undefined
+  ...(dto.staff && !dto.staffAssignments
+    ? { staffAssignments: dto.staff }
+    : {}),
+  ...(dto._count?.registrations !== undefined &&
+  dto.registeredDonors === undefined
     ? { registeredDonors: dto._count.registrations }
     : {}),
 });
 export const mapSlot = (dto: TimeSlot): TimeSlot => ({ ...dto });
 export class ApiCampaignRepository implements CampaignRepository {
-  constructor(private staffAdapter?: StaffAdapter, private enableDirectApi: boolean = false) {}
+  constructor(
+    private staffAdapter?: StaffAdapter,
+    private enableDirectApi: boolean = false,
+  ) {}
   async list(query: CampaignQuery) {
     const params = new URLSearchParams();
     Object.entries(query).forEach(([key, value]) => {
@@ -104,17 +116,29 @@ export class ApiCampaignRepository implements CampaignRepository {
   async staff(id: string): Promise<CampaignStaff[]> {
     if (this.staffAdapter) return this.staffAdapter.staff(id);
     if (!this.enableDirectApi) return unavailable();
-    return (await apiGet<CampaignStaff[]>(`/campaigns/${encodeURIComponent(id)}/staff`)).data;
+    return (
+      await apiGet<CampaignStaff[]>(
+        `/campaigns/${encodeURIComponent(id)}/staff`,
+      )
+    ).data;
   }
   async searchStaff(id: string, search: string): Promise<StaffCandidate[]> {
     if (this.staffAdapter) return this.staffAdapter.searchStaff(id, search);
     try {
-      const params = new URLSearchParams({ role: 'DONATION_STAFF', limit: '50' });
+      const params = new URLSearchParams({
+        role: 'DONATION_STAFF',
+        limit: '50',
+      });
       if (search.trim()) params.set('search', search.trim());
       const [usersRes, assigned] = await Promise.all([
-        apiGet<{ id: string; fullName: string; email: string; roles: Array<{ role: { code: string } }> }[]>(
-          `/users?${params.toString()}`,
-        ),
+        apiGet<
+          {
+            id: string;
+            fullName: string;
+            email: string;
+            roles: Array<{ role: { code: string } }>;
+          }[]
+        >(`/users?${params.toString()}`),
         this.staff(id).catch(() => [] as CampaignStaff[]),
       ]);
       const assignedUserIds = new Set(assigned.map((item) => item.userId));
@@ -123,11 +147,14 @@ export class ApiCampaignRepository implements CampaignRepository {
           id: user.id,
           fullName: user.fullName,
           email: user.email,
-          roles: (user.roles ?? []).map((r) => (r.role?.code ?? 'DONATION_STAFF') as RoleCode),
+          roles: (user.roles ?? []).map(
+            (r) => (r.role?.code ?? 'DONATION_STAFF') as RoleCode,
+          ),
         }))
         .filter(
           (user) =>
-            user.roles.includes('DONATION_STAFF') && !assignedUserIds.has(user.id),
+            user.roles.includes('DONATION_STAFF') &&
+            !assignedUserIds.has(user.id),
         );
     } catch {
       return [];
@@ -138,12 +165,16 @@ export class ApiCampaignRepository implements CampaignRepository {
     userId: string,
     assignment: Assignment | null,
   ): Promise<CampaignStaff> {
-    if (this.staffAdapter) return this.staffAdapter.assign(id, userId, assignment);
+    if (this.staffAdapter)
+      return this.staffAdapter.assign(id, userId, assignment);
     return (
-      await apiPost<CampaignStaff>(`/campaigns/${encodeURIComponent(id)}/staff`, {
-        userId,
-        assignment,
-      })
+      await apiPost<CampaignStaff>(
+        `/campaigns/${encodeURIComponent(id)}/staff`,
+        {
+          userId,
+          assignment,
+        },
+      )
     ).data;
   }
   async unassign(id: string, assignmentId: string): Promise<void> {
@@ -160,3 +191,20 @@ export const CampaignRepositoryContext =
   createContext<CampaignRepository | null>(null);
 export const useCampaignRepository = () =>
   useContext(CampaignRepositoryContext) ?? instance;
+
+/** Clinic and manager screens filter and paginate the full campaign list locally. */
+export async function allCampaigns(
+  repository: CampaignRepository,
+  query: CampaignQuery,
+) {
+  const first = await repository.list({ ...query, page: 1, limit: 100 });
+  const items = [...first.items];
+  for (let page = 2; page <= first.meta.totalPages; page++) {
+    const next = await repository.list({ ...query, page, limit: 100 });
+    items.push(...next.items);
+  }
+  return {
+    items,
+    meta: { ...first.meta, page: 1, limit: items.length, totalPages: 1 },
+  };
+}
