@@ -13,7 +13,7 @@
     "dev": "pnpm build:shared && pnpm --parallel --filter @blood/api --filter @blood/web dev",
     "dev:web": "pnpm build:shared && pnpm --filter @blood/web dev",
     "dev:api": "pnpm build:shared && pnpm --filter @blood/api dev",
-    "start": "pnpm --parallel --filter @blood/api start --filter @blood/web preview",
+    "start": "pnpm --parallel --filter @blood/api --filter @blood/web run start",
     "build:start": "pnpm build && pnpm start",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",

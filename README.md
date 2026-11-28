@@ -1,6 +1,6 @@
 # Hệ thống quản lý hiến máu
 
-Skeleton full-stack cho quản lý đợt hiến máu và từng lượt tham gia của người hiến. Giai đoạn này chỉ triển khai hạ tầng development và health API; chưa có nghiệp vụ hiến máu.
+Ứng dụng full-stack quản lý đợt hiến máu, đăng ký và tờ khai y tế, check-in, sàng lọc, thu nhận túi máu, lịch sử hiến, chứng nhận, thông báo và quản trị. Phân quyền theo 4 vai trò: DONOR, DONATION_STAFF, COORDINATOR, SYSTEM_ADMIN.
 
 ## Tech stack
 
@@ -36,8 +36,7 @@ Blood donation management system/
 ```
 
 Backend: Route → Controller → Service → Repository → Prisma → PostgreSQL. Module giao tiếp qua service công khai. Controller chỉ điều phối HTTP.
-Health là module HTTP mẫu chạy thật. Module time-slots có service/repository kiểm tra khung giờ và capacity; các module còn lại có placeholder hoặc validation để phát triển tiếp.
-Frontend có PublicLayout, DonorLayout, StaffLayout, AdminLayout và 14 thư mục feature; layout chưa có bảo vệ route.
+Các API nghiệp vụ dùng JWT, kiểm tra permission, quyền sở hữu đăng ký và phân công nhân sự theo đợt. Frontend bảo vệ route bằng ProtectedRoute và PermissionGuard.
 
 ## Yêu cầu
 
@@ -178,9 +177,22 @@ Vite proxy chỉ phục vụ development; khi triển khai build web cần rever
 
 Nền tảng backend Phase 1 đã hoàn tất: 5 role, ma trận permission, enum/status, state machine tập trung (BE enforce), business rule campaign/time slot/registration/check-in/screening/donation/blood bag/certificate, chuẩn hoá đơn vị và datetime, envelope thành công/lỗi/pagination thống nhất, error code dùng chung, chiến lược JWT + refresh token (bảng phiên chỉ lưu hash), seed idempotent và nền tảng AuditLog.
 
-## Phạm vi tiếp theo (Phase 2)
+## Kiểm chứng luồng nghiệp vụ (25/11/2026)
 
-Chưa triển khai: đăng nhập/JWT thực tế, refresh/logout endpoint, module CRUD và endpoint nghiệp vụ, dashboard/báo cáo, email/notification, PDF, upload hoặc QR.
-Bước tiếp theo: triển khai auth (access/refresh/me) rồi lần lượt module đợt hiến, đăng ký, check-in, sàng lọc, lấy máu theo hợp đồng đã chốt.
+`pnpm test` bao gồm test HTTP với PostgreSQL thật trong `apps/api/src/workflow.test.ts`:
+
+- Tạo/sửa đợt hiến và khung giờ bằng ngày giờ JSON ISO; giữ được nhãn khung giờ; tìm kiếm đợt hiến.
+- Đăng ký + tờ khai + giữ chỗ + thông báo nằm trong cùng một transaction. Hai yêu cầu tranh chấp chỗ cuối hoặc gửi trùng chỉ có một yêu cầu thành công. Đăng ký lại thất bại giữ nguyên tờ khai và trạng thái cũ.
+- Chặn xem/đổi lịch/hủy đăng ký của người khác; check-in/sàng lọc/thu nhận phải đúng vị trí phân công. Lượt đã check-in không được hủy hoặc đánh dấu vắng mặt.
+- Kết luận đủ điều kiện mới được thu nhận; tạm hoãn/không đủ điều kiện và khung giờ inactive được kiểm tra ở backend.
+- Túi máu mới ở trạng thái COLLECTED, lưu thời điểm thu nhận và chuẩn hóa barcode. Chuyển trạng thái theo state machine; TESTED/ACCEPTED cần nhóm máu. Sửa thể tích cập nhật tổng lượt hiến, lịch sử và báo cáo. Không xóa túi cuối cùng của lượt hiến đã hoàn tất.
+- API người dùng, túi máu và chứng nhận không trả passwordHash. File chứng nhận chỉ do chủ sở hữu hoặc nhân viên có certificate.issue cập nhật; chứng nhận thu hồi không được cập nhật file.
+- Đầu vào UUID/status/body/phân trang sai trả lỗi validation. Các màn hình workflow tải đủ các trang dữ liệu và hiển thị lỗi API; cấu hình hệ thống không báo lưu thành công khi API thất bại.
+
+Migration `20261125000000_add_screening_indicated_volume` bổ sung cột nullable còn thiếu. Chạy `pnpm db:deploy` khi cập nhật môi trường khác. Prisma CLI dùng DATABASE_URL khi không cấu hình DIRECT_URL riêng.
+
+Test workflow tự dọn fixture theo UUID và giả lập gửi thông báo để không gửi email bên ngoài. SMTP thật, upload Supabase và vận hành production cần được kiểm tra riêng với cấu hình của môi trường đó. Giấy chứng nhận bản giấy/ảnh vẫn theo luồng hiện có; bước thu nhận không tự phát hành chứng nhận điện tử.
+
+Lệnh `pnpm start` khởi động cả API đã build và Vite preview. Chạy `pnpm build` trước đó. Vite preview phục vụ kiểm tra local; triển khai production cần hosting/reverse proxy phù hợp.
 
 Chi tiết: [Database](docs/database/README.md), [API](docs/api/README.md), [Frontend contract](docs/api/frontend-contract.md).

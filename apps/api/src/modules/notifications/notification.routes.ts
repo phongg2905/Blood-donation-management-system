@@ -11,10 +11,7 @@ const list: RequestHandler = async (req, res) => {
   if (!req.auth) throw AppError.unauthorized();
   const { items, meta } = await notificationService.list(
     req.auth.userId,
-    req.query as {
-      page?: number;
-      limit?: number;
-    },
+    req.query,
   );
   sendList(res, items, meta.page, meta.limit, meta.total);
 };

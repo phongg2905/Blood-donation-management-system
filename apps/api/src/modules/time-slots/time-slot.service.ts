@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client';
 import {
   AUDIT_ACTIONS,
   AUDIT_ENTITY_TYPES,
@@ -67,137 +68,143 @@ export const timeSlotService = {
    * check, and the registration state transition.
    */
   async schedule(input: unknown, context: ScheduleContext = {}) {
+    return repository.transaction((tx) =>
+      timeSlotService.scheduleTx(tx, input, context),
+    );
+  },
+
+  /** Registration creation uses the same transaction for declaration and slot. */
+  async scheduleTx(
+    tx: Prisma.TransactionClient,
+    input: unknown,
+    context: ScheduleContext = {},
+  ) {
     const data = validateScheduleRegistration(input);
-    return repository.transaction(async (tx) => {
-      const registration = await repository.registration(
-        tx,
-        data.registrationId,
+    const registration = await repository.registration(tx, data.registrationId);
+    if (!registration)
+      throw AppError.notFound(ERROR_CODES.REGISTRATION_NOT_FOUND);
+    const slot = await repository.slot(tx, data.timeSlotId);
+    if (!slot) throw AppError.notFound(ERROR_CODES.TIME_SLOT_NOT_FOUND);
+
+    if (registration.campaignId !== slot.campaignId) {
+      throw AppError.badRequest(
+        ERROR_CODES.TIME_SLOT_OUTSIDE_CAMPAIGN,
+        'Khung giờ thuộc đợt hiến máu khác',
       );
-      if (!registration)
-        throw AppError.notFound(ERROR_CODES.REGISTRATION_NOT_FOUND);
-      const slot = await repository.slot(tx, data.timeSlotId);
-      if (!slot) throw AppError.notFound(ERROR_CODES.TIME_SLOT_NOT_FOUND);
+    }
+    if (registration.checkIn) {
+      throw AppError.conflict(ERROR_CODES.REGISTRATION_ALREADY_CHECKED_IN);
+    }
 
-      if (registration.campaignId !== slot.campaignId) {
-        throw AppError.badRequest(
-          ERROR_CODES.TIME_SLOT_OUTSIDE_CAMPAIGN,
-          'Khung giờ thuộc đợt hiến máu khác',
-        );
-      }
-      if (registration.checkIn) {
-        throw AppError.conflict(ERROR_CODES.REGISTRATION_ALREADY_CHECKED_IN);
-      }
+    // Rejects checked-in/terminal registrations before touching capacity.
+    const outcome = resolveScheduleOutcome(registration.status);
 
-      // Rejects checked-in/terminal registrations before touching capacity.
-      const outcome = resolveScheduleOutcome(registration.status);
+    // Mandatory: a deactivated slot is never schedulable or reschedulable.
+    assertTimeSlotActive(slot);
+    assertCampaignAcceptsRegistration(slot.campaign.status);
+    assertRegistrationWindowOpen(slot.campaign);
 
-      // Mandatory: a deactivated slot is never schedulable or reschedulable.
-      assertTimeSlotActive(slot);
-      assertCampaignAcceptsRegistration(slot.campaign.status);
-      assertRegistrationWindowOpen(slot.campaign);
-
-      const now = new Date();
-      if (now >= slot.startsAt) {
-        throw AppError.conflict(
-          ERROR_CODES.REGISTRATION_WINDOW_CLOSED,
-          'Khung giờ đã bắt đầu',
-        );
-      }
-
-      // Defends against campaign dates edited after the slot was created.
-      validateTimeSlot(slot, slot.campaign);
-
-      // Medical deferral check: block if donor is deferred beyond slot start
-      const activeDeferral = await repository.activeDeferralTx(
-        tx,
-        registration.donorId,
-        slot.startsAt,
+    const now = new Date();
+    if (now >= slot.startsAt) {
+      throw AppError.conflict(
+        ERROR_CODES.REGISTRATION_WINDOW_CLOSED,
+        'Khung giờ đã bắt đầu',
       );
-      if (activeDeferral) {
-        throw AppError.conflict(
-          ERROR_CODES.SCREENING_NOT_ELIGIBLE,
-          'Bạn đang trong thời gian tạm hoãn hiến máu theo chỉ định y tế',
-        );
-      }
+    }
 
-      // 84-day physiological recovery check after whole-blood donation (TT 26/2013/TT-BYT)
-      const recentDonation = await repository.recentCompletedDonationTx(
-        tx,
-        registration.donorId,
-        slot.startsAt,
+    // Defends against campaign dates edited after the slot was created.
+    validateTimeSlot(slot, slot.campaign);
+
+    // Medical deferral check: block if donor is deferred beyond slot start
+    const activeDeferral = await repository.activeDeferralTx(
+      tx,
+      registration.donorId,
+      slot.startsAt,
+    );
+    if (activeDeferral) {
+      throw AppError.conflict(
+        ERROR_CODES.SCREENING_NOT_ELIGIBLE,
+        'Bạn đang trong thời gian tạm hoãn hiến máu theo chỉ định y tế',
       );
-      if (recentDonation) {
-        throw AppError.conflict(
-          ERROR_CODES.REGISTRATION_OVERLAP,
-          'Khoảng cách tối thiểu giữa 2 lần hiến máu toàn phần là 84 ngày (12 tuần)',
-        );
-      }
+    }
 
-      // Prevent holding multiple active registrations within 84 days
-      const activeOtherRegistration =
-        await repository.activeRegistrationsWithinIntervalTx(
-          tx,
-          registration.donorId,
-          registration.id,
-          slot.startsAt,
-        );
-      if (activeOtherRegistration) {
-        throw AppError.conflict(
-          ERROR_CODES.REGISTRATION_OVERLAP,
-          `Bạn đã có lịch đăng ký đang hoạt động tại "${activeOtherRegistration.campaign.name}" trong vòng 84 ngày`,
-        );
-      }
+    // 84-day physiological recovery check after whole-blood donation (TT 26/2013/TT-BYT)
+    const recentDonation = await repository.recentCompletedDonationTx(
+      tx,
+      registration.donorId,
+      slot.startsAt,
+    );
+    if (recentDonation) {
+      throw AppError.conflict(
+        ERROR_CODES.REGISTRATION_OVERLAP,
+        'Khoảng cách tối thiểu giữa 2 lần hiến máu toàn phần là 84 ngày (12 tuần)',
+      );
+    }
 
-      const occupied = await repository.occupied(tx, slot.id, registration.id);
-      assertTimeSlotHasCapacity(slot.capacity, occupied);
-
-      const overlaps = await repository.overlappingSchedules(
+    // Prevent holding multiple active registrations within 84 days
+    const activeOtherRegistration =
+      await repository.activeRegistrationsWithinIntervalTx(
         tx,
         registration.donorId,
         registration.id,
         slot.startsAt,
-        slot.endsAt,
       );
-      assertNoScheduleOverlap(
-        overlaps.flatMap((row) => (row.timeSlot ? [row.timeSlot] : [])),
-        { startsAt: slot.startsAt, endsAt: slot.endsAt },
+    if (activeOtherRegistration) {
+      throw AppError.conflict(
+        ERROR_CODES.REGISTRATION_OVERLAP,
+        `Bạn đã có lịch đăng ký đang hoạt động tại "${activeOtherRegistration.campaign.name}" trong vòng 84 ngày`,
       );
+    }
 
-      const updated = await repository.schedule(
-        tx,
-        registration.id,
-        slot.id,
-        outcome.status,
-      );
+    const occupied = await repository.occupied(tx, slot.id, registration.id);
+    assertTimeSlotHasCapacity(slot.capacity, occupied);
 
-      await auditLogService.record(
-        {
-          action:
-            outcome.mode === 'SCHEDULE'
-              ? AUDIT_ACTIONS.REGISTRATION_CREATED
-              : AUDIT_ACTIONS.REGISTRATION_RESCHEDULED,
-          entityType: AUDIT_ENTITY_TYPES.REGISTRATION,
-          entityId: registration.id,
-          actorId: context.actorId ?? null,
-          metadata: {
-            timeSlotId: slot.id,
-            previousTimeSlotId: registration.timeSlotId,
-            previousStatus: registration.status,
-            status: outcome.status,
-          },
+    const overlaps = await repository.overlappingSchedules(
+      tx,
+      registration.donorId,
+      registration.id,
+      slot.startsAt,
+      slot.endsAt,
+    );
+    assertNoScheduleOverlap(
+      overlaps.flatMap((row) => (row.timeSlot ? [row.timeSlot] : [])),
+      { startsAt: slot.startsAt, endsAt: slot.endsAt },
+    );
+
+    const updated = await repository.schedule(
+      tx,
+      registration.id,
+      slot.id,
+      outcome.status,
+    );
+
+    await auditLogService.record(
+      {
+        action:
+          outcome.mode === 'SCHEDULE'
+            ? AUDIT_ACTIONS.REGISTRATION_CREATED
+            : AUDIT_ACTIONS.REGISTRATION_RESCHEDULED,
+        entityType: AUDIT_ENTITY_TYPES.REGISTRATION,
+        entityId: registration.id,
+        actorId: context.actorId ?? null,
+        metadata: {
+          timeSlotId: slot.id,
+          previousTimeSlotId: registration.timeSlotId,
+          previousStatus: registration.status,
+          status: outcome.status,
         },
-        tx,
-      );
+      },
+      tx,
+    );
 
-      return updated;
-    });
+    return updated;
   },
 
   async list(campaignId: string, activeOnly: boolean) {
     const slots = await repository.listByCampaign(campaignId, activeOnly);
     return slots.map((s) => ({
       ...s,
-      occupied: (s as any)._count?.registrations ?? 0,
+      occupied: s._count.registrations,
     }));
   },
 

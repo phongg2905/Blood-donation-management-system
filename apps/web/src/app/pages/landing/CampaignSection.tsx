@@ -1,28 +1,12 @@
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import {
-  Building2,
-  Calendar,
-  ChevronRight,
-  MapPin,
-} from 'lucide-react';
+import { Building2, Calendar, ChevronRight, MapPin } from 'lucide-react';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useCampaignRepository } from '@/features/campaigns/repository';
 import { useCampaignQuery } from '@/features/campaigns/hooks';
 import { formatDate } from '@/features/campaigns/domain';
 import { LANDING_ANCHORS } from './landing-content';
-
-interface HospitalDemandCard {
-  id: string;
-  name: string;
-  location: string;
-  startsAt: string;
-  targetDonors: number;
-  registeredDonors: number;
-  needDescription: string;
-  statusBadge: 'Critical' | 'High Priority' | 'Active';
-}
 
 export function CampaignSection() {
   const { hasPermission } = useAuth();
@@ -31,11 +15,10 @@ export function CampaignSection() {
 
   const result = useCampaignQuery(
     'landing-campaigns-list',
-    () => repository.list({ status: 'OPEN', from, page: 1, limit: 3, sort: 'asc' }),
+    () =>
+      repository.list({ status: 'OPEN', from, page: 1, limit: 3, sort: 'asc' }),
     hasPermission('campaign.read'),
   );
-
-  if (!hasPermission('campaign.read')) return null;
 
   // Use real backend items only
   const displayItems = useMemo(() => {
@@ -46,13 +29,16 @@ export function CampaignSection() {
         location: item.location,
         startsAt: item.startsAt,
         targetDonors: item.targetDonors || 100,
-        registeredDonors: item.registeredDonors ?? item._count?.registrations ?? 0,
+        registeredDonors:
+          item.registeredDonors ?? item._count?.registrations ?? 0,
         needDescription: 'Tiếp nhận hiến máu tình nguyện',
         statusBadge: 'Active' as const,
       }));
     }
     return [];
   }, [result.data]);
+
+  if (!hasPermission('campaign.read')) return null;
 
   return (
     <section
@@ -74,10 +60,12 @@ export function CampaignSection() {
             ĐIỂM HIẾN MÁU MỞ
           </span>
           <h2 className="sketch-section-title" id="campaigns-title">
-            Điểm Tiếp Nhận & <span className="sketch-title-highlight-ruby">Lịch Hiến Máu</span>
+            Điểm Tiếp Nhận &{' '}
+            <span className="sketch-title-highlight-ruby">Lịch Hiến Máu</span>
           </h2>
           <p className="sketch-section-sub">
-            Theo dõi nhu cầu cấp thiết và đặt lịch tại các điểm tiếp nhận đang mở.
+            Theo dõi nhu cầu cấp thiết và đặt lịch tại các điểm tiếp nhận đang
+            mở.
           </p>
         </motion.div>
 
@@ -85,7 +73,8 @@ export function CampaignSection() {
           <div className="sketch-demands-empty">
             <Building2 size={36} className="sketch-demands-empty__icon" />
             <p>
-              Hiện chưa có đợt hiến máu nào đang mở tiếp nhận. Vui lòng theo dõi các thông báo mới nhất.
+              Hiện chưa có đợt hiến máu nào đang mở tiếp nhận. Vui lòng theo dõi
+              các thông báo mới nhất.
             </p>
           </div>
         ) : (
@@ -93,7 +82,9 @@ export function CampaignSection() {
             {displayItems.slice(0, 3).map((item, idx) => {
               const percent = Math.min(
                 100,
-                Math.round((item.registeredDonors / (item.targetDonors || 1)) * 100),
+                Math.round(
+                  (item.registeredDonors / (item.targetDonors || 1)) * 100,
+                ),
               );
 
               return (
@@ -108,7 +99,9 @@ export function CampaignSection() {
                 >
                   <div className="sketch-demand-card__head">
                     <div className="sketch-demand-card__hospital-name">
-                      <span className="sketch-demand-card__num">{idx + 1}.</span>
+                      <span className="sketch-demand-card__num">
+                        {idx + 1}.
+                      </span>
                       <h3>{item.name}</h3>
                     </div>
                     <span
@@ -119,8 +112,12 @@ export function CampaignSection() {
                   </div>
 
                   <div className="sketch-demand-card__need-row">
-                    <span className="sketch-demand-card__need-label">{item.needDescription}</span>
-                    <span className="sketch-demand-card__need-percent">{percent}%</span>
+                    <span className="sketch-demand-card__need-label">
+                      {item.needDescription}
+                    </span>
+                    <span className="sketch-demand-card__need-percent">
+                      {percent}%
+                    </span>
                   </div>
 
                   <div className="sketch-demand-progress-track">
@@ -156,10 +153,7 @@ export function CampaignSection() {
 
         {/* View All Button */}
         <div className="sketch-demands-action">
-          <Link
-            to="/campaigns"
-            className="btn sketch-btn-outline-glow"
-          >
+          <Link to="/campaigns" className="btn sketch-btn-outline-glow">
             <span>Tra cứu tất cả điểm hiến máu trên toàn quốc</span>
             <ChevronRight size={16} />
           </Link>

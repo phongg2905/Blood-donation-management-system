@@ -10,7 +10,7 @@ import { certificateService } from './certificate.service';
 
 const attachFile: RequestHandler = async (req, res) => {
   if (!req.auth) throw AppError.unauthorized();
-  const staffLike = req.auth.roles.some((r) => r !== 'DONOR');
+  const staffLike = req.auth.permissions.includes('certificate.issue');
   sendSuccess(
     res,
     await certificateService.attachFile(
@@ -51,11 +51,7 @@ certificateRoutes.get(
   requirePermission('certificate.read'),
   list,
 );
-certificateRoutes.post(
-  '/:id/file',
-  requireAuth,
-  attachFile,
-);
+certificateRoutes.post('/:id/file', requireAuth, attachFile);
 certificateRoutes.post(
   '/:id/revoke',
   requireAuth,

@@ -1,3 +1,5 @@
+import { z } from 'zod';
+import { parseDomain } from '../../common/helpers/domain-validation';
 import type { RequestHandler } from 'express';
 import { Router } from 'express';
 import { AppError } from '../../common/errors/app.error';
@@ -10,12 +12,15 @@ import { screeningService } from './screening.service';
 
 const create: RequestHandler = async (req, res) => {
   if (!req.auth) throw AppError.unauthorized();
-  const { checkInId, ...rest } = req.body as { checkInId: string };
+  const { checkInId } = parseDomain(
+    z.object({ checkInId: z.string().uuid() }),
+    req.body,
+  );
   sendCreated(
     res,
     await screeningService.create(
       checkInId,
-      rest,
+      req.body,
       req.auth.userId,
       auditContextFrom(req),
     ),

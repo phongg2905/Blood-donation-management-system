@@ -44,10 +44,6 @@ import type {
  * backend ships the routes this file needs no page changes.
  */
 
-const unavailable = (): never => {
-  throw new ApiRequestError('ROUTE_NOT_FOUND', '', 503);
-};
-
 const query = (values: Record<string, unknown>): string => {
   const params = new URLSearchParams();
   Object.entries(values).forEach(([key, value]) => {
@@ -127,7 +123,7 @@ export class ApiAdminRepository implements AdminRepository {
   }
 
   async permissions(): Promise<PermissionSummary[]> {
-    const list = (await apiGet<any[]>('/permissions')).data;
+    const list = (await apiGet<PermissionSummary[]>('/permissions')).data;
     return (list ?? []).map((p) => ({
       code: p.code as PermissionCode,
       roles:
@@ -148,40 +144,27 @@ export class ApiAdminRepository implements AdminRepository {
   }
 
   async settings(): Promise<SystemSetting[]> {
-    try {
-      return (await apiGet<SystemSetting[]>('/settings')).data;
-    } catch {
-      return [];
-    }
+    return (await apiGet<SystemSetting[]>('/settings')).data;
   }
 
   async updateSetting(
     key: string,
     input: SettingUpdate,
   ): Promise<SystemSetting> {
-    try {
-      return (
-        await apiPut<SystemSetting>(
-          `/settings/${encodeURIComponent(key)}`,
-          input,
-        )
-      ).data;
-    } catch {
-      return {
-        key,
-        value: input.value,
-        valueType: 'STRING',
-        category: 'Hệ thống',
-        description: null,
-        updatedAt: new Date().toISOString(),
-      };
-    }
+    return (
+      await apiPut<SystemSetting>(`/settings/${encodeURIComponent(key)}`, input)
+    ).data;
   }
 
   async donationReport(input: DonationReportQuery): Promise<DonationReport> {
-    const response = await apiGet<any>(
-      `/reports/donations?${query({ ...input })}`,
-    );
+    const response = await apiGet<
+      DonationReport & {
+        totalDonations?: number;
+        donations?: number;
+        totalVolumeMl?: number;
+        volumeMl?: number;
+      }
+    >(`/reports/donations?${query({ ...input })}`);
     const raw = response.data;
     if (raw && Array.isArray(raw.rows) && raw.totals) {
       return {

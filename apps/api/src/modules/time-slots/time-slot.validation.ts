@@ -7,11 +7,17 @@ import {
   positiveInteger,
 } from '../../common/helpers/domain-validation';
 
+const httpDate = z.union([
+  z.date(),
+  z.iso.datetime({ offset: true }).transform((value) => new Date(value)),
+]);
+
 export const timeSlotSchema = z.object({
   campaignId: z.string().uuid(),
-  startsAt: z.date(),
-  endsAt: z.date(),
+  startsAt: httpDate,
+  endsAt: httpDate,
   capacity: positiveInteger,
+  label: z.string().trim().max(200).nullish(),
 });
 
 export function validateTimeSlot(
@@ -40,8 +46,8 @@ export function validateTimeSlot(
 
 /** PATCH /time-slots/:id — campaignId never changes; merge-then-validate like campaign patch. */
 const timeSlotPatchSchema = z.object({
-  startsAt: z.date().optional(),
-  endsAt: z.date().optional(),
+  startsAt: httpDate.optional(),
+  endsAt: httpDate.optional(),
   capacity: positiveInteger.optional(),
   label: z.string().trim().max(200).nullish(),
 });

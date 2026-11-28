@@ -5,12 +5,11 @@ import { BLOOD_BAG_TRANSITIONS, type BloodBagStatus } from '@blood/shared-types'
 import { Button, FormField, Input } from '@/components/ui';
 import { AuthContext } from '@/features/auth/context/auth-context';
 import { ConfirmDialog, Feedback, QueryState } from '@/features/campaigns/components';
-import { useCampaignRepository } from '@/features/campaigns/repository';
+import { allCampaigns, useCampaignRepository } from '@/features/campaigns/repository';
 import { useCampaignQuery } from '@/features/campaigns/hooks';
 import {
   BLOOD_BAG_STATUS_LABELS,
   BLOOD_GROUP_OPTIONS,
-  OPERATIONAL_STATUS_SHORT_LABELS,
   RH_OPTIONS,
   formatBloodTypeDisplay,
   formatDate,
@@ -815,7 +814,7 @@ export function BloodBagsPage() {
 
   const campaignsListQuery = useCampaignQuery(
     'blood-bag-campaigns-list',
-    () => campaignRepo.list({ page: 1, limit: 50, sort: 'desc' }),
+    () => allCampaigns(campaignRepo, { page: 1, limit: 100, sort: 'desc' }),
     !campaignId,
   );
 
@@ -921,25 +920,29 @@ export function BloodBagsPage() {
   const QUEUE_PAGE_SIZE = 10;
   const [viewingBag, setViewingBag] = useState<BloodBag | null>(null);
   const allPagination = usePageTransition(1);
+  const { resetPage: resetAllPagination } = allPagination;
   const campaignPagination = usePageTransition(1);
+  const { resetPage: resetCampaignPagination } = campaignPagination;
   const queuePagination = usePageTransition(1);
+  const { resetPage: resetQueuePagination } = queuePagination;
   const collectedPagination = usePageTransition(1);
+  const { resetPage: resetCollectedPagination } = collectedPagination;
 
   useEffect(() => {
-    allPagination.resetPage();
-  }, [search, processTab, bloodGroupFilter, allPagination.resetPage]);
+    resetAllPagination();
+  }, [search, processTab, bloodGroupFilter, resetAllPagination]);
 
   useEffect(() => {
-    campaignPagination.resetPage();
-  }, [statusFilter, campaignPagination.resetPage]);
+    resetCampaignPagination();
+  }, [statusFilter, resetCampaignPagination]);
 
   useEffect(() => {
-    queuePagination.resetPage();
-  }, [campaignId, activeTab, queuePagination.resetPage]);
+    resetQueuePagination();
+  }, [campaignId, activeTab, resetQueuePagination]);
 
   useEffect(() => {
-    collectedPagination.resetPage();
-  }, [search, campaignId, collectedPagination.resetPage]);
+    resetCollectedPagination();
+  }, [search, campaignId, resetCollectedPagination]);
 
   const allTotalPages = Math.max(1, Math.ceil(filteredBags.length / PAGE_SIZE));
   const safeAllPage = Math.min(Math.max(1, allPagination.page), allTotalPages);

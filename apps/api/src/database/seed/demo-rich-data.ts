@@ -1111,7 +1111,7 @@ async function seedRichData() {
 
   // 4. Create 5 Coordinators
   console.info('Đang tạo 5 tài khoản Điều phối viên (COORDINATOR)...');
-  const coordinatorUsers = await Promise.all(
+  await Promise.all(
     COORDINATOR_SPECS.map((c) =>
       database.user.create({
         data: {

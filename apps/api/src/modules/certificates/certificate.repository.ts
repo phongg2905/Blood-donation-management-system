@@ -68,7 +68,13 @@ export const certificateRepository = {
                   registration: {
                     include: {
                       campaign: true,
-                      donor: { include: { user: true } },
+                      donor: {
+                        include: {
+                          user: {
+                            select: { id: true, fullName: true, email: true },
+                          },
+                        },
+                      },
                     },
                   },
                 },

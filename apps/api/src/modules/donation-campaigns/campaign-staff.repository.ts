@@ -1,9 +1,8 @@
 import type { Prisma } from '@prisma/client';
-import { database } from '../../config/database';
+import { database, serializableTransaction } from '../../config/database';
 
 export const campaignStaffRepository = {
-  transaction: <T>(work: (tx: Prisma.TransactionClient) => Promise<T>) =>
-    database.$transaction(work),
+  transaction: serializableTransaction,
 
   listByCampaign: async (campaignId: string) => {
     const rows = await database.campaignStaff.findMany({
@@ -129,7 +128,11 @@ export const campaignStaffRepository = {
       },
     }),
 
-  remove: (tx: Prisma.TransactionClient, campaignId: string, userOrAssignmentId: string) =>
+  remove: (
+    tx: Prisma.TransactionClient,
+    campaignId: string,
+    userOrAssignmentId: string,
+  ) =>
     tx.campaignStaff.deleteMany({
       where: {
         campaignId,

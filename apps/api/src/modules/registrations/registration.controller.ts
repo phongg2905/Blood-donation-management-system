@@ -27,13 +27,15 @@ export const getById: RequestHandler = async (req, res) => {
 };
 
 export const reschedule: RequestHandler = async (req, res) => {
-  const { timeSlotId } = req.body as { timeSlotId: string };
+  if (!req.auth) throw AppError.unauthorized();
+  const timeSlotId = req.body?.timeSlotId;
   sendSuccess(
     res,
     await registrationService.reschedule(
       paramId(req),
       timeSlotId,
       auditContextFrom(req),
+      req.auth,
     ),
   );
 };

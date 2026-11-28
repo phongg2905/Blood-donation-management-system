@@ -39,12 +39,19 @@ export function NotificationPopover({
   };
 
   return (
-    <div className="notif-popover" role="dialog" aria-label="Trung tâm thông báo">
+    <div
+      className="notif-popover"
+      role="dialog"
+      aria-label="Trung tâm thông báo"
+    >
       <div className="notif-popover__header">
         <div className="notif-popover__title-wrap">
           <span className="notif-popover__title">Thông báo</span>
           {unreadCount > 0 && (
-            <span className="notif-popover__badge" aria-label={`${unreadCount} chưa đọc`}>
+            <span
+              className="notif-popover__badge"
+              aria-label={`${unreadCount} chưa đọc`}
+            >
               {unreadCount} mới
             </span>
           )}
@@ -61,7 +68,9 @@ export function NotificationPopover({
       </div>
 
       <div className="notif-popover__content">
-        {items.length === 0 ? (
+        {isLoading ? (
+          <p role="status">Đang tải thông báo...</p>
+        ) : items.length === 0 ? (
           <div className="notif-popover__empty">
             <span className="notif-popover__empty-icon" aria-hidden="true">
               <Inbox size={36} strokeWidth={1.5} />
@@ -90,12 +99,17 @@ export function NotificationPopover({
                   role="button"
                   aria-label={`${item.title} - ${isUnread ? 'chưa đọc' : 'đã đọc'}`}
                 >
-                  <div className={`notif-item__icon ${badge.className}`} aria-hidden="true">
+                  <div
+                    className={`notif-item__icon ${badge.className}`}
+                    aria-hidden="true"
+                  >
                     <BadgeIcon size={18} />
                   </div>
                   <div className="notif-item__body">
                     <div className="notif-item__header-row">
-                      <span className="notif-item__type-tag">{badge.label}</span>
+                      <span className="notif-item__type-tag">
+                        {badge.label}
+                      </span>
                       <span className="notif-item__time">
                         {formatRelativeTime(item.createdAt)}
                       </span>
@@ -104,7 +118,11 @@ export function NotificationPopover({
                     <p className="notif-item__message">{item.message}</p>
                   </div>
                   {isUnread && (
-                    <span className="notif-item__dot" aria-hidden="true" title="Chưa đọc" />
+                    <span
+                      className="notif-item__dot"
+                      aria-hidden="true"
+                      title="Chưa đọc"
+                    />
                   )}
                 </li>
               );

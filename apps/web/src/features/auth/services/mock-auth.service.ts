@@ -89,8 +89,6 @@ const STORAGE_KEYS = {
   profiles: 'bd.mock.profiles',
 } as const;
 
-const DEFAULT_LATENCY_MS = 400;
-
 interface StoredUser {
   id: string;
   email: string;
@@ -154,7 +152,10 @@ const permissionsFor = (role: ActorCode): CurrentUser['permissions'] => [
   ...ROLE_PERMISSIONS[role],
 ];
 
-const delay = (_ms: number): Promise<void> => Promise.resolve();
+const delay = (ms: number): Promise<void> =>
+  ms > 0
+    ? new Promise((resolve) => setTimeout(resolve, ms))
+    : Promise.resolve();
 
 export class MockAuthService implements AuthService {
   constructor(private readonly latencyMs: number = 0) {}

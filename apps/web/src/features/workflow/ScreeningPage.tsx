@@ -13,7 +13,7 @@ import {
 import { Button, FormField, Input } from '@/components/ui';
 import { AuthContext } from '@/features/auth/context/auth-context';
 import { ConfirmDialog, Feedback, QueryState } from '@/features/campaigns/components';
-import { useCampaignRepository } from '@/features/campaigns/repository';
+import { allCampaigns, useCampaignRepository } from '@/features/campaigns/repository';
 import { useCampaignQuery } from '@/features/campaigns/hooks';
 import {
   BLOOD_GROUP_OPTIONS,
@@ -81,15 +81,17 @@ export function ScreeningQueuePage() {
   const CAMPAIGN_PAGE_SIZE = 10;
   const QUEUE_PAGE_SIZE = 12;
   const campaignPagination = usePageTransition(1);
+  const { resetPage: resetCampaignPagination } = campaignPagination;
   const queuePagination = usePageTransition(1);
+  const { resetPage: resetQueuePagination } = queuePagination;
 
   useEffect(() => {
-    campaignPagination.resetPage();
-  }, [statusFilter, campaignPagination.resetPage]);
+    resetCampaignPagination();
+  }, [statusFilter, resetCampaignPagination]);
 
   useEffect(() => {
-    queuePagination.resetPage();
-  }, [queueTab, search, campaignId, queuePagination.resetPage]);
+    resetQueuePagination();
+  }, [queueTab, search, campaignId, resetQueuePagination]);
 
   const campaignQuery = useCampaignQuery(
     `screening-campaign:${campaignId}`,
@@ -99,7 +101,7 @@ export function ScreeningQueuePage() {
 
   const campaignsListQuery = useCampaignQuery(
     'screening-campaigns-list',
-    () => campaignRepo.list({ page: 1, limit: 50, sort: 'desc' }),
+    () => allCampaigns(campaignRepo, { page: 1, limit: 100, sort: 'desc' }),
     !campaignId,
   );
 
@@ -700,8 +702,8 @@ export function ScreeningPage() {
     if (!Number.isNaN(weightNum) && weightNum > 0) {
       if (weightNum < 45) {
         setIndicatedVolume(250);
-      } else if (weightNum >= 45 && indicatedVolume === 250) {
-        setIndicatedVolume(350);
+      } else if (weightNum >= 45) {
+        setIndicatedVolume((current) => current === 250 ? 350 : current);
       }
     }
   }, [values.WEIGHT]);

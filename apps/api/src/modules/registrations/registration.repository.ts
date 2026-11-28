@@ -1,9 +1,8 @@
 import type { Prisma, RegistrationStatus } from '@prisma/client';
-import { database } from '../../config/database';
+import { database, serializableTransaction } from '../../config/database';
 
 export const registrationRepository = {
-  transaction: <T>(work: (tx: Prisma.TransactionClient) => Promise<T>) =>
-    database.$transaction(work),
+  transaction: serializableTransaction,
 
   donorProfileByUserId: (tx: Prisma.TransactionClient, userId: string) =>
     tx.donorProfile.findUnique({ where: { userId } }),
@@ -118,13 +117,25 @@ export const registrationRepository = {
     skip: number;
     take: number;
   }) {
+    const codeMatch = /^REG-([0-9A-F]{8})$/i.exec(filter.search?.trim() ?? '');
+    const codeRows = codeMatch
+      ? await database.$queryRaw<Array<{ id: string }>>`
+          SELECT "id" FROM "Registration"
+          WHERE upper(left("id"::text, 8)) = ${codeMatch[1]!.toUpperCase()}
+        `
+      : [];
     const where: Prisma.RegistrationWhereInput = {
       ...(filter.status ? { status: filter.status as RegistrationStatus } : {}),
       ...(filter.campaignId ? { campaignId: filter.campaignId } : {}),
       ...(filter.search
         ? {
             OR: [
-              ...(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(filter.search.trim())
+              ...(codeMatch
+                ? [{ id: { in: codeRows.map((row) => row.id) } }]
+                : []),
+              ...(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+                filter.search.trim(),
+              )
                 ? [{ id: filter.search.trim() }]
                 : []),
               {
@@ -134,7 +145,10 @@ export const registrationRepository = {
                     { phone: { contains: filter.search } },
                     {
                       user: {
-                        fullName: { contains: filter.search, mode: 'insensitive' },
+                        fullName: {
+                          contains: filter.search,
+                          mode: 'insensitive',
+                        },
                       },
                     },
                     {

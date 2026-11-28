@@ -1,3 +1,4 @@
+import { CertificateStatus } from '@prisma/client';
 import { z } from 'zod';
 import {
   AUDIT_ACTIONS,
@@ -28,7 +29,7 @@ const revokeSchema = z.object({
 });
 const listQuerySchema = z.object({
   donorUserId: z.string().uuid().optional(),
-  status: z.string().trim().optional(),
+  status: z.enum(CertificateStatus).optional(),
   page: z.coerce.number().int().positive().optional(),
   limit: z.coerce.number().int().positive().optional(),
 });

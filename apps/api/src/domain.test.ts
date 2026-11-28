@@ -13,7 +13,11 @@ import {
   assertCanScreen,
 } from './common/helpers/workflow-validation';
 import { validateTimeSlot } from './modules/time-slots/time-slot.validation';
-import { validateCampaign } from './modules/donation-campaigns/campaign.validation';
+import {
+  validateCampaign,
+  validateCampaignPatch,
+  validateCreateCampaign,
+} from './modules/donation-campaigns/campaign.validation';
 import { validateDonation } from './modules/donations/donation.validation';
 import {
   BACKUP_FORMAT,
@@ -88,6 +92,133 @@ test('campaign validates registration window and strictly positive targets', () 
       registrationOpensAt: new Date('2029-12-01T08:00:00Z'),
       registrationClosesAt: new Date(start.getTime() + 3600000),
     }),
+  );
+});
+
+const campaignHttpInput = {
+  name: 'Đợt hiến máu',
+  location: 'Điểm hiến máu',
+  startsAt: start.toISOString(),
+  endsAt: end.toISOString(),
+  registrationOpensAt: '2029-12-01T08:00:00.000Z',
+  registrationClosesAt: '2030-01-01T08:00:00.000Z',
+};
+const campaignDateFields = [
+  'startsAt',
+  'endsAt',
+  'registrationOpensAt',
+  'registrationClosesAt',
+] as const;
+
+test('campaign HTTP creation converts all four JSON timestamps into Dates', () => {
+  const parsed = validateCreateCampaign(
+    JSON.parse(JSON.stringify(campaignHttpInput)),
+  );
+  for (const field of campaignDateFields) {
+    assert.ok(parsed[field] instanceof Date);
+    assert.equal(parsed[field].toISOString(), campaignHttpInput[field]);
+  }
+  assert.equal(
+    validateCreateCampaign({
+      ...campaignHttpInput,
+      startsAt: '2030-01-01T15:00:00+07:00',
+    }).startsAt.toISOString(),
+    start.toISOString(),
+  );
+});
+
+test('campaign HTTP dates preserve optional registration windows and Date callers', () => {
+  const parsed = validateCreateCampaign({
+    name: campaignHttpInput.name,
+    location: campaignHttpInput.location,
+    ...campaign,
+  });
+  assert.deepEqual(parsed.startsAt, start);
+  assert.equal(parsed.registrationOpensAt, undefined);
+  assert.equal(parsed.registrationClosesAt, undefined);
+  const cleared = validateCreateCampaign({
+    ...campaignHttpInput,
+    registrationOpensAt: null,
+    registrationClosesAt: null,
+  });
+  assert.equal(cleared.registrationOpensAt, null);
+  assert.equal(cleared.registrationClosesAt, null);
+});
+
+test('campaign HTTP dates reject malformed values and missing required dates', () => {
+  for (const field of campaignDateFields) {
+    for (const value of [
+      '',
+      'invalid',
+      '2030-02-30T08:00:00Z',
+      '2030-01-01T08:00',
+      0,
+      true,
+    ]) {
+      for (const validate of [validateCreateCampaign, validateCampaignPatch]) {
+        assert.throws(
+          () => validate({ ...campaignHttpInput, [field]: value }),
+          (error: unknown) =>
+            error instanceof AppError &&
+            error.code === 'VALIDATION_ERROR' &&
+            Boolean(error.fields?.[field]),
+        );
+      }
+    }
+  }
+  for (const field of ['startsAt', 'endsAt'] as const) {
+    for (const value of [null, undefined]) {
+      assert.throws(() =>
+        validateCreateCampaign({ ...campaignHttpInput, [field]: value }),
+      );
+    }
+  }
+});
+
+test('campaign PATCH converts partial dates without replacing omitted fields', () => {
+  assert.deepEqual(validateCampaignPatch({ name: 'Tên mới' }), {
+    name: 'Tên mới',
+  });
+  for (const field of campaignDateFields) {
+    assert.deepEqual(
+      validateCampaignPatch({ [field]: campaignHttpInput[field] }),
+      {
+        [field]: new Date(campaignHttpInput[field]),
+      },
+    );
+  }
+  assert.deepEqual(validateCampaignPatch({ registrationClosesAt: null }), {
+    registrationClosesAt: null,
+  });
+});
+
+test('campaign HTTP parsing keeps date order and positive target rules', () => {
+  for (const patch of [
+    { endsAt: campaignHttpInput.startsAt },
+    { registrationOpensAt: campaignHttpInput.registrationClosesAt },
+    { registrationOpensAt: campaignHttpInput.endsAt },
+    { registrationClosesAt: campaignHttpInput.endsAt },
+  ]) {
+    assert.throws(
+      () => validateCreateCampaign({ ...campaignHttpInput, ...patch }),
+      (error: unknown) =>
+        error instanceof AppError && error.code === 'CAMPAIGN_DATE_INVALID',
+    );
+    // The update service validates a partial patch after merging the stored row.
+    assert.throws(
+      () =>
+        validateCampaign({
+          ...validateCreateCampaign(campaignHttpInput),
+          ...validateCampaignPatch(patch),
+        }),
+      (error: unknown) =>
+        error instanceof AppError && error.code === 'CAMPAIGN_DATE_INVALID',
+    );
+  }
+  assert.throws(
+    () => validateCreateCampaign({ ...campaignHttpInput, targetDonors: 0 }),
+    (error: unknown) =>
+      error instanceof AppError && error.code === 'CAMPAIGN_TARGET_INVALID',
   );
 });
 

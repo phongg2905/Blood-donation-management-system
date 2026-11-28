@@ -123,22 +123,25 @@ export function UsersPage() {
 
   const [searchInput, setSearchInput] = useState(params.get('q') ?? '');
 
+  const urlFilter = params.get('q') ?? '';
   useEffect(() => {
-    const current = params.get('q') ?? '';
-    if (searchInput !== current) {
-      setSearchInput(current);
-    }
-  }, [params]);
+    setSearchInput(urlFilter);
+  }, [urlFilter]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      const current = params.get('q') ?? '';
-      if (searchInput !== current) {
-        change('q', searchInput);
+      if (searchInput !== urlFilter) {
+        setParams((current) => {
+          const next = new URLSearchParams(current);
+          if (searchInput) next.set('q', searchInput);
+          else next.delete('q');
+          next.delete('page');
+          return next;
+        });
       }
     }, 250);
     return () => clearTimeout(timer);
-  }, [searchInput]);
+  }, [searchInput, urlFilter, setParams]);
 
   const [viewingUser, setViewingUser] = useState<AdminUser | null>(null);
 

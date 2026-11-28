@@ -43,22 +43,25 @@ export function AuditLogsPage() {
 
   const [actorInput, setActorInput] = useState(params.get('actorId') ?? '');
 
+  const urlFilter = params.get('actorId') ?? '';
   useEffect(() => {
-    const current = params.get('actorId') ?? '';
-    if (actorInput !== current) {
-      setActorInput(current);
-    }
-  }, [params]);
+    setActorInput(urlFilter);
+  }, [urlFilter]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      const current = params.get('actorId') ?? '';
-      if (actorInput !== current) {
-        change('actorId', actorInput);
+      if (actorInput !== urlFilter) {
+        setParams((current) => {
+          const next = new URLSearchParams(current);
+          if (actorInput) next.set('actorId', actorInput);
+          else next.delete('actorId');
+          next.delete('page');
+          return next;
+        });
       }
     }, 250);
     return () => clearTimeout(timer);
-  }, [actorInput]);
+  }, [actorInput, urlFilter, setParams]);
 
   function change(name: string, value: string) {
     const next = new URLSearchParams(params);

@@ -14,7 +14,7 @@
     "jobs:no-show": "tsx src/jobs/no-show-sweep.ts",
     "db:seed": "tsx src/database/seed/index.ts",
     "db:seed:rich": "tsx src/database/seed/demo-rich-data.ts",
-    "test": "tsx --test src/app.test.ts src/domain.test.ts src/database.test.ts src/phase1.test.ts src/modules/auth/auth.test.ts src/modules/backups/backup-restore.operations.test.ts src/modules/blood-bags/blood-bag.service.test.ts"
+    "test": "tsx --test src/app.test.ts src/domain.test.ts src/database.test.ts src/phase1.test.ts src/workflow.test.ts src/modules/auth/auth.test.ts src/modules/backups/backup-restore.operations.test.ts src/modules/blood-bags/blood-bag.service.test.ts"
   },
   "dependencies": {
     "@blood/shared-types": "workspace:*",

@@ -1,8 +1,13 @@
+import { z } from 'zod';
+import { parseDomain } from '../../common/helpers/domain-validation';
 import type { Prisma } from '@prisma/client';
 import type { NotificationChannel, NotificationType } from '@prisma/client';
 import { ERROR_CODES } from '@blood/shared-types';
 import { AppError } from '../../common/errors/app.error';
-import { paginationMeta } from '../../common/helpers/response';
+import {
+  paginationMeta,
+  resolvePagination,
+} from '../../common/helpers/response';
 import { database } from '../../config/database';
 import { sendNotificationEmail } from './notification.mailer';
 import { notificationRepository as repo } from './notification.repository';
@@ -63,14 +68,16 @@ export const notificationService = {
     }
   },
 
-  async list(userId: string, query: { page?: number; limit?: number }) {
-    const page = query.page ?? 1;
-    const limit = Math.min(query.limit ?? 20, 100);
-    const [items, total] = await repo.listByUser(
-      userId,
-      (page - 1) * limit,
-      limit,
+  async list(userId: string, input: unknown) {
+    const query = parseDomain(
+      z.object({
+        page: z.coerce.number().int().positive().optional(),
+        limit: z.coerce.number().int().positive().optional(),
+      }),
+      input,
     );
+    const { page, limit, skip, take } = resolvePagination(query);
+    const [items, total] = await repo.listByUser(userId, skip, take);
     return { items, meta: paginationMeta(page, limit, total) };
   },
 

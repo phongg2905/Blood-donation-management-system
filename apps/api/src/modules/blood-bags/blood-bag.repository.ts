@@ -1,9 +1,8 @@
-import type { Prisma } from '@prisma/client';
-import { database } from '../../config/database';
+import type { BloodBagStatus, Prisma } from '@prisma/client';
+import { database, serializableTransaction } from '../../config/database';
 
 export const bloodBagRepository = {
-  transaction: <T>(work: (tx: Prisma.TransactionClient) => Promise<T>) =>
-    database.$transaction(work),
+  transaction: serializableTransaction,
 
   findScreeningTx: (tx: Prisma.TransactionClient, screeningId: string) =>
     tx.screening.findUnique({
@@ -29,8 +28,8 @@ export const bloodBagRepository = {
     data: Prisma.CertificateUncheckedCreateInput,
   ) => tx.certificate.create({ data }),
 
-  findById: (id: string) =>
-    database.bloodBag.findUnique({
+  findById: (id: string, tx: Prisma.TransactionClient = database) =>
+    tx.bloodBag.findUnique({
       where: { id },
       include: {
         donation: {
@@ -43,7 +42,13 @@ export const bloodBagRepository = {
                     registration: {
                       include: {
                         campaign: true,
-                        donor: { include: { user: true } },
+                        donor: {
+                          include: {
+                            user: {
+                              select: { id: true, fullName: true, email: true },
+                            },
+                          },
+                        },
                       },
                     },
                   },
@@ -85,7 +90,7 @@ export const bloodBagRepository = {
     take: number;
   }) {
     const where: Prisma.BloodBagWhereInput = {
-      ...(filter.status ? { status: filter.status as any } : {}),
+      ...(filter.status ? { status: filter.status as BloodBagStatus } : {}),
       ...(filter.campaignId
         ? {
             donation: {
@@ -135,7 +140,13 @@ export const bloodBagRepository = {
                   registration: {
                     include: {
                       campaign: true,
-                      donor: { include: { user: true } },
+                      donor: {
+                        include: {
+                          user: {
+                            select: { id: true, fullName: true, email: true },
+                          },
+                        },
+                      },
                     },
                   },
                 },
@@ -164,9 +175,7 @@ export const bloodBagRepository = {
     const where: Prisma.ScreeningWhereInput = {
       status: 'ELIGIBLE',
       donation: null,
-      ...(campaignId
-        ? { checkIn: { registration: { campaignId } } }
-        : {}),
+      ...(campaignId ? { checkIn: { registration: { campaignId } } } : {}),
     };
 
     return database.screening.findMany({
@@ -217,7 +226,13 @@ export const bloodBagRepository = {
                     registration: {
                       include: {
                         campaign: true,
-                        donor: { include: { user: true } },
+                        donor: {
+                          include: {
+                            user: {
+                              select: { id: true, fullName: true, email: true },
+                            },
+                          },
+                        },
                       },
                     },
                   },
