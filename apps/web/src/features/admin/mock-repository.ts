@@ -16,6 +16,13 @@ import type {
   AdminUserUpdate,
   AuditLogEntry,
   AuditLogQuery,
+  BackupExportOptions,
+  BackupExportResult,
+  BackupHistoryEntry,
+  BackupInspectResult,
+  BackupRestoreOperation,
+  BackupRestoreResult,
+  BackupSummary,
   DonationReport,
   DonationReportQuery,
   DonationReportRow,
@@ -231,6 +238,8 @@ export class MockAdminRepository implements AdminRepository {
   private userStore: AdminUser[];
   private settingStore: SystemSetting[];
   private auditStore: AuditLogEntry[];
+  private backupHistoryStore: BackupHistoryEntry[];
+  private restoreOperations = new Map<string, BackupRestoreOperation>();
 
   constructor({ latency = 250 }: MockAdminOptions = {}) {
     this.latency = latency;
@@ -249,6 +258,39 @@ export class MockAdminRepository implements AdminRepository {
       updatedAt: new Date(this.now - (index + 1) * 3_600_000).toISOString(),
     }));
     this.auditStore = auditLogFixtures(this.now);
+    this.backupHistoryStore = [
+      {
+        id: 'backup-log-001',
+        action: AUDIT_ACTIONS.SYSTEM_BACKUP_CREATED,
+        createdAt: new Date(this.now - 86_400_000).toISOString(),
+        actorId: 'user-004',
+        actorEmail: 'admin@example.local',
+        actorName: 'System Admin Demo',
+        ipAddress: '127.0.0.1',
+        userAgent: 'Mozilla/5.0',
+        metadata: {
+          filename: 'blood-donation-backup-2026-11-26T08-00-00.json',
+          format: 'blood-donation-backup',
+          version: 1,
+          snapshotCreatedAt: new Date(this.now - 86_400_000).toISOString(),
+          checksumSha256: 'a'.repeat(64),
+          totalRecords: 180,
+          counts: {
+            users: 10,
+            donorProfiles: 8,
+            donationCampaigns: 5,
+            registrations: 43,
+            donations: 43,
+            bloodBags: 43,
+            certificates: 28,
+          },
+          sizeBytes: 48_240,
+          durationMs: 132,
+          includeCredentials: true,
+          restorable: true,
+        },
+      },
+    ];
   }
 
   private async wait(): Promise<void> {
@@ -259,7 +301,8 @@ export class MockAdminRepository implements AdminRepository {
     await this.wait();
     return {
       kpi: {
-        totalDonors: this.userStore.filter((u) => u.roles.includes('DONOR')).length,
+        totalDonors: this.userStore.filter((u) => u.roles.includes('DONOR'))
+          .length,
         totalDonations: 120,
         totalVolumeMl: 42000,
         todayAppointments: 8,
@@ -267,14 +310,70 @@ export class MockAdminRepository implements AdminRepository {
         safeInventoryDays: 14,
       },
       inventory: [
-        { bloodType: 'A_POSITIVE', label: 'A+', units: 45, volumeMl: 15750, percentage: 90, status: 'safe' },
-        { bloodType: 'A_NEGATIVE', label: 'A-', units: 12, volumeMl: 4200, percentage: 40, status: 'purple' },
-        { bloodType: 'B_POSITIVE', label: 'B+', units: 38, volumeMl: 13300, percentage: 76, status: 'safe' },
-        { bloodType: 'B_NEGATIVE', label: 'B-', units: 8, volumeMl: 2800, percentage: 26, status: 'purple' },
-        { bloodType: 'AB_POSITIVE', label: 'AB+', units: 15, volumeMl: 5250, percentage: 50, status: 'warning' },
-        { bloodType: 'AB_NEGATIVE', label: 'AB-', units: 4, volumeMl: 1400, percentage: 15, status: 'critical' },
-        { bloodType: 'O_POSITIVE', label: 'O+', units: 52, volumeMl: 18200, percentage: 100, status: 'safe' },
-        { bloodType: 'O_NEGATIVE', label: 'O-', units: 6, volumeMl: 2100, percentage: 20, status: 'critical' },
+        {
+          bloodType: 'A_POSITIVE',
+          label: 'A+',
+          units: 45,
+          volumeMl: 15750,
+          percentage: 90,
+          status: 'safe',
+        },
+        {
+          bloodType: 'A_NEGATIVE',
+          label: 'A-',
+          units: 12,
+          volumeMl: 4200,
+          percentage: 40,
+          status: 'purple',
+        },
+        {
+          bloodType: 'B_POSITIVE',
+          label: 'B+',
+          units: 38,
+          volumeMl: 13300,
+          percentage: 76,
+          status: 'safe',
+        },
+        {
+          bloodType: 'B_NEGATIVE',
+          label: 'B-',
+          units: 8,
+          volumeMl: 2800,
+          percentage: 26,
+          status: 'purple',
+        },
+        {
+          bloodType: 'AB_POSITIVE',
+          label: 'AB+',
+          units: 15,
+          volumeMl: 5250,
+          percentage: 50,
+          status: 'warning',
+        },
+        {
+          bloodType: 'AB_NEGATIVE',
+          label: 'AB-',
+          units: 4,
+          volumeMl: 1400,
+          percentage: 15,
+          status: 'critical',
+        },
+        {
+          bloodType: 'O_POSITIVE',
+          label: 'O+',
+          units: 52,
+          volumeMl: 18200,
+          percentage: 100,
+          status: 'safe',
+        },
+        {
+          bloodType: 'O_NEGATIVE',
+          label: 'O-',
+          units: 6,
+          volumeMl: 2100,
+          percentage: 20,
+          status: 'critical',
+        },
       ],
       monthlyTrend: [
         { month: 'T5', donations: 18, volumeMl: 6300 },
@@ -333,12 +432,16 @@ export class MockAdminRepository implements AdminRepository {
       user.donorProfile = {
         ...user.donorProfile,
         ...(input.phone !== undefined ? { phone: input.phone } : {}),
-        ...(input.citizenId !== undefined ? { citizenId: input.citizenId } : {}),
+        ...(input.citizenId !== undefined
+          ? { citizenId: input.citizenId }
+          : {}),
         ...(input.dateOfBirth !== undefined
           ? { dateOfBirth: input.dateOfBirth }
           : {}),
         ...(input.gender !== undefined ? { gender: input.gender } : {}),
-        ...(input.bloodType !== undefined ? { bloodType: input.bloodType } : {}),
+        ...(input.bloodType !== undefined
+          ? { bloodType: input.bloodType }
+          : {}),
         ...(input.address !== undefined ? { address: input.address } : {}),
       };
     }
@@ -494,5 +597,230 @@ export class MockAdminRepository implements AdminRepository {
       filename: `bao-cao-hien-mau-${new Date().toISOString().slice(0, 10)}.csv`,
       content: `\uFEFF${body}\n`,
     };
+  }
+
+  async backupSummary(): Promise<BackupSummary> {
+    await this.wait();
+    const lastCreated = this.backupHistoryStore.find(
+      (item) => item.action === AUDIT_ACTIONS.SYSTEM_BACKUP_CREATED,
+    );
+    const lastRestored = this.backupHistoryStore.find(
+      (item) => item.action === AUDIT_ACTIONS.SYSTEM_BACKUP_RESTORED,
+    );
+    return {
+      counts: {
+        users: this.userStore.length,
+        donors: this.userStore.filter((u) => u.roles.includes('DONOR')).length,
+        campaigns: REPORT_CAMPAIGNS.length,
+        registrations: SEED_DONATIONS.length,
+        donations: SEED_DONATIONS.length,
+        bloodBags: SEED_DONATIONS.length,
+        certificates: SEED_DONATIONS.length,
+        auditLogs: this.auditStore.length,
+      },
+      lastBackupAt: lastCreated?.createdAt ?? null,
+      lastBackupBy: lastCreated?.actorEmail ?? null,
+      lastBackupMetadata: lastCreated?.metadata ?? null,
+      lastRestoreAt: lastRestored?.createdAt ?? null,
+      lastRestoreBy: lastRestored?.actorEmail ?? null,
+    };
+  }
+
+  async backupHistory(
+    page: number,
+    limit: number,
+  ): Promise<Page<BackupHistoryEntry>> {
+    await this.wait();
+    return paginate(this.backupHistoryStore, page, limit);
+  }
+
+  async exportBackup(
+    options: BackupExportOptions,
+  ): Promise<BackupExportResult> {
+    await this.wait();
+    const createdAt = new Date().toISOString();
+    const checksumSha256 = (options.includeCredentials ? 'b' : 'c').repeat(64);
+    const filename = `blood-donation-backup-${createdAt.replace(/[:.]/g, '-').slice(0, 19)}.json`;
+    const counts = {
+      users: this.userStore.length,
+      systemSettings: this.settingStore.length,
+      auditLogs: this.auditStore.length,
+    };
+    const totalRecords =
+      counts.users + counts.systemSettings + counts.auditLogs;
+
+    const snapshot = {
+      format: 'blood-donation-backup',
+      version: 1,
+      createdAt,
+      includeCredentials: options.includeCredentials,
+      restorable: options.includeCredentials,
+      checksumSha256,
+      counts,
+      totalRecords,
+      tables: {
+        users: this.userStore,
+        systemSettings: this.settingStore,
+        auditLogs: this.auditStore,
+      },
+    };
+    const sizeBytes = JSON.stringify(snapshot).length;
+
+    this.backupHistoryStore.unshift({
+      id: `backup-log-${Date.now()}`,
+      action: AUDIT_ACTIONS.SYSTEM_BACKUP_CREATED,
+      createdAt,
+      actorId: 'user-004',
+      actorEmail: 'admin@example.local',
+      actorName: 'System Admin Demo',
+      ipAddress: '127.0.0.1',
+      userAgent: 'Mozilla/5.0',
+      metadata: {
+        filename,
+        format: 'blood-donation-backup',
+        version: 1,
+        snapshotCreatedAt: createdAt,
+        checksumSha256,
+        totalRecords,
+        counts,
+        sizeBytes,
+        durationMs: 42,
+        includeCredentials: options.includeCredentials,
+        restorable: options.includeCredentials,
+        note: options.note ?? null,
+      },
+    });
+
+    return {
+      filename,
+      snapshot,
+    };
+  }
+
+  private parseMockSnapshot(snapshot: unknown) {
+    const data = snapshot as {
+      format?: string;
+      version?: number;
+      createdAt?: string;
+      includeCredentials?: boolean;
+      restorable?: boolean;
+      checksumSha256?: string;
+      tables?: Record<string, unknown[]>;
+    };
+    if (
+      !data ||
+      data.format !== 'blood-donation-backup' ||
+      data.version !== 1 ||
+      !data.checksumSha256 ||
+      !/^[a-f0-9]{64}$/i.test(data.checksumSha256) ||
+      !data.tables
+    ) {
+      throw new ApiRequestError(
+        'BACKUP_INVALID_FILE',
+        'Tệp sao lưu không đúng định dạng hoặc đã bị thay đổi',
+        400,
+      );
+    }
+    const counts: Record<string, number> = {};
+    let totalRecords = 0;
+    for (const [k, rows] of Object.entries(data.tables)) {
+      const len = Array.isArray(rows) ? rows.length : 0;
+      counts[k] = len;
+      totalRecords += len;
+    }
+    return { data, counts, totalRecords };
+  }
+
+  async inspectBackup(snapshot: unknown): Promise<BackupInspectResult> {
+    await this.wait();
+    const { data, counts, totalRecords } = this.parseMockSnapshot(snapshot);
+    return {
+      valid: true,
+      format: data.format!,
+      version: data.version!,
+      createdAt: data.createdAt ?? new Date().toISOString(),
+      includeCredentials: Boolean(data.includeCredentials),
+      restorable: Boolean(data.restorable),
+      checksumSha256: data.checksumSha256!,
+      counts,
+      totalRecords,
+    };
+  }
+
+  async restoreBackup(
+    snapshot: unknown,
+    operationId: string,
+    filename?: string | null,
+  ): Promise<BackupRestoreOperation> {
+    const previous = this.restoreOperations.get(operationId);
+    if (previous) return previous;
+    await this.wait();
+    const { data, counts, totalRecords } = this.parseMockSnapshot(snapshot);
+    if (!data.restorable || !data.includeCredentials) {
+      throw new ApiRequestError(
+        'BACKUP_INVALID_FILE',
+        'Bản sao lưu ẩn thông tin xác thực không hỗ trợ khôi phục hệ thống.',
+        400,
+      );
+    }
+    const previousCounts = {
+      users: this.userStore.length,
+      systemSettings: this.settingStore.length,
+      auditLogs: this.auditStore.length,
+    };
+    const previousTotalRecords =
+      previousCounts.users +
+      previousCounts.systemSettings +
+      previousCounts.auditLogs;
+    const nowIso = new Date().toISOString();
+    this.backupHistoryStore.unshift({
+      id: `backup-restore-${Date.now()}`,
+      action: AUDIT_ACTIONS.SYSTEM_BACKUP_RESTORED,
+      createdAt: nowIso,
+      actorId: 'user-004',
+      actorEmail: 'admin@example.local',
+      actorName: 'System Admin Demo',
+      ipAddress: '127.0.0.1',
+      userAgent: 'Mozilla/5.0',
+      metadata: {
+        filename: filename ?? null,
+        format: data.format,
+        version: data.version,
+        restoredFromCreatedAt: data.createdAt ?? nowIso,
+        snapshotCreatedBy: { id: 'user-004', email: 'admin@example.local' },
+        includeCredentials: Boolean(data.includeCredentials),
+        restorable: Boolean(data.restorable),
+        checksumSha256: data.checksumSha256,
+        durationMs: 85,
+        totalRecords,
+        counts,
+        previousTotalRecords,
+        previousCounts,
+      },
+    });
+    const result: BackupRestoreResult = {
+      restored: true,
+      restoredFromCreatedAt: data.createdAt ?? nowIso,
+      checksumSha256: data.checksumSha256!,
+      totalRecords,
+      counts,
+    };
+    const operation: BackupRestoreOperation = {
+      id: operationId,
+      status: 'succeeded',
+      startedAt: nowIso,
+      finishedAt: nowIso,
+      result,
+      error: null,
+    };
+    this.restoreOperations.set(operation.id, operation);
+    return operation;
+  }
+
+  async restoreStatus(id: string): Promise<BackupRestoreOperation> {
+    await this.wait();
+    const operation = this.restoreOperations.get(id);
+    if (!operation) throw new ApiRequestError('ROUTE_NOT_FOUND', '', 404);
+    return operation;
   }
 }

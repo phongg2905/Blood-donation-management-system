@@ -96,6 +96,12 @@ export const APP_NAV_ITEMS: readonly NavItem[] = [
     permission: 'report.read',
     roles: ['SYSTEM_ADMIN'],
   },
+  {
+    label: 'Sao lưu',
+    to: '/admin/backups',
+    permission: 'backup.read',
+    roles: ['SYSTEM_ADMIN'],
+  },
 ];
 
 export const visibleNavItems = (

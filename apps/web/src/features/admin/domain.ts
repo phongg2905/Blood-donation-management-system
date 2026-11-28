@@ -44,6 +44,9 @@ export const AUDIT_ACTION_LABELS: Readonly<Record<string, string>> = {
   BLOOD_BAG_STATUS_CHANGED: 'Đổi trạng thái túi máu',
   CERTIFICATE_ISSUED: 'Cấp chứng nhận',
   CERTIFICATE_REVOKED: 'Thu hồi chứng nhận',
+  SYSTEM_SETTING_UPDATED: 'Cập nhật cấu hình',
+  SYSTEM_BACKUP_CREATED: 'Tạo bản sao lưu',
+  SYSTEM_BACKUP_RESTORED: 'Khôi phục dữ liệu',
 };
 
 export const auditActionLabel = (action: string): string =>

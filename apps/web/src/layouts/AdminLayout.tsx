@@ -8,6 +8,7 @@ import {
   FileText,
   Sliders,
   BarChart3,
+  Database,
   LayoutDashboard,
   Search,
   LogOut,
@@ -26,6 +27,7 @@ const NAV_ICONS: Record<string, typeof Users> = {
   '/admin/audit-logs': FileText,
   '/admin/settings': Sliders,
   '/admin/reports': BarChart3,
+  '/admin/backups': Database,
   [AUTH_ROUTES.home]: LayoutDashboard,
 };
 

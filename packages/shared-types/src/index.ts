@@ -149,6 +149,9 @@ export const PERMISSION_CODES = [
 
   'report.read',
   'report.export',
+
+  'backup.read',
+  'backup.manage',
 ] as const;
 export type PermissionCode = (typeof PERMISSION_CODES)[number];
 
@@ -279,6 +282,8 @@ const SYSTEM_ADMIN_PERMISSIONS = [
   'certificate.revoke',
   'notification.read',
   'notification.manage',
+  'backup.read',
+  'backup.manage',
 ] as const satisfies readonly PermissionCode[];
 
 /** The four-actor permission matrix; explicit so it stays auditable. */
@@ -577,6 +582,8 @@ export const ERROR_CODES = {
   CERTIFICATE_ALREADY_REVOKED: 'CERTIFICATE_ALREADY_REVOKED',
 
   ROLE_NOT_FOUND: 'ROLE_NOT_FOUND',
+
+  BACKUP_INVALID_FILE: 'BACKUP_INVALID_FILE',
 } as const;
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];
 
@@ -659,6 +666,8 @@ export const ERROR_MESSAGES: Readonly<Record<ErrorCode, string>> = {
   CERTIFICATE_ALREADY_REVOKED: 'Chứng nhận đã bị thu hồi',
 
   ROLE_NOT_FOUND: 'Không tìm thấy vai trò',
+
+  BACKUP_INVALID_FILE: 'Tệp sao lưu không hợp lệ hoặc đã bị thay đổi',
 };
 
 /* -------------------------------------------------------------------------- */
@@ -707,6 +716,9 @@ export const AUDIT_ACTIONS = {
   CERTIFICATE_REVOKED: 'CERTIFICATE_REVOKED',
 
   SYSTEM_SETTING_UPDATED: 'SYSTEM_SETTING_UPDATED',
+
+  SYSTEM_BACKUP_CREATED: 'SYSTEM_BACKUP_CREATED',
+  SYSTEM_BACKUP_RESTORED: 'SYSTEM_BACKUP_RESTORED',
 } as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];
 
@@ -726,6 +738,7 @@ export const AUDIT_ENTITY_TYPES = {
   ROLE: 'Role',
   PERMISSION: 'Permission',
   SYSTEM_SETTING: 'SystemSetting',
+  SYSTEM_BACKUP: 'SystemBackup',
 } as const;
 export type AuditEntityType =
   (typeof AUDIT_ENTITY_TYPES)[keyof typeof AUDIT_ENTITY_TYPES];

@@ -22,6 +22,12 @@ import type {
   AdminUserUpdate,
   AuditLogEntry,
   AuditLogQuery,
+  BackupExportOptions,
+  BackupExportResult,
+  BackupHistoryEntry,
+  BackupInspectResult,
+  BackupRestoreOperation,
+  BackupSummary,
   DonationReport,
   DonationReportQuery,
   Page,
@@ -155,7 +161,10 @@ export class ApiAdminRepository implements AdminRepository {
   ): Promise<SystemSetting> {
     try {
       return (
-        await apiPut<SystemSetting>(`/settings/${encodeURIComponent(key)}`, input)
+        await apiPut<SystemSetting>(
+          `/settings/${encodeURIComponent(key)}`,
+          input,
+        )
       ).data;
     } catch {
       return {
@@ -198,9 +207,12 @@ export class ApiAdminRepository implements AdminRepository {
     };
   }
 
-  async exportDonationReport(query: DonationReportQuery): Promise<ReportExport> {
+  async exportDonationReport(
+    query: DonationReportQuery,
+  ): Promise<ReportExport> {
     const { rows, totals } = await this.donationReport(query);
-    const header = 'Đợt hiến,Số lượt hiến,Đơn vị,Thể tích (ml),Người hiến duy nhất';
+    const header =
+      'Đợt hiến,Số lượt hiến,Đơn vị,Thể tích (ml),Người hiến duy nhất';
     const lines = rows.map(
       (row) =>
         `"${(row.campaignName || '').replace(/"/g, '""')}",${row.donations},${row.units},${row.volumeMl},${row.uniqueDonors}`,
@@ -214,6 +226,65 @@ export class ApiAdminRepository implements AdminRepository {
       filename: `bao-cao-hien-mau-${new Date().toISOString().slice(0, 10)}.csv`,
       content: `\uFEFF${body}\n`,
     };
+  }
+
+  async backupSummary(): Promise<BackupSummary> {
+    return (await apiGet<BackupSummary>('/backups/summary')).data;
+  }
+
+  async backupHistory(
+    page: number,
+    limit: number,
+  ): Promise<Page<BackupHistoryEntry>> {
+    const response = await apiGet<BackupHistoryEntry[]>(
+      `/backups/history?${query({ page, limit })}`,
+    );
+    if (!response.meta) throw new ApiRequestError('INTERNAL_ERROR', '', 500);
+    return { items: response.data, meta: response.meta };
+  }
+
+  async exportBackup(
+    options: BackupExportOptions,
+  ): Promise<BackupExportResult> {
+    return (
+      await apiPost<BackupExportResult>('/backups/export', options, {
+        timeoutMs: 120_000,
+      })
+    ).data;
+  }
+
+  async inspectBackup(snapshot: unknown): Promise<BackupInspectResult> {
+    return (
+      await apiPost<BackupInspectResult>('/backups/inspect', snapshot, {
+        timeoutMs: 120_000,
+      })
+    ).data;
+  }
+
+  async restoreBackup(
+    snapshot: unknown,
+    operationId: string,
+    filename?: string | null,
+  ): Promise<BackupRestoreOperation> {
+    const params = new URLSearchParams({ operationId });
+    if (filename) params.set('filename', filename);
+    return (
+      await apiPost<BackupRestoreOperation>(
+        `/backups/restore?${params.toString()}`,
+        snapshot,
+        {
+          timeoutMs: 120_000,
+        },
+      )
+    ).data;
+  }
+
+  async restoreStatus(id: string): Promise<BackupRestoreOperation> {
+    return (
+      await apiGet<BackupRestoreOperation>(
+        `/backups/restore-operations/${encodeURIComponent(id)}`,
+      )
+    ).data;
   }
 }
 

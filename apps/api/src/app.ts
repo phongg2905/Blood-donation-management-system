@@ -11,6 +11,7 @@ app.disable('x-powered-by');
 // credentials: true is required for the bd_refresh_token cookie to be sent
 // cross-origin; origin must stay a specific value (never '*') when it is.
 app.use(cors({ origin: appConfig.corsOrigin, credentials: true }));
+app.use(`${appConfig.apiPrefix}/backups`, express.json({ limit: '25mb' }));
 app.use(express.json({ limit: '1mb' }));
 app.use(cookieParser());
 app.use(authenticate);

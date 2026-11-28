@@ -39,6 +39,7 @@ import { RolesPage } from '@/features/admin/RolesPage';
 import { AuditLogsPage } from '@/features/admin/AuditLogsPage';
 import { SettingsPage } from '@/features/admin/SettingsPage';
 import { ReportsPage } from '@/features/admin/ReportsPage';
+import { BackupsPage } from '@/features/admin/BackupsPage';
 import { AdminOverviewPage } from '@/features/admin/AdminOverviewPage';
 
 /**
@@ -280,6 +281,14 @@ export function AppRoutes() {
             element={
               <PermissionGuard requiredPermission="report.read">
                 <ReportsPage />
+              </PermissionGuard>
+            }
+          />
+          <Route
+            path="/admin/backups"
+            element={
+              <PermissionGuard requiredPermission="backup.read">
+                <BackupsPage />
               </PermissionGuard>
             }
           />

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { AppError } from './common/errors/app.error';
 import {
   assertMeasurement,
   parseDomain,
@@ -14,6 +15,15 @@ import {
 import { validateTimeSlot } from './modules/time-slots/time-slot.validation';
 import { validateCampaign } from './modules/donation-campaigns/campaign.validation';
 import { validateDonation } from './modules/donations/donation.validation';
+import {
+  BACKUP_FORMAT,
+  BACKUP_TABLE_NAMES,
+  BACKUP_VERSION,
+  computeSnapshotChecksum,
+  parseAndVerifySnapshot,
+  type BackupTables,
+} from './modules/backups/backup.validation';
+import { backupService } from './modules/backups/backup.service';
 
 const start = new Date('2030-01-01T08:00:00Z');
 const end = new Date('2030-01-01T12:00:00Z');
@@ -114,4 +124,64 @@ test('workflow guards reject invalid lifecycle transitions', () => {
   assert.throws(() => assertCanDonate('WAITING_REVIEW'));
   assertCanIssueCertificate('COMPLETED');
   assert.throws(() => assertCanIssueCertificate('IN_PROGRESS'));
+});
+
+test('backup snapshot verifies SHA-256 checksums and rejects tampered or sanitized restores', async () => {
+  const emptyTables = Object.fromEntries(
+    BACKUP_TABLE_NAMES.map((name) => [name, []]),
+  ) as unknown as BackupTables;
+  const payload = {
+    format: BACKUP_FORMAT,
+    version: BACKUP_VERSION,
+    createdAt: '2026-11-27T01:00:00.000Z',
+    includeCredentials: true,
+    restorable: true,
+    tables: {
+      ...emptyTables,
+      roles: [{ id: 'role-1', code: 'SYSTEM_ADMIN', name: 'Quản trị hệ thống' }],
+    },
+  };
+  const checksumSha256 = computeSnapshotChecksum(payload);
+  const snapshot = { ...payload, checksumSha256 };
+
+  const verified = parseAndVerifySnapshot({
+    ...snapshot,
+    createdBy: { id: 'admin-1', email: 'admin@example.local' },
+  });
+  assert.equal(verified.totalRecords, 1);
+  assert.equal(verified.counts.roles, 1);
+  assert.equal(verified.snapshot.createdBy?.email, 'admin@example.local');
+
+  assert.throws(
+    () =>
+      parseAndVerifySnapshot({
+        ...snapshot,
+        tables: {
+          ...snapshot.tables,
+          roles: [{ id: 'role-1', code: 'DONOR', name: 'Tampered' }],
+        },
+      }),
+    (error: unknown) =>
+      error instanceof AppError && error.code === 'BACKUP_INVALID_FILE',
+  );
+
+  const sanitizedPayload = {
+    ...payload,
+    includeCredentials: false,
+    restorable: false,
+  };
+  const sanitizedSnapshot = {
+    ...sanitizedPayload,
+    checksumSha256: computeSnapshotChecksum(sanitizedPayload),
+  };
+  await assert.rejects(
+    () =>
+      backupService.restore(sanitizedSnapshot, {
+        actorId: null,
+        ipAddress: null,
+        userAgent: null,
+      }),
+    (error: unknown) =>
+      error instanceof AppError && error.code === 'BACKUP_INVALID_FILE',
+  );
 });
