@@ -33,6 +33,7 @@ interface SeedRegistration {
   code: string;
   donorId: string;
   donorName: string;
+  donorBloodType?: DonorRegistration['donorBloodType'];
   donorPhone: string;
   donorIdentity: string;
   status: DonorRegistration['status'];
@@ -102,6 +103,7 @@ export class MockWorkflowRepository implements WorkflowRepository {
         code: 'REG-00002',
         donorId: 'seed-donor-2',
         donorName: 'Trần Thanh Hà',
+        donorBloodType: 'A_POSITIVE',
         donorPhone: '0902222222',
         donorIdentity: '079203002345',
         status: 'SCHEDULED',
@@ -122,6 +124,7 @@ export class MockWorkflowRepository implements WorkflowRepository {
         code: 'REG-00004',
         donorId: 'seed-donor-4',
         donorName: 'Phạm Thu Trang',
+        donorBloodType: 'O_POSITIVE',
         donorPhone: '0904444444',
         donorIdentity: '079203004567',
         status: 'CONFIRMED',
@@ -132,6 +135,7 @@ export class MockWorkflowRepository implements WorkflowRepository {
         code: 'REG-00005',
         donorId: 'seed-donor-5',
         donorName: 'Đỗ Văn Kiên',
+        donorBloodType: 'O_POSITIVE',
         donorPhone: '0905555555',
         donorIdentity: '079203005678',
         status: 'COMPLETED',
@@ -167,6 +171,7 @@ export class MockWorkflowRepository implements WorkflowRepository {
         code: seed.code,
         donorId: seed.donorId,
         donorName: seed.donorName,
+        donorBloodType: seed.donorBloodType ?? null,
         donorPhone: seed.donorPhone,
         donorIdentity: seed.donorIdentity,
         campaignId: campaign.id,
@@ -204,6 +209,7 @@ export class MockWorkflowRepository implements WorkflowRepository {
           campaignName: registration.campaignName,
           volumeMl: seed.bag.volumeMl,
           bloodGroup: seed.bag.bloodGroup,
+          donorBloodType: registration.donorBloodType,
           status: 'ACCEPTED',
           receivedAt: isoDay(0, 10),
         });
@@ -571,8 +577,9 @@ export class MockWorkflowRepository implements WorkflowRepository {
       campaignId: campaignId,
       campaignName: campaignName,
       volumeMl: input.volumeMl,
-      bloodGroup: input.bloodGroup,
-      bloodType: input.bloodType,
+      bloodGroup: null,
+      bloodType: null,
+      donorBloodType: registration?.donorBloodType ?? null,
       status: input.status || 'COLLECTED',
       receivedAt: new Date().toISOString(),
       notes: input.notes,

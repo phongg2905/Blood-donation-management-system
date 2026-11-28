@@ -55,6 +55,28 @@ export const bloodBagRepository = {
       },
     }),
 
+  findByIdTx: (tx: Prisma.TransactionClient, id: string) =>
+    tx.bloodBag.findUnique({
+      where: { id },
+      include: {
+        donation: {
+          include: {
+            screening: {
+              include: {
+                checkIn: {
+                  include: {
+                    registration: {
+                      include: { donor: true, campaign: true },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    }),
+
   async list(filter: {
     campaignId?: string;
     status?: string;

@@ -63,10 +63,10 @@ export function toBackendBloodType(
   group: BloodGroup | string | null | undefined,
   rh: RhFactor | string | null | undefined,
 ): BackendBloodType | null {
-  if (!group) return null;
+  if (!group || !rh) return null;
   const cleanGroup = group.replace(/[^ABO]/g, '');
-  const isPositive = rh === 'POSITIVE' || group.includes('+');
-  const factor = isPositive ? 'POSITIVE' : 'NEGATIVE';
+  if (rh !== 'POSITIVE' && rh !== 'NEGATIVE') return null;
+  const factor = rh;
   const combined = `${cleanGroup}_${factor}` as BackendBloodType;
   const valid: readonly BackendBloodType[] = [
     'A_POSITIVE',
@@ -95,6 +95,15 @@ export function parseBackendBloodType(
   }
   const clean = bloodType.replace(/[^ABO]/g, '') as BloodGroup;
   return { bloodGroup: clean || '', rh: '' };
+}
+
+export function hasBloodTypeDiscrepancy(
+  profileBloodType: string | null | undefined,
+  group: BloodGroup | string | null | undefined,
+  rh: RhFactor | string | null | undefined,
+): boolean {
+  const selected = toBackendBloodType(group, rh);
+  return Boolean(profileBloodType && selected && profileBloodType !== selected);
 }
 
 export function formatBloodTypeDisplay(

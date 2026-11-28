@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ReactNode } from 'react';
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AppRoutes } from '@/app/router/AppRoutes';
 import { createMockAuthService } from '@/features/auth/services/mock-auth.service';
@@ -11,9 +11,12 @@ import { MockWorkflowRepository } from './mock-repository';
 import { WorkflowRepositoryContext } from './repository';
 import {
   generateStandardBloodBagCode,
+  hasBloodTypeDiscrepancy,
   sortCampaignsForOperationalStation,
   sortRegistrationsForCheckIn,
+  toBackendBloodType,
 } from './domain';
+import { mapRegistration } from './repository';
 import type { DonorRegistration } from './types';
 
 const withRepositories = (node: ReactNode) => (
@@ -56,6 +59,16 @@ const measurements = {
 };
 
 describe('MockWorkflowRepository', () => {
+  it('keeps a profile blood type as a reference and requires an explicit Rh value', () => {
+    const registration = mapRegistration({
+      id: 'reg-1', donorId: 'donor-1', campaignId: 'campaign-1', status: 'CONFIRMED',
+      donor: { bloodType: 'A_POSITIVE' },
+    });
+    expect(registration.donorBloodType).toBe('A_POSITIVE');
+    expect(toBackendBloodType('A', '')).toBeNull();
+    expect(hasBloodTypeDiscrepancy('A_POSITIVE', 'B', 'POSITIVE')).toBe(true);
+    expect(hasBloodTypeDiscrepancy('A_POSITIVE', 'A', 'POSITIVE')).toBe(false);
+  });
   it('runs registration → check-in → screening → blood bag → certificate', async () => {
     const repo = new MockWorkflowRepository({ latency: 0 });
 
@@ -210,6 +223,22 @@ describe('clinic check-in page', () => {
     expect(screeningLinks.length).toBeGreaterThan(0);
   });
 
+  it('prefills screening from the donor profile but requires confirmation of this donation', async () => {
+    const user = userEvent.setup();
+    const auth = createMockAuthService();
+    await signInAs(auth, 'donation-staff@example.local');
+    renderWithAuth(withRepositories(<AppRoutes />), {
+      service: auth,
+      route: '/clinic/screening/seed-reg-2',
+    });
+    expect(await screen.findByText(/Nhóm máu hồ sơ \(tham chiếu\)/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByLabelText('Nhóm máu ABO')).toHaveValue('A'));
+    expect(screen.getByLabelText('Yếu tố Rh')).toHaveValue('POSITIVE');
+    expect(screen.getByLabelText(/Đã kiểm tra kết quả nhóm máu của đợt này/)).not.toBeChecked();
+    await user.selectOptions(screen.getByLabelText('Nhóm máu ABO'), 'B');
+    expect(screen.getByRole('alert', { name: '' })).toHaveTextContent('khác nhóm máu hồ sơ');
+  });
+
   it('blocks a donor from the clinic route', async () => {
     const auth = createMockAuthService();
     await signInAs(auth, 'donor@example.local');
@@ -294,6 +323,9 @@ describe('clinic check-in page', () => {
 
     expect(await screen.findByText('Hồ sơ lưu trữ túi máu')).toBeInTheDocument();
     expect(screen.getByText('Quản lý kho & Bảo quản')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Sửa thông tin' }),
+    ).not.toBeInTheDocument();
 
     const closeBtn = screen.getByRole('button', { name: 'Đóng' });
     await user.click(closeBtn);

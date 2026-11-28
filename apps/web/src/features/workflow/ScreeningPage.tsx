@@ -1,4 +1,4 @@
-import { useContext, useEffect, useMemo, useState } from 'react';
+import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   AlertTriangle,
@@ -24,12 +24,15 @@ import {
   RH_OPTIONS,
   SCREENING_STATUS_LABELS,
   formatDate,
+  formatBloodTypeDisplay,
   formatSlotRange,
   getOperationalWindow,
   getStaffStationInCampaign,
+  hasBloodTypeDiscrepancy,
   isAssignedToCampaignStation,
   sortCampaignsForOperationalStation,
   parseMeasurements,
+  parseBackendBloodType,
   validateScreening,
   type FieldErrors,
 } from './domain';
@@ -653,6 +656,8 @@ export function ScreeningPage() {
   const [values, setValues] = useState<Record<string, string>>({});
   const [bloodGroup, setBloodGroup] = useState<BloodGroup | ''>('');
   const [rh, setRh] = useState<RhFactor | ''>('');
+  const [confirmedBloodType, setConfirmedBloodType] = useState(false);
+  const initializedRegistrationId = useRef<string | null>(null);
   const [infectiousTest, setInfectiousTest] = useState<QuickTestResult | ''>('');
   const [errors, setErrors] = useState<FieldErrors>({});
   const [outcome, setOutcome] = useState<ScreeningOutcome | null>(null);
@@ -664,6 +669,8 @@ export function ScreeningPage() {
   // Sync existing screening data when item loads
   useEffect(() => {
     if (item?.screening) {
+      if (initializedRegistrationId.current === item.registration.id) return;
+      initializedRegistrationId.current = item.registration.id;
       const scr = item.screening;
       if (scr.measurements && Object.keys(scr.measurements).length > 0) {
         const m: Record<string, string> = {};
@@ -672,8 +679,11 @@ export function ScreeningPage() {
         }
         setValues((prev) => (Object.keys(prev).length === 0 ? m : prev));
       }
-      if (scr.bloodGroup) setBloodGroup(scr.bloodGroup);
-      if (scr.rh) setRh(scr.rh);
+      const profile = parseBackendBloodType(item.registration.donorBloodType);
+      const hasCurrentBloodResult = Boolean(scr.bloodGroup || scr.rh);
+      setBloodGroup(hasCurrentBloodResult ? scr.bloodGroup ?? '' : profile.bloodGroup);
+      setRh(hasCurrentBloodResult ? scr.rh ?? '' : profile.rh);
+      setConfirmedBloodType(Boolean(scr.bloodGroup && scr.rh));
       if (scr.infectiousTest) setInfectiousTest(scr.infectiousTest);
       if (scr.indicatedVolumeMl) setIndicatedVolume(scr.indicatedVolumeMl);
       if (scr.status === 'ELIGIBLE' || scr.status === 'INELIGIBLE' || scr.status === 'DEFERRED') {
@@ -712,6 +722,7 @@ export function ScreeningPage() {
   }
 
   const { registration, screening } = item;
+  const bloodTypeDiscrepancy = hasBloodTypeDiscrepancy(registration.donorBloodType, bloodGroup, rh);
   const reviewed =
     screening.status === 'ELIGIBLE' ||
     screening.status === 'INELIGIBLE' ||
@@ -725,6 +736,9 @@ export function ScreeningPage() {
       infectiousTest: infectiousTest || null,
     };
     const nextErrors = validateScreening(values, notes);
+    if (bloodGroup && rh && !confirmedBloodType) {
+      nextErrors.bloodTypeConfirmation = 'Cần xác nhận kết quả của đợt này trước khi lưu nhóm máu gợi ý.';
+    }
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
@@ -749,6 +763,9 @@ export function ScreeningPage() {
       infectiousTest: infectiousTest || null,
     };
     const nextErrors = validateScreening(values, notes);
+    if (bloodGroup && rh && !confirmedBloodType) {
+      nextErrors.bloodTypeConfirmation = 'Cần xác nhận kết quả của đợt này trước khi kết luận.';
+    }
     if (!outcome) {
       nextErrors.outcome = 'Vui lòng chọn kết luận sàng lọc.';
     }
@@ -1010,6 +1027,9 @@ export function ScreeningPage() {
               {/* Form 2: Rapid Tests & Blood Group */}
               <section className="workflow-card">
                 <h2>2. Định nhóm máu & Xét nghiệm nhanh</h2>
+                {registration.donorBloodType && (
+                  <p>Nhóm máu hồ sơ (tham chiếu): <strong>{formatBloodTypeDisplay(registration.donorBloodType)}</strong>. Cần đối chiếu kết quả của đợt này.</p>
+                )}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
                   <FormField
                     id="screening-blood-group"
@@ -1021,7 +1041,12 @@ export function ScreeningPage() {
                       id="screening-blood-group"
                       value={bloodGroup}
                       disabled={reviewed}
-                      onChange={(event) => setBloodGroup(event.target.value as BloodGroup | '')}
+                      onChange={(event) => {
+                        const nextGroup = event.target.value as BloodGroup | '';
+                        setBloodGroup(nextGroup);
+                        if (!nextGroup) setRh('');
+                        setConfirmedBloodType(false);
+                      }}
                     >
                       <option value="">-- Chưa rõ / Chờ xét nghiệm --</option>
                       {BLOOD_GROUP_OPTIONS.map((option) => (
@@ -1042,7 +1067,7 @@ export function ScreeningPage() {
                       id="screening-rh"
                       value={rh}
                       disabled={reviewed}
-                      onChange={(event) => setRh(event.target.value as RhFactor | '')}
+                      onChange={(event) => { setRh(event.target.value as RhFactor | ''); setConfirmedBloodType(false); }}
                     >
                       <option value="">-- Chưa rõ / Chờ xét nghiệm --</option>
                       {RH_OPTIONS.map((option) => (
@@ -1052,6 +1077,14 @@ export function ScreeningPage() {
                       ))}
                     </select>
                   </FormField>
+
+                  {bloodGroup && rh && !reviewed && (
+                    <div style={{ gridColumn: '1 / -1' }}>
+                      {bloodTypeDiscrepancy && <p role="alert" style={{ color: '#b91c1c' }}>Kết quả đang chọn khác nhóm máu hồ sơ. Kiểm tra lại trước khi lưu.</p>}
+                      <label><input type="checkbox" checked={confirmedBloodType} onChange={(event) => setConfirmedBloodType(event.target.checked)} /> Đã kiểm tra kết quả nhóm máu của đợt này{bloodTypeDiscrepancy ? ' và đối chiếu sai khác' : ''}</label>
+                      {errors.bloodTypeConfirmation && <p role="alert" style={{ color: '#b91c1c' }}>{errors.bloodTypeConfirmation}</p>}
+                    </div>
+                  )}
 
                   <FormField
                     id="screening-infectious"
