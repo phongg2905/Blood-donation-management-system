@@ -27,18 +27,8 @@ import { bloodBagRepository as repo } from './blood-bag.repository';
 const bagSchema = z.object({
   code: z.string().trim().min(1).max(64),
   volumeMl: positiveInteger,
-  bloodType: z
-    .enum([
-      'A_POSITIVE',
-      'A_NEGATIVE',
-      'B_POSITIVE',
-      'B_NEGATIVE',
-      'AB_POSITIVE',
-      'AB_NEGATIVE',
-      'O_POSITIVE',
-      'O_NEGATIVE',
-    ])
-    .nullish(),
+  // A collected bag has no confirmed Lab blood group yet.
+  bloodType: z.null().optional(),
 });
 const recordSchema = z.object({ bags: z.array(bagSchema).min(1).max(20) });
 
@@ -77,6 +67,9 @@ const updateBagSchema = z.object({
     .nullish(),
   storageLocation: z.string().trim().max(100).optional(),
   syncDonorProfile: z.boolean().optional(),
+  confirmBloodTypeResult: z.boolean().optional(),
+  confirmBloodTypeOverride: z.boolean().optional(),
+  bloodTypeOverrideReason: z.string().trim().max(500).optional(),
 });
 
 export const bloodBagService = {
@@ -178,7 +171,8 @@ export const bloodBagService = {
       const bloodBags = await repo.createBags(
         tx,
         bags.map((b) => ({
-          ...b,
+          code: b.code,
+          volumeMl: b.volumeMl,
           donationId: donation.id,
           status: 'COLLECTED',
           collectedAt: now,
@@ -252,30 +246,105 @@ export const bloodBagService = {
 
   async update(id: string, input: unknown, ctx: AuditContext) {
     const data = parseDomain(updateBagSchema, input);
-    const { syncDonorProfile = true, ...bagData } = data;
-    const result = await repo.transaction(async (tx) => {
-      const existing = await repo.findById(id, tx);
+    let notificationToDispatch: Awaited<ReturnType<typeof notificationService.create>> | null = null;
+
+    const updated = await repo.transaction(async (tx) => {
+      const existing = await repo.findByIdTx(tx, id);
       if (!existing)
         throw AppError.notFound(
           ERROR_CODES.SCREENING_NOT_FOUND,
           'Không tìm thấy túi máu',
         );
+      const donor = existing.donation.screening.checkIn.registration.donor;
+      const nextStatus = data.status ?? existing.status;
+      const nextBloodType =
+        data.bloodType === undefined ? existing.bloodType : data.bloodType;
       if (data.status && data.status !== existing.status) {
         assertBloodBagTransition(existing.status, data.status);
       }
-      const effectiveStatus = data.status ?? existing.status;
-      if (
-        (effectiveStatus === 'TESTED' || effectiveStatus === 'ACCEPTED') &&
-        !(data.bloodType === undefined ? existing.bloodType : data.bloodType)
-      ) {
-        throw AppError.validation({
-          bloodType: 'Cần xác nhận nhóm máu khi hoàn tất xét nghiệm',
-        });
+      if (existing.status === 'ACCEPTED' || existing.status === 'DISCARDED') {
+        throw AppError.conflict(
+          ERROR_CODES.BLOOD_BAG_INVALID_TRANSITION,
+          'Không thể sửa túi máu đã kết thúc xử lý',
+        );
       }
-      const updatedBag = await tx.bloodBag.update({
-        where: { id },
+      if (
+        data.bloodType &&
+        nextStatus !== 'TESTED' &&
+        nextStatus !== 'ACCEPTED'
+      ) {
+        throw AppError.badRequest(
+          ERROR_CODES.VALIDATION_ERROR,
+          'Chỉ ghi nhóm máu túi sau khi xét nghiệm',
+        );
+      }
+      if (nextStatus === 'TESTED') {
+        if (!nextBloodType || (existing.status !== 'TESTED' && !data.bloodType)) {
+          throw AppError.badRequest(
+            ERROR_CODES.VALIDATION_ERROR,
+            'Cần kết quả ABO và Rh của đợt xét nghiệm này',
+          );
+        }
+        if (
+          (existing.status !== 'TESTED' || data.bloodType !== undefined) &&
+          data.confirmBloodTypeResult !== true
+        ) {
+          throw AppError.badRequest(
+            ERROR_CODES.VALIDATION_ERROR,
+            'Cần xác nhận kết quả xét nghiệm của đợt này',
+          );
+        }
+      }
+      if (nextStatus === 'ACCEPTED' && !nextBloodType) {
+        throw AppError.badRequest(
+          ERROR_CODES.VALIDATION_ERROR,
+          'Không thể tiếp nhận túi máu khi chưa có kết quả nhóm máu',
+        );
+      }
+      if (nextStatus === 'ACCEPTED' && data.confirmBloodTypeResult !== true) {
+        throw AppError.badRequest(
+          ERROR_CODES.VALIDATION_ERROR,
+          'Cần xác nhận lại kết quả xét nghiệm trước khi tiếp nhận túi máu',
+        );
+      }
+      const discrepancy = Boolean(
+        donor.bloodType && nextBloodType && donor.bloodType !== nextBloodType,
+      );
+      if (
+        nextStatus === 'ACCEPTED' &&
+        discrepancy &&
+        (data.confirmBloodTypeOverride !== true ||
+          !data.bloodTypeOverrideReason?.trim())
+      ) {
+        throw AppError.conflict(
+          ERROR_CODES.VALIDATION_ERROR,
+          'Nhóm máu khác hồ sơ. Cần kiểm tra lại, xác nhận và ghi lý do trước khi tiếp nhận túi máu.',
+        );
+      }
+      const {
+        syncDonorProfile,
+        confirmBloodTypeResult,
+        confirmBloodTypeOverride,
+        bloodTypeOverrideReason,
+        ...bagData
+      } = data;
+      const shouldSyncProfile =
+        nextStatus === 'ACCEPTED' &&
+        Boolean(nextBloodType) &&
+        syncDonorProfile === true &&
+        donor.bloodType !== nextBloodType;
+      const claimed = await tx.bloodBag.updateMany({
+        where: { id, status: existing.status, bloodType: existing.bloodType },
         data: bagData,
       });
+      if (claimed.count !== 1) {
+        throw AppError.conflict(
+          ERROR_CODES.BLOOD_BAG_INVALID_TRANSITION,
+          'Túi máu đã được người khác cập nhật. Vui lòng tải lại.',
+        );
+      }
+      const updatedBag = await tx.bloodBag.findUniqueOrThrow({ where: { id } });
+
       if (data.volumeMl !== undefined && data.volumeMl !== existing.volumeMl) {
         const total = await tx.bloodBag.aggregate({
           where: { donationId: existing.donationId },
@@ -286,43 +355,68 @@ export const bloodBagService = {
           data: { volumeMl: total._sum.volumeMl },
         });
       }
-      let notification = null;
-      if (
-        data.bloodType &&
-        data.bloodType !== existing.bloodType &&
-        syncDonorProfile
-      ) {
-        const registration = existing.donation.screening.checkIn.registration;
-        await tx.donorProfile.update({
-          where: { id: registration.donor.id },
-          data: { bloodType: data.bloodType },
+
+      if (shouldSyncProfile && nextBloodType) {
+        const synced = await tx.donorProfile.updateMany({
+          where: { id: donor.id, bloodType: donor.bloodType },
+          data: { bloodType: nextBloodType },
         });
-        const formatted = data.bloodType
+        if (synced.count !== 1) {
+          throw AppError.conflict(
+            ERROR_CODES.VALIDATION_ERROR,
+            'Hồ sơ nhóm máu vừa được cập nhật. Vui lòng tải lại và đối chiếu.',
+          );
+        }
+      }
+      if (
+        nextStatus === 'ACCEPTED' &&
+        nextBloodType &&
+        syncDonorProfile === true &&
+        donor.userId
+      ) {
+        const formatted = nextBloodType
           .replace('_POSITIVE', ' (Rh+)')
           .replace('_NEGATIVE', ' (Rh−)');
-        notification = await notificationService.create(tx, {
-          userId: registration.donor.userId,
+        notificationToDispatch = await notificationService.create(tx, {
+          userId: donor.userId,
           type: 'DONATION',
           title: 'Kết quả xét nghiệm nhóm máu',
-          message: `Kết quả xác định nhóm máu từ đợt hiến "${registration.campaign.name}": Nhóm ${formatted}.`,
+          message: `Kết quả nhóm máu đã xác nhận từ đợt hiến "${existing.donation.screening.checkIn.registration.campaign.name}": Nhóm ${formatted}.`,
           channel: 'IN_APP',
         });
       }
+
       await auditLogService.record(
         {
           ...ctx,
           action: AUDIT_ACTIONS.BLOOD_BAG_STATUS_CHANGED,
           entityType: AUDIT_ENTITY_TYPES.BLOOD_BAG,
           entityId: id,
-          metadata: { updatedFields: Object.keys(data) },
+          metadata: {
+            previousStatus: existing.status,
+            newStatus: nextStatus,
+            previousBloodType: existing.bloodType,
+            newBloodType: nextBloodType,
+            previousDonorBloodType: donor.bloodType,
+            profileSynced: shouldSyncProfile,
+            resultNotified: Boolean(notificationToDispatch),
+            discrepancyResolved:
+              discrepancy && confirmBloodTypeOverride === true,
+            discrepancyReason: discrepancy ? bloodTypeOverrideReason : undefined,
+            confirmedResult: confirmBloodTypeResult === true,
+          },
         },
         tx,
       );
-      return { updatedBag, notification };
+
+      return updatedBag;
     });
-    if (result.notification)
-      void notificationService.dispatch(result.notification);
-    return result.updatedBag;
+
+    if (notificationToDispatch) {
+      void notificationService.dispatch(notificationToDispatch);
+    }
+
+    return updated;
   },
 
   async delete(id: string, ctx: AuditContext) {

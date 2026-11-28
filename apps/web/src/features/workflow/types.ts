@@ -37,6 +37,7 @@ export interface DonorRegistration {
   code: string;
   donorId: string;
   donorName: string;
+  donorBloodType?: BackendBloodType | null;
   donorPhone: string | null;
   /** CCCD / identity number. Not collected during self-registration yet. */
   donorIdentity: string | null;
@@ -138,6 +139,9 @@ export interface BloodBagInput {
   status?: BloodBagStatus;
   storageLocation?: string;
   syncDonorProfile?: boolean;
+  confirmBloodTypeResult?: boolean;
+  confirmBloodTypeOverride?: boolean;
+  bloodTypeOverrideReason?: string;
   notes?: string;
 }
 
@@ -152,6 +156,7 @@ export interface BloodBag {
   volumeMl: number;
   bloodGroup: string | null;
   bloodType?: string | null;
+  donorBloodType?: BackendBloodType | null;
   status: BloodBagStatus;
   storageLocation?: string | null;
   receivedAt: string;

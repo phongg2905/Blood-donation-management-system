@@ -40,6 +40,7 @@ interface BackendRegistrationDto {
   createdAt?: string;
   donor?: {
     id?: string;
+    bloodType?: BackendBloodType | null;
     phone?: string | null;
     citizenId?: string | null;
     user?: { fullName?: string; phone?: string | null };
@@ -152,6 +153,7 @@ export function mapRegistration(
     code: dto.code ?? `REG-${dto.id.slice(0, 8).toUpperCase()}`,
     donorId: dto.donorId,
     donorName: dto.donor?.user?.fullName ?? fallbackDonorName ?? '',
+    donorBloodType: dto.donor?.bloodType ?? null,
     donorPhone: dto.donor?.phone ?? dto.donor?.user?.phone ?? null,
     donorIdentity: dto.donor?.citizenId ?? null,
     campaignId: dto.campaignId,
@@ -528,9 +530,9 @@ export class ApiWorkflowRepository implements WorkflowRepository {
       const bloodTypeStr = bag.bloodType ?? null;
       let bloodGroup: string | null = null;
       if (bloodTypeStr) {
-        if (bloodTypeStr.startsWith('A_')) bloodGroup = 'A';
+        if (bloodTypeStr.startsWith('AB_')) bloodGroup = 'AB';
+        else if (bloodTypeStr.startsWith('A_')) bloodGroup = 'A';
         else if (bloodTypeStr.startsWith('B_')) bloodGroup = 'B';
-        else if (bloodTypeStr.startsWith('AB_')) bloodGroup = 'AB';
         else if (bloodTypeStr.startsWith('O_')) bloodGroup = 'O';
       }
       return {
@@ -543,6 +545,7 @@ export class ApiWorkflowRepository implements WorkflowRepository {
         volumeMl: bag.volumeMl,
         bloodGroup,
         bloodType: bloodTypeStr,
+        donorBloodType: reg?.donor?.bloodType ?? null,
         status: bag.status ?? 'COLLECTED',
         storageLocation: bag.storageLocation ?? null,
         receivedAt:
@@ -588,7 +591,6 @@ export class ApiWorkflowRepository implements WorkflowRepository {
           {
             code: input.code.trim(),
             volumeMl: input.volumeMl,
-            bloodType: (input.bloodType as BackendBloodType) ?? undefined,
           },
         ],
       },
@@ -633,6 +635,9 @@ export class ApiWorkflowRepository implements WorkflowRepository {
       bloodType: input.bloodType,
       storageLocation: input.storageLocation,
       syncDonorProfile: input.syncDonorProfile,
+      confirmBloodTypeResult: input.confirmBloodTypeResult,
+      confirmBloodTypeOverride: input.confirmBloodTypeOverride,
+      bloodTypeOverrideReason: input.bloodTypeOverrideReason,
     };
     const response = await apiPatch<BackendBloodBagItemDto>(
       `/blood-bags/${encodeURIComponent(id)}`,

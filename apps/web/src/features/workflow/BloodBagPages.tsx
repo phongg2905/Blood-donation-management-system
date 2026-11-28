@@ -17,6 +17,7 @@ import {
   generateStandardBloodBagCode,
   getOperationalWindow,
   getStaffStationInCampaign,
+  hasBloodTypeDiscrepancy,
   isAssignedToCampaignStation,
   parseBackendBloodType,
   sortCampaignsForOperationalStation,
@@ -97,9 +98,6 @@ function QuickCollectModal({
     }
     setError(null);
 
-    const bloodGroup = item.screening.bloodGroup ?? null;
-    const rh = item.screening.rh ?? null;
-
     void mutation.run(
       () =>
         workflow.createBloodBag({
@@ -108,8 +106,7 @@ function QuickCollectModal({
           code: code.trim(),
           donorName: item.registration.donorName,
           volumeMl: volNum,
-          bloodGroup,
-          bloodType: toBackendBloodType(bloodGroup, rh),
+          bloodGroup: null,
           campaignId: campaignId ?? item.registration.campaignId,
           campaignName: campaignName ?? item.registration.campaignName,
           status: 'COLLECTED',
@@ -170,9 +167,12 @@ function QuickCollectModal({
               }
             >
               {item.screening.bloodGroup
-                ? `Nhóm ${item.screening.bloodGroup} ${item.screening.rh === 'POSITIVE' ? '(Rh+)' : item.screening.rh === 'NEGATIVE' ? '(Rh−)' : ''}`
-                : 'Chờ xét nghiệm Lab'}
+                ? `Sàng lọc: Nhóm ${item.screening.bloodGroup} ${item.screening.rh === 'POSITIVE' ? '(Rh+)' : item.screening.rh === 'NEGATIVE' ? '(Rh−)' : ''}`
+                : 'Chưa có kết quả sàng lọc'}
             </span>
+            {item.registration.donorBloodType && (
+              <span>Hồ sơ tham chiếu: {formatBloodTypeDisplay(item.registration.donorBloodType)}</span>
+            )}
             <span
               style={{
                 fontSize: '0.8rem',
@@ -307,6 +307,7 @@ function BloodBagDetailModal({
 
   const bloodGroupDisplay = formatBloodTypeDisplay(bag.bloodType, bag.bloodGroup);
   const isLabPending = bag.status === 'COLLECTED' || bag.status === 'PENDING_TEST';
+  const isFinalized = bag.status === 'ACCEPTED' || bag.status === 'DISCARDED';
 
   return (
     <dialog
@@ -423,16 +424,18 @@ function BloodBagDetailModal({
             Nhập kết quả xét nghiệm Lab
           </Button>
         )}
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={() => {
-            onClose();
-            onEdit(bag);
-          }}
-        >
-          Sửa thông tin
-        </Button>
+        {!isFinalized && (
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => {
+              onClose();
+              onEdit(bag);
+            }}
+          >
+            Sửa thông tin
+          </Button>
+        )}
         <Button
           type="button"
           variant="danger"
@@ -470,7 +473,7 @@ function EditBloodBagModal({
   const mutation = useWorkflowMutation();
   const dialogRef = useRef<HTMLDialogElement>(null);
 
-  const initialBlood = parseBackendBloodType(bag.bloodType);
+  const initialBlood = parseBackendBloodType(bag.bloodType ?? bag.donorBloodType);
   const [code, setCode] = useState(bag.code);
   const [donorName, setDonorName] = useState(bag.donorName);
   const [volumeMl, setVolumeMl] = useState(String(bag.volumeMl));
@@ -481,8 +484,12 @@ function EditBloodBagModal({
   const [status, setStatus] = useState<BloodBagStatus>(bag.status);
   const [storageLocation, setStorageLocation] = useState(bag.storageLocation ?? '');
   const [syncDonorProfile, setSyncDonorProfile] = useState(true);
+  const [confirmBloodTypeResult, setConfirmBloodTypeResult] = useState(false);
+  const [confirmBloodTypeOverride, setConfirmBloodTypeOverride] = useState(false);
+  const [bloodTypeOverrideReason, setBloodTypeOverrideReason] = useState('');
   const [notes, setNotes] = useState(bag.notes ?? '');
   const [errors, setErrors] = useState<FieldErrors>({});
+  const discrepancy = hasBloodTypeDiscrepancy(bag.donorBloodType, bloodGroup, rh);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -515,6 +522,13 @@ function EditBloodBagModal({
       if (!rh) {
         nextErrors.rh = 'Bắt buộc chọn yếu tố Rh khẳng định.';
       }
+      if (!confirmBloodTypeResult) {
+        nextErrors.confirmBloodTypeResult = 'Cần xác nhận kết quả xét nghiệm của đợt này.';
+      }
+    }
+    if (status === 'ACCEPTED' && discrepancy &&
+      (!confirmBloodTypeOverride || !bloodTypeOverrideReason.trim())) {
+      nextErrors.bloodTypeOverrideReason = 'Cần xác nhận và ghi lý do xử lý sai khác trước khi tiếp nhận túi máu.';
     }
 
     setErrors(nextErrors);
@@ -529,18 +543,19 @@ function EditBloodBagModal({
           donorName: donorName.trim() || undefined,
           volumeMl: volNum,
           bloodGroup: bloodGroup || null,
-          bloodType: finalBloodType,
+          bloodType: status === 'TESTED' || status === 'ACCEPTED' ? finalBloodType : undefined,
           status,
           storageLocation: storageLocation.trim() || undefined,
-          syncDonorProfile,
+          syncDonorProfile: status === 'ACCEPTED' && syncDonorProfile,
+          confirmBloodTypeResult,
+          confirmBloodTypeOverride,
+          bloodTypeOverrideReason: bloodTypeOverrideReason.trim(),
           notes: notes.trim() || undefined,
         }),
       () => {
         onSaved();
       },
-      status === 'ACCEPTED' || status === 'TESTED'
-        ? 'Đã cập nhật kết quả xét nghiệm túi máu & đồng bộ hồ sơ thành công.'
-        : 'Đã cập nhật thông tin túi máu thành công.',
+      'Đã cập nhật thông tin túi máu thành công.',
     );
   }
 
@@ -645,6 +660,8 @@ function EditBloodBagModal({
                 value={bloodGroup}
                 onChange={(e) => {
                   setBloodGroup(e.target.value as BloodGroup | '');
+                  setConfirmBloodTypeResult(false);
+                  setConfirmBloodTypeOverride(false);
                   if (errors.bloodGroup) {
                     setErrors((prev) => {
                       const next = { ...prev };
@@ -670,6 +687,8 @@ function EditBloodBagModal({
                 value={rh}
                 onChange={(e) => {
                   setRh(e.target.value as RhFactor | '');
+                  setConfirmBloodTypeResult(false);
+                  setConfirmBloodTypeOverride(false);
                   if (errors.rh) {
                     setErrors((prev) => {
                       const next = { ...prev };
@@ -689,6 +708,27 @@ function EditBloodBagModal({
             </FormField>
           </div>
 
+          {bag.donorBloodType && (
+            <p>Nhóm máu hồ sơ (tham chiếu): <strong>{formatBloodTypeDisplay(bag.donorBloodType)}</strong></p>
+          )}
+          {discrepancy && (
+            <p role="alert" style={{ color: '#b91c1c' }}>Kết quả đang chọn khác nhóm máu hồ sơ. Phải kiểm tra và giải quyết sai khác trước khi tiếp nhận túi máu.</p>
+          )}
+          {(status === 'TESTED' || status === 'ACCEPTED') && (
+            <div>
+              <label><input type="checkbox" checked={confirmBloodTypeResult} onChange={(e) => setConfirmBloodTypeResult(e.target.checked)} /> Đã đối chiếu với kết quả xét nghiệm của đợt này</label>
+              {errors.confirmBloodTypeResult && <p role="alert" style={{ color: '#b91c1c' }}>{errors.confirmBloodTypeResult}</p>}
+            </div>
+          )}
+          {status === 'ACCEPTED' && discrepancy && (
+            <div>
+              <label><input type="checkbox" checked={confirmBloodTypeOverride} onChange={(e) => setConfirmBloodTypeOverride(e.target.checked)} /> Đã kiểm tra lại và giải quyết sai khác nhóm máu</label>
+              <FormField id="blood-type-override-reason" label="Lý do và kết quả đối chiếu" error={errors.bloodTypeOverrideReason}>
+                <Input id="blood-type-override-reason" value={bloodTypeOverrideReason} onChange={(e) => setBloodTypeOverrideReason(e.target.value)} />
+              </FormField>
+            </div>
+          )}
+
           <div style={{ marginTop: '12px' }}>
             <FormField id="edit-bag-storage" label="Vị trí lưu kho lạnh (tùy chọn)">
               <Input
@@ -699,7 +739,7 @@ function EditBloodBagModal({
             </FormField>
           </div>
 
-          <label
+          {status === 'ACCEPTED' && <label
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -717,8 +757,8 @@ function EditBloodBagModal({
               onChange={(e) => setSyncDonorProfile(e.target.checked)}
               style={{ width: '16px', height: '16px' }}
             />
-            <span>Đồng bộ vĩnh viễn vào Hồ sơ người hiến & Gửi thông báo kết quả cho người hiến</span>
-          </label>
+            <span>Cập nhật nhóm máu hồ sơ người hiến và gửi thông báo kết quả</span>
+          </label>}
         </div>
 
         <FormField id="edit-bag-notes" label="Ghi chú">
@@ -1506,6 +1546,9 @@ export function BloodBagsPage() {
                                 : 'Nhóm máu: Chưa rõ'}
                             </span>
                           </h3>
+                          {item.registration.donorBloodType && (
+                            <span>Hồ sơ tham chiếu: {formatBloodTypeDisplay(item.registration.donorBloodType)}</span>
+                          )}
                           <div className="ready-donor-card__tags">
                             <span>Mã: <strong>{item.registration.code}</strong></span>
                             <span>·</span>
@@ -1746,8 +1789,6 @@ export function NewBloodBagPage() {
   const [selectedScreeningId, setSelectedScreeningId] = useState('');
   const [customDonorName, setCustomDonorName] = useState('');
   const [volume, setVolume] = useState('350');
-  const [bloodGroup, setBloodGroup] = useState<string>('');
-  const [rh, setRh] = useState<'POSITIVE' | 'NEGATIVE' | ''>('');
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<FieldErrors>({});
   const [created, setCreated] = useState<BloodBag | null>(null);
@@ -1776,12 +1817,6 @@ export function NewBloodBagPage() {
       setCustomDonorName(eligibleMatch.registration.donorName);
       if (eligibleMatch.screening.indicatedVolumeMl) {
         setVolume(String(eligibleMatch.screening.indicatedVolumeMl));
-      }
-      if (eligibleMatch.screening.bloodGroup) {
-        setBloodGroup(eligibleMatch.screening.bloodGroup);
-      }
-      if (eligibleMatch.screening.rh) {
-        setRh(eligibleMatch.screening.rh);
       }
       return;
     }
@@ -1812,8 +1847,7 @@ export function NewBloodBagPage() {
     const input = {
       code: code.trim(),
       volumeMl: volNum,
-      bloodGroup: bloodGroup || null,
-      bloodType: toBackendBloodType(bloodGroup, rh),
+      bloodGroup: null,
       screeningId: selectedScreeningId || undefined,
       registrationId: selectedRegistrationId || undefined,
       donorName,
@@ -1878,8 +1912,6 @@ export function NewBloodBagPage() {
                 setSelectedRegistrationId('');
                 setCustomDonorName('');
                 setVolume('350');
-                setBloodGroup('');
-                setRh('');
                 setNotes('');
                 setErrors({});
               }}
@@ -2009,35 +2041,14 @@ export function NewBloodBagPage() {
                 </div>
               </FormField>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
-                <FormField id="blood-group" label="Nhóm máu (ABO)">
-                  <select
-                    className="input"
-                    id="blood-group"
-                    value={bloodGroup}
-                    onChange={(e) => setBloodGroup(e.target.value)}
-                  >
-                    <option value="">-- Chưa rõ / Chưa xác định --</option>
-                    <option value="A">Nhóm A</option>
-                    <option value="B">Nhóm B</option>
-                    <option value="AB">Nhóm AB</option>
-                    <option value="O">Nhóm O</option>
-                  </select>
-                </FormField>
-
-                <FormField id="blood-rh" label="Yếu tố Rh">
-                  <select
-                    className="input"
-                    id="blood-rh"
-                    value={rh}
-                    onChange={(e) => setRh(e.target.value as 'POSITIVE' | 'NEGATIVE' | '')}
-                  >
-                    <option value="">-- Chưa rõ / Chưa xác định --</option>
-                    <option value="POSITIVE">Rh Dương (+)</option>
-                    <option value="NEGATIVE">Rh Âm (−)</option>
-                  </select>
-                </FormField>
-              </div>
+              {(() => {
+                const selected = (eligibleQueue.data ?? []).find((entry) => entry.registration.id === selectedRegistrationId);
+                return selected ? <p>
+                  Sàng lọc đợt này: {formatBloodTypeDisplay(null, selected.screening.bloodGroup, selected.screening.rh)}.
+                  {' '}Hồ sơ tham chiếu: {selected.registration.donorBloodType ? formatBloodTypeDisplay(selected.registration.donorBloodType) : 'Chưa có'}.
+                  {' '}Nhóm máu túi sẽ được xác nhận ở bước xét nghiệm Lab.
+                </p> : null;
+              })()}
 
               <FormField id="bag-notes" label="Ghi chú (tùy chọn)">
                 <Input

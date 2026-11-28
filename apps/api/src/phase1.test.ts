@@ -236,6 +236,8 @@ test('role-permission mapping is complete, valid and distinct', () => {
     'certificate.revoke',
     'report.read',
     'report.export',
+    'backup.read',
+    'backup.manage',
   ] as const) {
     assert.equal(
       has('SYSTEM_ADMIN', owned),
@@ -278,6 +280,8 @@ test('sensitive permissions are owned by exactly the right operational role', ()
   assert.deepEqual(rolesWith('campaign_staff.assign'), ['COORDINATOR']);
   assert.deepEqual(rolesWith('user.manage'), ['SYSTEM_ADMIN']);
   assert.deepEqual(rolesWith('role.manage'), ['SYSTEM_ADMIN']);
+  assert.deepEqual(rolesWith('backup.read'), ['SYSTEM_ADMIN']);
+  assert.deepEqual(rolesWith('backup.manage'), ['SYSTEM_ADMIN']);
 
   // Every mutating duty is owned by exactly one role — COORDINATOR and
   // SYSTEM_ADMIN are never merged, and no two roles share a write action.
@@ -314,6 +318,7 @@ test('sensitive permissions are owned by exactly the right operational role', ()
     'role.manage',
     'permission.manage',
     'setting.manage',
+    'backup.manage',
   ];
   for (const permission of duties) {
     const owners = rolesWith(permission);

@@ -15,16 +15,16 @@ export const notificationRepository = {
   markFailed: (id: string) =>
     database.notification.update({ where: { id }, data: { status: 'FAILED' } }),
 
-  listByUser: (userId: string, skip: number, take: number) =>
-    Promise.all([
-      database.notification.findMany({
+  listByUser: async (userId: string, skip: number, take: number) => {
+    const items = await database.notification.findMany({
         where: { userId },
         orderBy: { createdAt: 'desc' },
         skip,
         take,
-      }),
-      database.notification.count({ where: { userId } }),
-    ]),
+      });
+    const total = await database.notification.count({ where: { userId } });
+    return [items, total] as const;
+  },
 
   markRead: (id: string, userId: string) =>
     database.notification.updateMany({

@@ -200,6 +200,89 @@ export interface AdminOverviewData {
   recentActivities: AdminRecentActivity[];
 }
 
+export interface BackupSummaryCounts {
+  users: number;
+  donors: number;
+  campaigns: number;
+  registrations: number;
+  donations: number;
+  bloodBags: number;
+  certificates: number;
+  auditLogs: number;
+}
+
+export interface BackupSummary {
+  counts: BackupSummaryCounts;
+  lastBackupAt: string | null;
+  lastBackupBy: string | null;
+  lastBackupMetadata: Record<string, unknown> | null;
+  lastRestoreAt: string | null;
+  lastRestoreBy: string | null;
+}
+
+export interface BackupHistoryEntry {
+  id: string;
+  action: string;
+  createdAt: string;
+  actorId: string | null;
+  actorEmail: string | null;
+  actorName?: string | null;
+  ipAddress: string | null;
+  userAgent?: string | null;
+  metadata: Record<string, unknown> | null;
+}
+
+export interface BackupExportOptions {
+  includeCredentials: boolean;
+  note?: string;
+}
+
+export interface BackupSnapshotFile {
+  format: string;
+  version: number;
+  createdAt: string;
+  includeCredentials: boolean;
+  restorable: boolean;
+  checksumSha256: string;
+  counts: Record<string, number>;
+  totalRecords: number;
+  tables: Record<string, unknown[]>;
+}
+
+export interface BackupExportResult {
+  filename: string;
+  snapshot: BackupSnapshotFile;
+}
+
+export interface BackupInspectResult {
+  valid: boolean;
+  format: string;
+  version: number;
+  createdAt: string;
+  includeCredentials: boolean;
+  restorable: boolean;
+  checksumSha256: string;
+  counts: Record<string, number>;
+  totalRecords: number;
+}
+
+export interface BackupRestoreResult {
+  restored: boolean;
+  restoredFromCreatedAt: string;
+  checksumSha256: string;
+  totalRecords: number;
+  counts: Record<string, number>;
+}
+
+export interface BackupRestoreOperation {
+  id: string;
+  status: 'running' | 'succeeded' | 'failed';
+  startedAt: string;
+  finishedAt: string | null;
+  result: BackupRestoreResult | null;
+  error: string | null;
+}
+
 export interface AdminRepository {
   overview(): Promise<AdminOverviewData>;
   users(query: AdminUserQuery): Promise<Page<AdminUser>>;
@@ -212,4 +295,14 @@ export interface AdminRepository {
   updateSetting(key: string, input: SettingUpdate): Promise<SystemSetting>;
   donationReport(query: DonationReportQuery): Promise<DonationReport>;
   exportDonationReport(query: DonationReportQuery): Promise<ReportExport>;
+  backupSummary(): Promise<BackupSummary>;
+  backupHistory(page: number, limit: number): Promise<Page<BackupHistoryEntry>>;
+  exportBackup(options: BackupExportOptions): Promise<BackupExportResult>;
+  inspectBackup(snapshot: unknown): Promise<BackupInspectResult>;
+  restoreBackup(
+    snapshot: unknown,
+    operationId: string,
+    filename?: string | null,
+  ): Promise<BackupRestoreOperation>;
+  restoreStatus(id: string): Promise<BackupRestoreOperation>;
 }

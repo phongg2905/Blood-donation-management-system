@@ -324,10 +324,12 @@ test('HTTP workflow persists slots, enforces ownership/duties, and completes col
   await request('collection', 'PATCH', `/blood-bags/${bag.id}`, {
     status: 'TESTED',
     bloodType: 'O_POSITIVE',
+    confirmBloodTypeResult: true,
   });
   await request('collection', 'PATCH', `/blood-bags/${bag.id}`, {
     status: 'ACCEPTED',
     volumeMl: 340,
+    confirmBloodTypeResult: true,
   });
   await request(
     'collection',
